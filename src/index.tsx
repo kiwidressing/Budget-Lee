@@ -611,6 +611,108 @@ app.get('/api/budgets/vs-spending/:yearMonth', async (c) => {
   return c.json({ success: true, data: result.results })
 })
 
+// -----------------------------------------------------------------------------
+// 그룹 7: 투자 관리 API (6개)
+// -----------------------------------------------------------------------------
+
+// 7.1 투자 목록 조회
+app.get('/api/investments', async (c) => {
+  const { DB } = c.env
+  
+  const result = await DB.prepare(`
+    SELECT * FROM investments 
+    ORDER BY created_at DESC
+  `).all()
+  
+  return c.json({ success: true, data: result.results })
+})
+
+// 7.2 투자 생성
+app.post('/api/investments', async (c) => {
+  const { DB } = c.env
+  const { symbol, name, quantity, purchase_price, purchase_date, notes } = await c.req.json()
+  
+  if (!symbol || !name || !quantity || !purchase_price || !purchase_date) {
+    return c.json({ success: false, error: '필수 항목을 입력해주세요.' }, 400)
+  }
+  
+  const result = await DB.prepare(`
+    INSERT INTO investments (symbol, name, quantity, purchase_price, purchase_date, notes)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(symbol.toUpperCase(), name, quantity, purchase_price, purchase_date, notes || null).run()
+  
+  return c.json({ success: true, id: result.meta.last_row_id })
+})
+
+// 7.3 투자 수정
+app.put('/api/investments/:id', async (c) => {
+  const { DB } = c.env
+  const id = c.req.param('id')
+  const { symbol, name, quantity, purchase_price, purchase_date, notes } = await c.req.json()
+  
+  await DB.prepare(`
+    UPDATE investments 
+    SET symbol = ?, name = ?, quantity = ?, purchase_price = ?, purchase_date = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).bind(symbol.toUpperCase(), name, quantity, purchase_price, purchase_date, notes || null, id).run()
+  
+  return c.json({ success: true })
+})
+
+// 7.4 투자 삭제
+app.delete('/api/investments/:id', async (c) => {
+  const { DB } = c.env
+  const id = c.req.param('id')
+  
+  await DB.prepare(`DELETE FROM investments WHERE id = ?`).bind(id).run()
+  
+  return c.json({ success: true })
+})
+
+// 7.5 실시간 주가 조회 (외부 API 프록시)
+app.get('/api/investments/price/:symbol', async (c) => {
+  const symbol = c.req.param('symbol')
+  
+  try {
+    // Yahoo Finance API 사용 (무료)
+    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`)
+    const data = await response.json() as any
+    
+    if (data.chart?.result?.[0]?.meta) {
+      const meta = data.chart.result[0].meta
+      return c.json({
+        success: true,
+        data: {
+          symbol: symbol,
+          price: meta.regularMarketPrice || 0,
+          previousClose: meta.previousClose || 0,
+          change: (meta.regularMarketPrice - meta.previousClose) || 0,
+          changePercent: ((meta.regularMarketPrice - meta.previousClose) / meta.previousClose * 100) || 0,
+          currency: meta.currency || 'USD'
+        }
+      })
+    }
+    
+    return c.json({ success: false, error: '주가 정보를 가져올 수 없습니다.' }, 404)
+  } catch (error) {
+    return c.json({ success: false, error: '주가 조회 중 오류가 발생했습니다.' }, 500)
+  }
+})
+
+// 7.6 투자 거래 내역 조회
+app.get('/api/investments/:id/transactions', async (c) => {
+  const { DB } = c.env
+  const id = c.req.param('id')
+  
+  const result = await DB.prepare(`
+    SELECT * FROM investment_transactions 
+    WHERE investment_id = ?
+    ORDER BY transaction_date DESC
+  `).bind(id).all()
+  
+  return c.json({ success: true, data: result.results })
+})
+
 // =============================================================================
 // 메인 페이지
 // =============================================================================
@@ -659,6 +761,12 @@ app.get('/', (c) => {
                     </button>
                     <button id="tab-budgets" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
                         <i class="fas fa-chart-pie mr-2"></i>예산
+                    </button>
+                    <button id="tab-investments" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
+                        <i class="fas fa-chart-line mr-2"></i>투자
+                    </button>
+                    <button id="tab-reports" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
+                        <i class="fas fa-chart-bar mr-2"></i>리포트
                     </button>
                     <button id="tab-settings" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
                         <i class="fas fa-cog mr-2"></i>설정

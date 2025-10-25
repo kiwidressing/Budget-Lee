@@ -6,6 +6,15 @@
 
 **로컬 개발 서버**: https://3000-ilfxg66dle2ykyvgdbe6r-c07dda5e.sandbox.novita.ai
 
+## 🆕 최신 업데이트 (Session 6)
+
+이번 세션에서 추가된 4가지 주요 기능:
+
+1. **✏️ 거래 내역 수정 기능** - 이미 입력한 거래 내역을 수정할 수 있습니다
+2. **🔍 카테고리별 검색/필터** - 거래 내역을 유형, 카테고리, 설명으로 필터링
+3. **📊 월간/연간 비교 리포트** - 카테고리별 지출을 기간별로 비교 분석
+4. **📈 투자 관리 페이지** - 주식 포트폴리오 관리 및 실시간 주가 추적
+
 ## ✨ 주요 기능
 
 ### 1. 📅 월별 뷰 (Monthly View)
@@ -40,7 +49,37 @@
 - 진행률 색상 표시 (안전/양호/주의/초과)
 - 0원 입력 시 자동 삭제
 
-### 6. ⚙️ 설정 (Settings) ⭐ **ENHANCED**
+### 6. 📈 투자 관리 (Investments) ⭐ **NEW - Session 6**
+- **포트폴리오 대시보드**: 총 투자금액, 현재 평가금액, 총 수익/손실 한눈에 확인
+- **실시간 주가 연동**: Yahoo Finance API를 통한 30초마다 자동 업데이트
+- **다중 종목 관리**: 주식 심볼, 수량, 평균 매수가 입력 및 추적
+- **수익률 계산**: 종목별 수익률(%), 평가손익 자동 계산
+- **미국/한국 주식 지원**: AAPL (미국), 005930.KS (삼성전자) 등
+- **거래 내역**: 매수/매도 기록 관리 (향후 업데이트)
+- 종목별 메모 기능
+
+### 7. 📊 월간/연간 비교 리포트 (Reports) ⭐ **NEW - Session 6**
+- **월간 비교**: 여러 달의 지출을 나란히 비교
+- **연간 비교**: 여러 해의 월별 지출 패턴 비교
+- **카테고리별 필터링**: 의복비, 식비, 주거비, 저축 등 카테고리 선택
+- **전월 대비 분석**: 증감률 자동 계산
+- **인터랙티브 차트**: Chart.js 기반 시각화
+- **커스텀 기간**: 사용자가 원하는 기간 선택 가능
+
+### 8. ✏️ 거래 내역 수정 (Transaction Edit) ⭐ **NEW - Session 6**
+- **편집 버튼**: 각 거래 내역에 수정 버튼 추가
+- **모달 폼**: 거래 유형, 카테고리, 금액, 날짜, 설명 모두 수정 가능
+- **즉시 반영**: 수정 후 현재 뷰 자동 새로고침
+- **유효성 검사**: 필수 항목 체크 및 데이터 검증
+
+### 9. 🔍 거래 검색 및 필터링 (Search & Filter) ⭐ **NEW - Session 6**
+- **검색**: 거래 설명(메모)으로 실시간 검색
+- **유형 필터**: 수입/지출/저축 선택
+- **카테고리 필터**: 모든 카테고리에서 선택
+- **복합 필터**: 검색어 + 유형 + 카테고리 동시 적용
+- **즉시 결과**: 입력/선택 즉시 필터링 적용
+
+### 10. ⚙️ 설정 (Settings) ⭐ **ENHANCED**
 - **다중 통화 지원** (KRW ₩, USD $, EUR €, JPY ¥, AUD A$, GBP £)
 - **동적 통화 변경**: 설정 변경 시 모든 화면의 통화 기호 자동 업데이트
 - **실시간 반영**: 통화 변경 후 현재 보고 있는 뷰 자동 새로고침
@@ -56,11 +95,12 @@
 - **Cloudflare D1** - 분산 SQLite 데이터베이스
 
 ### Frontend
-- **Vanilla JavaScript** - 순수 JavaScript (1,039줄)
+- **Vanilla JavaScript** - 순수 JavaScript (1,800+ 줄) ⭐ **+760줄 추가**
 - **TailwindCSS** (CDN) - 유틸리티 우선 CSS
 - **Font Awesome** - 아이콘
-- **Chart.js** - 데이터 시각화
+- **Chart.js** - 데이터 시각화 및 리포트 차트
 - **Axios** - HTTP 클라이언트
+- **Yahoo Finance API** - 실시간 주가 데이터
 
 ### Development Tools
 - **Vite** - 빌드 도구
@@ -69,7 +109,7 @@
 
 ## 📊 데이터베이스 설계
 
-### 6개 테이블 구조
+### 8개 테이블 구조 ⭐ **+2 NEW**
 
 1. **settings** - 앱 전역 설정
 2. **savings_accounts** - 저축 통장
@@ -77,6 +117,8 @@
 4. **fixed_expenses** - 고정지출 스케줄
 5. **fixed_expense_payments** - 고정지출 지불 기록
 6. **category_budgets** - 카테고리별 예산
+7. **investments** - 투자 종목 (주식) ⭐ **NEW**
+8. **investment_transactions** - 투자 거래 내역 (매수/매도) ⭐ **NEW**
 
 ## 🚀 빠른 시작
 
@@ -171,15 +213,18 @@ npm run deploy:prod
 ```
 webapp/
 ├── src/
-│   └── index.tsx              # Hono 백엔드 API (653줄, 25개 엔드포인트)
+│   └── index.tsx              # Hono 백엔드 API (950+ 줄, 31개 엔드포인트) ⭐ **+300줄**
 ├── public/
+│   ├── manifest.json          # PWA 매니페스트
+│   ├── sw.js                  # Service Worker
 │   └── static/
-│       ├── app.js             # 프론트엔드 JavaScript (1,039줄)
+│       ├── app.js             # 프론트엔드 JavaScript (1,800+ 줄) ⭐ **+760줄**
 │       └── style.css          # 커스텀 CSS
 ├── migrations/
 │   ├── 0001_initial_schema.sql
 │   ├── 0002_add_settings.sql
-│   └── 0003_add_fixed_expenses_and_budgets.sql
+│   ├── 0003_add_fixed_expenses_and_budgets.sql
+│   └── 0004_add_investments.sql  ⭐ **NEW**
 ├── ecosystem.config.cjs       # PM2 설정
 ├── wrangler.jsonc             # Cloudflare 설정
 ├── package.json
@@ -187,7 +232,7 @@ webapp/
 └── README.md
 ```
 
-## 🔌 API 엔드포인트 (25개) ⭐ **+1 NEW**
+## 🔌 API 엔드포인트 (31개) ⭐ **+6 NEW**
 
 ### 저축 통장 (3개)
 - `GET /api/savings-accounts` - 목록 조회
@@ -198,7 +243,7 @@ webapp/
 - `GET /api/transactions` - 조회 (날짜 범위)
 - `GET /api/transactions/date/:date` - 특정 날짜 조회
 - `POST /api/transactions` - 생성
-- `PUT /api/transactions/:id` - 수정
+- `PUT /api/transactions/:id` - 수정 ⭐ **기존 API 활용**
 - `DELETE /api/transactions/:id` - 삭제
 
 ### 통계 (3개)
@@ -210,9 +255,9 @@ webapp/
 - `GET /api/settings` - 조회
 - `PUT /api/settings` - 수정
 
-### 고정지출 (6개) ⭐ **+1 NEW**
+### 고정지출 (6개)
 - `GET /api/fixed-expenses` - 목록 조회
-- `GET /api/fixed-expenses/instances/:yearMonth` - 반복 인스턴스 조회 (NEW)
+- `GET /api/fixed-expenses/instances/:yearMonth` - 반복 인스턴스 조회
 - `POST /api/fixed-expenses` - 생성
 - `DELETE /api/fixed-expenses/:id` - 삭제
 - `POST /api/fixed-expenses/:id/pay` - 지불 처리
@@ -223,6 +268,14 @@ webapp/
 - `PUT /api/budgets/:category` - 설정/수정 (UPSERT)
 - `DELETE /api/budgets/:category` - 삭제
 - `GET /api/budgets/vs-spending/:yearMonth` - 예산 vs 지출 현황
+
+### 투자 (6개) ⭐ **NEW - Session 6**
+- `GET /api/investments` - 보유 종목 목록
+- `POST /api/investments` - 새 종목 추가
+- `PUT /api/investments/:id` - 종목 정보 수정
+- `DELETE /api/investments/:id` - 종목 삭제
+- `GET /api/investments/price/:symbol` - 실시간 주가 조회 (Yahoo Finance API)
+- `GET /api/investments/:id/transactions` - 종목별 거래 내역 (향후 구현 예정)
 
 ## 💡 핵심 알고리즘
 
@@ -311,27 +364,49 @@ MIT License
 
 ## 🎉 완료된 기능
 
+### 세션 1-5 (기본 기능)
 - ✅ 월별/주별 뷰
 - ✅ 거래 내역 관리 (수입/지출/저축)
 - ✅ 저축 통장 다중 관리
 - ✅ 고정지출 스케줄 관리
-- ✅ **고정지출 반복 인스턴스 자동 생성** (주별 → 월 4-5개, 월별 → 월 1개) ⭐ NEW
-- ✅ **고정지출 월별 네비게이션** (이전/다음 달 이동) ⭐ NEW
+- ✅ 고정지출 반복 인스턴스 자동 생성 (주별 → 월 4-5개, 월별 → 월 1개)
+- ✅ 고정지출 월별 네비게이션 (이전/다음 달 이동)
 - ✅ 카테고리별 예산 관리
 - ✅ 다중 통화 지원 (6개 통화)
-- ✅ **동적 통화 변경 및 실시간 UI 업데이트** ⭐ NEW
+- ✅ 동적 통화 변경 및 실시간 UI 업데이트
 - ✅ 달력 인터페이스 (토요일 파란색, 일요일 빨간색)
 - ✅ 실시간 통계 대시보드
 - ✅ 예산 vs 지출 진행률 바 (색상 코딩)
+- ✅ PWA 지원 (설치 가능한 웹 앱)
+
+### 세션 6 (신규 기능) ⭐ **NEW**
+- ✅ **거래 내역 수정 기능** - 편집 버튼으로 기존 거래 수정
+- ✅ **카테고리별 검색/필터** - 유형, 카테고리, 설명으로 거래 필터링
+- ✅ **월간/연간 비교 리포트** - 기간별 지출 비교 및 차트 시각화
+- ✅ **투자 관리 페이지** - 주식 포트폴리오 및 실시간 주가 추적
+- ✅ **실시간 주가 업데이트** - 30초마다 자동 갱신
+- ✅ **수익률 계산** - 평가손익 및 수익률 자동 계산
+- ✅ **리포트 차트** - 월별/연간 지출 트렌드 시각화
 
 ## 🚧 향후 계획
 
-- [ ] 차트 시각화 개선
+### 단기 (Next Sprint)
+- [ ] 투자 거래 내역 (매수/매도) 완전 구현
+- [ ] 투자 포트폴리오 차트 (파이 차트)
+- [ ] 카테고리별 예산 vs 실제 비교 리포트 확장
 - [ ] 데이터 내보내기 (CSV/JSON)
-- [ ] 모바일 앱 (PWA)
-- [ ] 다중 사용자 지원
+
+### 중기 (Future Releases)
+- [ ] 차트 시각화 개선 (더 많은 차트 유형)
+- [ ] 다중 사용자 지원 (인증 시스템)
+- [ ] 알림 기능 (예산 초과, 고정지출 알림)
+- [ ] 영수증 사진 첨부
+
+### 장기 (Vision)
 - [ ] AI 기반 지출 예측
 - [ ] 영수증 OCR 스캔
+- [ ] 자동 카테고리 분류 (머신러닝)
+- [ ] 다국어 지원
 
 ---
 

@@ -13,6 +13,7 @@ const state = {
   savingsAccounts: [],
   fixedExpenses: [],
   budgets: [],
+  investments: [],
   settings: {
     currency: 'KRW',
     initial_balance: 0,
@@ -25,7 +26,8 @@ const state = {
   },
   activeView: 'month',
   expenseChart: null,
-  currentTransactionType: 'income'
+  currentTransactionType: 'income',
+  investmentPriceRefreshInterval: null
 };
 
 // =============================================================================
@@ -264,7 +266,7 @@ async function switchView(view) {
   state.activeView = view;
   
   // 모든 탭 버튼 업데이트
-  const tabs = ['month', 'week', 'savings', 'fixed-expenses', 'budgets', 'settings'];
+  const tabs = ['month', 'week', 'savings', 'fixed-expenses', 'budgets', 'investments', 'reports', 'settings'];
   tabs.forEach(tabName => {
     const tab = document.getElementById(`tab-${tabName}`);
     if (tab) {
@@ -292,6 +294,12 @@ async function switchView(view) {
       break;
     case 'budgets':
       await renderBudgetsView();
+      break;
+    case 'investments':
+      await renderInvestmentsView();
+      break;
+    case 'reports':
+      await renderReportsView();
       break;
     case 'settings':
       await renderSettingsView();
@@ -395,7 +403,30 @@ async function renderMonthView() {
             <i class="fas fa-plus mr-2"></i>거래 추가
           </button>
         </div>
-        ${renderTransactionList(state.transactions)}
+        
+        <!-- 검색 및 필터 -->
+        <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input type="text" id="search-transaction" 
+                 placeholder="설명으로 검색..." 
+                 class="px-4 py-2 border rounded"
+                 oninput="filterTransactions()">
+          
+          <select id="filter-type" class="px-4 py-2 border rounded" onchange="filterTransactions()">
+            <option value="">전체 유형</option>
+            <option value="income">수입</option>
+            <option value="expense">지출</option>
+            <option value="savings">저축</option>
+          </select>
+          
+          <select id="filter-category" class="px-4 py-2 border rounded" onchange="filterTransactions()">
+            <option value="">전체 카테고리</option>
+            ${Object.values(categories).flat().map(cat => `<option value="${cat}">${cat}</option>`).join('')}
+          </select>
+        </div>
+        
+        <div id="filtered-transactions">
+          ${renderTransactionList(state.transactions)}
+        </div>
       </div>
     </div>
   `;
@@ -619,6 +650,9 @@ function renderTransactionList(transactions) {
         </div>
         <div class="flex items-center gap-3">
           <span class="font-bold text-${typeColor}-600">${t.type === 'income' ? '+' : '-'}${formatCurrency(t.amount)}</span>
+          <button onclick="openEditTransactionModal(${t.id})" class="text-blue-500 hover:text-blue-700">
+            <i class="fas fa-edit"></i>
+          </button>
           <button onclick="deleteTransaction(${t.id})" class="text-red-500 hover:text-red-700">
             <i class="fas fa-trash"></i>
           </button>
@@ -628,6 +662,38 @@ function renderTransactionList(transactions) {
   });
   html += '</div>';
   return html;
+}
+
+// 거래 내역 필터링
+function filterTransactions() {
+  const searchText = document.getElementById('search-transaction')?.value.toLowerCase() || '';
+  const filterType = document.getElementById('filter-type')?.value || '';
+  const filterCategory = document.getElementById('filter-category')?.value || '';
+  
+  let filtered = state.transactions.filter(t => {
+    // 검색어 필터
+    if (searchText && !(t.description || '').toLowerCase().includes(searchText)) {
+      return false;
+    }
+    
+    // 거래 유형 필터
+    if (filterType && t.type !== filterType) {
+      return false;
+    }
+    
+    // 카테고리 필터
+    if (filterCategory && t.category !== filterCategory) {
+      return false;
+    }
+    
+    return true;
+  });
+  
+  // 필터링된 결과 렌더링
+  const filteredContainer = document.getElementById('filtered-transactions');
+  if (filteredContainer) {
+    filteredContainer.innerHTML = renderTransactionList(filtered);
+  }
 }
 
 // 주별 뷰 렌더링
@@ -955,6 +1021,830 @@ async function renderBudgetsView() {
       </div>
     </div>
   `;
+}
+
+// =============================================================================
+// 투자 관리 뷰 렌더링
+// =============================================================================
+
+async function renderInvestmentsView() {
+  await fetchInvestments();
+  
+  const contentArea = document.getElementById('content-area');
+  
+  // 전체 포트폴리오 계산
+  let totalInvestment = 0;
+  let totalCurrentValue = 0;
+  
+  contentArea.innerHTML = `
+    <div class="space-y-6">
+      <div class="flex justify-between items-center">
+        <h2 class="text-2xl font-bold">투자 관리</h2>
+        <button onclick="openInvestmentModal()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+          <i class="fas fa-plus mr-2"></i>투자 추가
+        </button>
+      </div>
+      
+      <!-- 포트폴리오 요약 -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="portfolio-summary">
+        <div class="bg-white rounded-lg shadow p-4">
+          <div class="text-gray-500 text-sm">총 투자금액</div>
+          <div class="text-2xl font-bold mt-1" id="total-investment">로딩중...</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+          <div class="text-gray-500 text-sm">현재 평가금액</div>
+          <div class="text-2xl font-bold mt-1" id="total-current-value">로딩중...</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+          <div class="text-gray-500 text-sm">총 수익/손실</div>
+          <div class="text-2xl font-bold mt-1" id="total-profit-loss">로딩중...</div>
+        </div>
+      </div>
+      
+      <!-- 보유 종목 리스트 -->
+      <div class="bg-white rounded-lg shadow">
+        <div class="p-4 border-b">
+          <h3 class="text-lg font-bold">보유 종목</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">종목</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">수량</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">평균매수가</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">현재가</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">평가금액</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">수익률</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">손익</th>
+                <th class="px-4 py-3 text-center text-sm font-medium text-gray-700">관리</th>
+              </tr>
+            </thead>
+            <tbody id="investments-list">
+              <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">로딩중...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // 실시간 주가 업데이트 시작
+  await updateInvestmentPrices();
+  startInvestmentPriceRefresh();
+}
+
+async function fetchInvestments() {
+  try {
+    const response = await axios.get('/api/investments');
+    if (response.data.success) {
+      state.investments = response.data.data || [];
+    }
+  } catch (error) {
+    console.error('Failed to fetch investments:', error);
+    state.investments = [];
+  }
+}
+
+async function updateInvestmentPrices() {
+  const investmentsList = document.getElementById('investments-list');
+  const totalInvestmentEl = document.getElementById('total-investment');
+  const totalCurrentValueEl = document.getElementById('total-current-value');
+  const totalProfitLossEl = document.getElementById('total-profit-loss');
+  
+  if (!investmentsList || state.investments.length === 0) {
+    if (investmentsList) {
+      investmentsList.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">보유 종목이 없습니다.</td></tr>';
+    }
+    return;
+  }
+  
+  let totalInvestment = 0;
+  let totalCurrentValue = 0;
+  
+  let rowsHTML = '';
+  
+  for (const inv of state.investments) {
+    try {
+      const priceResponse = await axios.get(`/api/investments/price/${inv.symbol}`);
+      
+      if (priceResponse.data.success) {
+        const priceData = priceResponse.data.data;
+        const currentPrice = priceData.price;
+        const purchaseValue = inv.purchase_price * inv.quantity;
+        const currentValue = currentPrice * inv.quantity;
+        const profitLoss = currentValue - purchaseValue;
+        const profitLossPercent = (profitLoss / purchaseValue * 100).toFixed(2);
+        
+        totalInvestment += purchaseValue;
+        totalCurrentValue += currentValue;
+        
+        const profitClass = profitLoss >= 0 ? 'text-red-600' : 'text-blue-600';
+        const profitSign = profitLoss >= 0 ? '+' : '';
+        
+        rowsHTML += `
+          <tr class="border-t hover:bg-gray-50">
+            <td class="px-4 py-3">
+              <div class="font-medium">${inv.name}</div>
+              <div class="text-sm text-gray-500">${inv.symbol}</div>
+            </td>
+            <td class="px-4 py-3 text-right">${inv.quantity.toLocaleString()}주</td>
+            <td class="px-4 py-3 text-right">${formatCurrency(inv.purchase_price)}</td>
+            <td class="px-4 py-3 text-right">
+              <div>${formatCurrency(currentPrice)}</div>
+              <div class="text-sm ${priceData.change >= 0 ? 'text-red-600' : 'text-blue-600'}">
+                ${priceData.change >= 0 ? '▲' : '▼'} ${Math.abs(priceData.changePercent).toFixed(2)}%
+              </div>
+            </td>
+            <td class="px-4 py-3 text-right font-medium">${formatCurrency(currentValue)}</td>
+            <td class="px-4 py-3 text-right ${profitClass} font-medium">${profitSign}${profitLossPercent}%</td>
+            <td class="px-4 py-3 text-right ${profitClass} font-medium">${profitSign}${formatCurrency(Math.abs(profitLoss))}</td>
+            <td class="px-4 py-3 text-center">
+              <button onclick="editInvestment(${inv.id})" class="text-blue-600 hover:text-blue-800 mr-2">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button onclick="deleteInvestment(${inv.id})" class="text-red-600 hover:text-red-800">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }
+    } catch (error) {
+      console.error(`Failed to fetch price for ${inv.symbol}:`, error);
+      rowsHTML += `
+        <tr class="border-t hover:bg-gray-50">
+          <td class="px-4 py-3">
+            <div class="font-medium">${inv.name}</div>
+            <div class="text-sm text-gray-500">${inv.symbol}</div>
+          </td>
+          <td colspan="7" class="px-4 py-3 text-center text-red-500">주가 정보를 불러올 수 없습니다.</td>
+        </tr>
+      `;
+    }
+  }
+  
+  investmentsList.innerHTML = rowsHTML || '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">보유 종목이 없습니다.</td></tr>';
+  
+  // 포트폴리오 요약 업데이트
+  const totalProfitLoss = totalCurrentValue - totalInvestment;
+  const totalProfitLossPercent = totalInvestment > 0 ? ((totalProfitLoss / totalInvestment) * 100).toFixed(2) : 0;
+  const profitClass = totalProfitLoss >= 0 ? 'text-red-600' : 'text-blue-600';
+  const profitSign = totalProfitLoss >= 0 ? '+' : '';
+  
+  if (totalInvestmentEl) totalInvestmentEl.textContent = formatCurrency(totalInvestment);
+  if (totalCurrentValueEl) totalCurrentValueEl.textContent = formatCurrency(totalCurrentValue);
+  if (totalProfitLossEl) {
+    totalProfitLossEl.innerHTML = `
+      <span class="${profitClass}">${profitSign}${formatCurrency(Math.abs(totalProfitLoss))}</span>
+      <span class="text-sm ${profitClass}"> (${profitSign}${totalProfitLossPercent}%)</span>
+    `;
+  }
+}
+
+function startInvestmentPriceRefresh() {
+  // 기존 인터벌 제거
+  if (state.investmentPriceRefreshInterval) {
+    clearInterval(state.investmentPriceRefreshInterval);
+  }
+  
+  // 30초마다 주가 업데이트
+  state.investmentPriceRefreshInterval = setInterval(() => {
+    if (state.activeView === 'investments') {
+      updateInvestmentPrices();
+    }
+  }, 30000);
+}
+
+async function openInvestmentModal(investmentId = null) {
+  const modalContainer = document.getElementById('modal-container');
+  const isEdit = investmentId !== null;
+  
+  let investment = null;
+  if (isEdit) {
+    investment = state.investments.find(inv => inv.id === investmentId);
+    if (!investment) {
+      alert('투자 정보를 찾을 수 없습니다.');
+      return;
+    }
+  }
+  
+  modalContainer.innerHTML = `
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
+      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold">${isEdit ? '투자 수정' : '투자 추가'}</h3>
+          <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <form onsubmit="handleInvestmentSubmit(event, ${investmentId})" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-2">주식 심볼</label>
+            <input type="text" name="symbol" value="${investment?.symbol || ''}" 
+                   placeholder="예: AAPL, TSLA" required
+                   class="w-full px-4 py-2 border rounded">
+            <p class="text-xs text-gray-500 mt-1">미국 주식: AAPL, 한국 주식: 005930.KS</p>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">회사 이름</label>
+            <input type="text" name="name" value="${investment?.name || ''}" 
+                   placeholder="예: Apple Inc." required
+                   class="w-full px-4 py-2 border rounded">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">보유 수량</label>
+            <input type="number" name="quantity" value="${investment?.quantity || ''}" 
+                   placeholder="보유 주식 수" required min="1"
+                   class="w-full px-4 py-2 border rounded">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">평균 매수가</label>
+            <input type="number" name="purchase_price" value="${investment?.purchase_price || ''}" 
+                   placeholder="주당 매수 가격" required min="0" step="0.01"
+                   class="w-full px-4 py-2 border rounded">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">매수일</label>
+            <input type="date" name="purchase_date" 
+                   value="${investment?.purchase_date || getDateString(new Date())}" 
+                   required class="w-full px-4 py-2 border rounded">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">메모 (선택)</label>
+            <textarea name="notes" rows="2" 
+                      class="w-full px-4 py-2 border rounded">${investment?.notes || ''}</textarea>
+          </div>
+          
+          <div class="flex gap-2 pt-4">
+            <button type="submit" class="flex-1 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+              ${isEdit ? '수정' : '추가'}
+            </button>
+            <button type="button" onclick="closeModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">
+              취소
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+async function handleInvestmentSubmit(event, investmentId = null) {
+  event.preventDefault();
+  
+  const formData = new FormData(event.target);
+  const data = {
+    symbol: formData.get('symbol').toUpperCase().trim(),
+    name: formData.get('name').trim(),
+    quantity: parseInt(formData.get('quantity')),
+    purchase_price: parseFloat(formData.get('purchase_price')),
+    purchase_date: formData.get('purchase_date'),
+    notes: formData.get('notes')?.trim() || null
+  };
+  
+  try {
+    if (investmentId) {
+      // 수정
+      await axios.put(`/api/investments/${investmentId}`, data);
+    } else {
+      // 추가
+      await axios.post('/api/investments', data);
+    }
+    
+    closeModal();
+    await renderInvestmentsView();
+  } catch (error) {
+    alert('투자 정보 저장 중 오류가 발생했습니다.');
+    console.error(error);
+  }
+}
+
+async function editInvestment(id) {
+  await openInvestmentModal(id);
+}
+
+async function deleteInvestment(id) {
+  if (!confirm('이 투자를 삭제하시겠습니까?')) return;
+  
+  try {
+    await axios.delete(`/api/investments/${id}`);
+    await renderInvestmentsView();
+  } catch (error) {
+    alert('투자 삭제 중 오류가 발생했습니다.');
+    console.error(error);
+  }
+}
+
+// =============================================================================
+// 거래 내역 수정 기능
+// =============================================================================
+
+async function openEditTransactionModal(transactionId) {
+  // 거래 정보 가져오기
+  const transaction = state.transactions.find(t => t.id === transactionId);
+  if (!transaction) {
+    alert('거래 정보를 찾을 수 없습니다.');
+    return;
+  }
+  
+  await fetchSavingsAccounts();
+  
+  const modalContainer = document.getElementById('modal-container');
+  
+  modalContainer.innerHTML = `
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
+      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold">거래 수정</h3>
+          <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <form onsubmit="handleEditTransactionSubmit(event, ${transactionId})" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-2">거래 유형</label>
+            <div class="flex gap-2">
+              <button type="button" onclick="setEditTransactionType('income', ${transactionId})" 
+                      class="flex-1 py-2 rounded border ${transaction.type === 'income' ? 'bg-blue-500 text-white' : 'bg-gray-100'}"
+                      id="edit-type-income-${transactionId}">
+                수입
+              </button>
+              <button type="button" onclick="setEditTransactionType('expense', ${transactionId})" 
+                      class="flex-1 py-2 rounded border ${transaction.type === 'expense' ? 'bg-red-500 text-white' : 'bg-gray-100'}"
+                      id="edit-type-expense-${transactionId}">
+                지출
+              </button>
+              <button type="button" onclick="setEditTransactionType('savings', ${transactionId})" 
+                      class="flex-1 py-2 rounded border ${transaction.type === 'savings' ? 'bg-green-500 text-white' : 'bg-gray-100'}"
+                      id="edit-type-savings-${transactionId}">
+                저축
+              </button>
+            </div>
+            <input type="hidden" name="type" value="${transaction.type}" id="edit-transaction-type-${transactionId}">
+          </div>
+          
+          <div id="edit-savings-account-select-${transactionId}" style="display: ${transaction.type === 'savings' ? 'block' : 'none'}">
+            <label class="block text-sm font-medium mb-2">저축 통장</label>
+            <select name="savings_account_id" class="w-full px-4 py-2 border rounded">
+              <option value="">선택하세요</option>
+              ${state.savingsAccounts.map(acc => 
+                `<option value="${acc.id}" ${acc.id === transaction.savings_account_id ? 'selected' : ''}>${acc.name}</option>`
+              ).join('')}
+            </select>
+          </div>
+          
+          <div id="edit-category-select-${transactionId}">
+            <label class="block text-sm font-medium mb-2">카테고리</label>
+            <select name="category" required class="w-full px-4 py-2 border rounded" 
+                    id="edit-category-${transactionId}">
+              ${(categories[transaction.type] || []).map(cat => 
+                `<option value="${cat}" ${cat === transaction.category ? 'selected' : ''}>${cat}</option>`
+              ).join('')}
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">금액</label>
+            <input type="number" name="amount" value="${transaction.amount}" 
+                   required min="0" class="w-full px-4 py-2 border rounded">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">날짜</label>
+            <input type="date" name="date" value="${transaction.date}" 
+                   required class="w-full px-4 py-2 border rounded">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">설명 (선택)</label>
+            <input type="text" name="description" value="${transaction.description || ''}" 
+                   class="w-full px-4 py-2 border rounded">
+          </div>
+          
+          <div class="flex gap-2 pt-4">
+            <button type="submit" class="flex-1 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+              수정
+            </button>
+            <button type="button" onclick="closeModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">
+              취소
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function setEditTransactionType(type, transactionId) {
+  document.getElementById(`edit-transaction-type-${transactionId}`).value = type;
+  
+  // 버튼 스타일 업데이트
+  ['income', 'expense', 'savings'].forEach(t => {
+    const btn = document.getElementById(`edit-type-${t}-${transactionId}`);
+    if (t === type) {
+      btn.className = `flex-1 py-2 rounded border ${
+        t === 'income' ? 'bg-blue-500 text-white' : 
+        t === 'expense' ? 'bg-red-500 text-white' : 
+        'bg-green-500 text-white'
+      }`;
+    } else {
+      btn.className = 'flex-1 py-2 rounded border bg-gray-100';
+    }
+  });
+  
+  // 카테고리 업데이트
+  const categorySelect = document.getElementById(`edit-category-${transactionId}`);
+  categorySelect.innerHTML = (categories[type] || [])
+    .map(cat => `<option value="${cat}">${cat}</option>`)
+    .join('');
+  
+  // 저축 통장 선택 표시/숨김
+  const savingsAccountSelect = document.getElementById(`edit-savings-account-select-${transactionId}`);
+  savingsAccountSelect.style.display = type === 'savings' ? 'block' : 'none';
+}
+
+async function handleEditTransactionSubmit(event, transactionId) {
+  event.preventDefault();
+  
+  const formData = new FormData(event.target);
+  const data = {
+    type: formData.get('type'),
+    category: formData.get('category'),
+    amount: parseFloat(formData.get('amount')),
+    date: formData.get('date'),
+    description: formData.get('description') || null,
+    savings_account_id: formData.get('savings_account_id') || null
+  };
+  
+  try {
+    await axios.put(`/api/transactions/${transactionId}`, data);
+    closeModal();
+    
+    // 현재 뷰에 따라 다시 렌더링
+    switch (state.activeView) {
+      case 'month':
+        await renderMonthView();
+        break;
+      case 'week':
+        await renderWeekView();
+        break;
+      default:
+        await switchView(state.activeView);
+    }
+  } catch (error) {
+    alert('거래 수정 중 오류가 발생했습니다.');
+    console.error(error);
+  }
+}
+
+// =============================================================================
+// 월간/연간 비교 리포트 뷰
+// =============================================================================
+
+async function renderReportsView() {
+  const contentArea = document.getElementById('content-area');
+  
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  
+  contentArea.innerHTML = `
+    <div class="space-y-6">
+      <h2 class="text-2xl font-bold">지출 비교 리포트</h2>
+      
+      <!-- 리포트 유형 선택 -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex gap-4 mb-6">
+          <button onclick="renderMonthlyReport()" 
+                  class="flex-1 py-3 px-6 rounded border-2 border-blue-500 bg-blue-500 text-white font-medium hover:bg-blue-600"
+                  id="btn-monthly-report">
+            월간 비교
+          </button>
+          <button onclick="renderYearlyReport()" 
+                  class="flex-1 py-3 px-6 rounded border-2 border-gray-300 text-gray-700 font-medium hover:bg-gray-100"
+                  id="btn-yearly-report">
+            연간 비교
+          </button>
+        </div>
+        
+        <!-- 카테고리 선택 -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium mb-2">카테고리 선택</label>
+          <select id="report-category" class="w-full px-4 py-2 border rounded" onchange="refreshReport()">
+            <option value="all">전체</option>
+            ${categories.expense.map(cat => `<option value="${cat}">${cat}</option>`).join('')}
+          </select>
+        </div>
+        
+        <!-- 기간 선택 (월간 비교용) -->
+        <div id="monthly-period-selector" class="mb-6">
+          <label class="block text-sm font-medium mb-2">비교 기간</label>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-gray-600">시작 월</label>
+              <input type="month" id="start-month" 
+                     value="${currentYear}-${String(currentMonth - 2).padStart(2, '0')}" 
+                     class="w-full px-4 py-2 border rounded">
+            </div>
+            <div>
+              <label class="text-xs text-gray-600">종료 월</label>
+              <input type="month" id="end-month" 
+                     value="${currentYear}-${String(currentMonth + 1).padStart(2, '0')}" 
+                     class="w-full px-4 py-2 border rounded">
+            </div>
+          </div>
+        </div>
+        
+        <!-- 연도 선택 (연간 비교용) -->
+        <div id="yearly-period-selector" class="mb-6" style="display: none;">
+          <label class="block text-sm font-medium mb-2">비교 연도</label>
+          <div class="grid grid-cols-3 gap-4">
+            ${[0, 1, 2].map(offset => `
+              <label class="flex items-center space-x-2">
+                <input type="checkbox" value="${currentYear - offset}" 
+                       ${offset === 0 ? 'checked' : ''} 
+                       class="year-checkbox">
+                <span>${currentYear - offset}년</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+        
+        <button onclick="refreshReport()" class="w-full bg-blue-500 text-white py-3 rounded font-medium hover:bg-blue-600">
+          <i class="fas fa-sync-alt mr-2"></i>리포트 생성
+        </button>
+      </div>
+      
+      <!-- 리포트 결과 -->
+      <div id="report-results" class="bg-white rounded-lg shadow p-6">
+        <p class="text-center text-gray-500">리포트를 생성하려면 위의 버튼을 클릭하세요.</p>
+      </div>
+      
+      <!-- 차트 영역 -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <canvas id="report-chart" style="max-height: 400px;"></canvas>
+      </div>
+    </div>
+  `;
+}
+
+let currentReportType = 'monthly';
+let reportChart = null;
+
+function renderMonthlyReport() {
+  currentReportType = 'monthly';
+  document.getElementById('btn-monthly-report').className = 'flex-1 py-3 px-6 rounded border-2 border-blue-500 bg-blue-500 text-white font-medium hover:bg-blue-600';
+  document.getElementById('btn-yearly-report').className = 'flex-1 py-3 px-6 rounded border-2 border-gray-300 text-gray-700 font-medium hover:bg-gray-100';
+  document.getElementById('monthly-period-selector').style.display = 'block';
+  document.getElementById('yearly-period-selector').style.display = 'none';
+}
+
+function renderYearlyReport() {
+  currentReportType = 'yearly';
+  document.getElementById('btn-yearly-report').className = 'flex-1 py-3 px-6 rounded border-2 border-blue-500 bg-blue-500 text-white font-medium hover:bg-blue-600';
+  document.getElementById('btn-monthly-report').className = 'flex-1 py-3 px-6 rounded border-2 border-gray-300 text-gray-700 font-medium hover:bg-gray-100';
+  document.getElementById('monthly-period-selector').style.display = 'none';
+  document.getElementById('yearly-period-selector').style.display = 'block';
+}
+
+async function refreshReport() {
+  const category = document.getElementById('report-category').value;
+  const resultsDiv = document.getElementById('report-results');
+  
+  resultsDiv.innerHTML = '<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>';
+  
+  if (currentReportType === 'monthly') {
+    await generateMonthlyReport(category);
+  } else {
+    await generateYearlyReport(category);
+  }
+}
+
+async function generateMonthlyReport(category) {
+  const startMonth = document.getElementById('start-month').value;
+  const endMonth = document.getElementById('end-month').value;
+  
+  if (!startMonth || !endMonth) {
+    alert('시작 월과 종료 월을 선택해주세요.');
+    return;
+  }
+  
+  // 월 범위 생성
+  const months = [];
+  let current = new Date(startMonth + '-01');
+  const end = new Date(endMonth + '-01');
+  
+  while (current <= end) {
+    months.push(getYearMonth(current));
+    current.setMonth(current.getMonth() + 1);
+  }
+  
+  // 각 월의 데이터 가져오기
+  const monthlyData = [];
+  for (const month of months) {
+    const firstDay = `${month}-01`;
+    const lastDay = `${month}-${new Date(month.split('-')[0], month.split('-')[1], 0).getDate()}`;
+    
+    const response = await axios.get(`/api/transactions?start_date=${firstDay}&end_date=${lastDay}`);
+    const transactions = response.data.data || [];
+    
+    let total = 0;
+    if (category === 'all') {
+      total = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    } else {
+      total = transactions.filter(t => t.type === 'expense' && t.category === category).reduce((sum, t) => sum + t.amount, 0);
+    }
+    
+    monthlyData.push({
+      period: month,
+      total: total
+    });
+  }
+  
+  // 결과 렌더링
+  const resultsDiv = document.getElementById('report-results');
+  let html = `
+    <h3 class="text-lg font-bold mb-4">월별 ${category === 'all' ? '전체' : category} 지출</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-3 text-left">기간</th>
+            <th class="px-4 py-3 text-right">지출액</th>
+            <th class="px-4 py-3 text-right">전월 대비</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+  
+  monthlyData.forEach((data, index) => {
+    const prevTotal = index > 0 ? monthlyData[index - 1].total : 0;
+    const diff = prevTotal > 0 ? ((data.total - prevTotal) / prevTotal * 100).toFixed(1) : 0;
+    const diffClass = diff > 0 ? 'text-red-600' : diff < 0 ? 'text-blue-600' : 'text-gray-600';
+    const diffSign = diff > 0 ? '+' : '';
+    
+    html += `
+      <tr class="border-t hover:bg-gray-50">
+        <td class="px-4 py-3">${data.period}</td>
+        <td class="px-4 py-3 text-right font-medium">${formatCurrency(data.total)}</td>
+        <td class="px-4 py-3 text-right ${diffClass}">
+          ${index > 0 ? `${diffSign}${diff}%` : '-'}
+        </td>
+      </tr>
+    `;
+  });
+  
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+  
+  resultsDiv.innerHTML = html;
+  
+  // 차트 그리기
+  drawReportChart(monthlyData.map(d => d.period), monthlyData.map(d => d.total), '월별 지출');
+}
+
+async function generateYearlyReport(category) {
+  const yearCheckboxes = document.querySelectorAll('.year-checkbox:checked');
+  const years = Array.from(yearCheckboxes).map(cb => cb.value);
+  
+  if (years.length === 0) {
+    alert('비교할 연도를 최소 1개 이상 선택해주세요.');
+    return;
+  }
+  
+  // 각 연도의 월별 데이터 가져오기
+  const yearlyData = {};
+  
+  for (const year of years) {
+    const monthlyTotals = [];
+    
+    for (let month = 1; month <= 12; month++) {
+      const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+      const firstDay = `${monthStr}-01`;
+      const lastDay = `${monthStr}-${new Date(year, month, 0).getDate()}`;
+      
+      const response = await axios.get(`/api/transactions?start_date=${firstDay}&end_date=${lastDay}`);
+      const transactions = response.data.data || [];
+      
+      let total = 0;
+      if (category === 'all') {
+        total = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+      } else {
+        total = transactions.filter(t => t.type === 'expense' && t.category === category).reduce((sum, t) => sum + t.amount, 0);
+      }
+      
+      monthlyTotals.push(total);
+    }
+    
+    yearlyData[year] = monthlyTotals;
+  }
+  
+  // 결과 렌더링
+  const resultsDiv = document.getElementById('report-results');
+  let html = `
+    <h3 class="text-lg font-bold mb-4">연도별 ${category === 'all' ? '전체' : category} 지출 비교</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-3 text-left">월</th>
+            ${years.map(year => `<th class="px-4 py-3 text-right">${year}년</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+  `;
+  
+  const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+  
+  for (let month = 0; month < 12; month++) {
+    html += `<tr class="border-t hover:bg-gray-50">`;
+    html += `<td class="px-4 py-3">${monthNames[month]}</td>`;
+    
+    years.forEach(year => {
+      const amount = yearlyData[year][month];
+      html += `<td class="px-4 py-3 text-right font-medium">${formatCurrency(amount)}</td>`;
+    });
+    
+    html += `</tr>`;
+  }
+  
+  // 합계 행
+  html += `<tr class="border-t-2 bg-gray-50 font-bold">`;
+  html += `<td class="px-4 py-3">합계</td>`;
+  years.forEach(year => {
+    const total = yearlyData[year].reduce((sum, amount) => sum + amount, 0);
+    html += `<td class="px-4 py-3 text-right">${formatCurrency(total)}</td>`;
+  });
+  html += `</tr>`;
+  
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+  
+  resultsDiv.innerHTML = html;
+  
+  // 차트 그리기 (첫 번째 연도만)
+  const firstYear = years[0];
+  drawReportChart(monthNames, yearlyData[firstYear], `${firstYear}년 월별 지출`);
+}
+
+function drawReportChart(labels, data, title) {
+  const ctx = document.getElementById('report-chart');
+  
+  if (reportChart) {
+    reportChart.destroy();
+  }
+  
+  reportChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: title,
+        data: data,
+        borderColor: 'rgb(59, 130, 246)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top'
+        },
+        title: {
+          display: true,
+          text: title
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return formatCurrency(value);
+            }
+          }
+        }
+      }
+    }
+  });
 }
 
 // 설정 뷰 렌더링
@@ -1375,6 +2265,8 @@ async function init() {
   document.getElementById('tab-savings').onclick = () => switchView('savings');
   document.getElementById('tab-fixed-expenses').onclick = () => switchView('fixed-expenses');
   document.getElementById('tab-budgets').onclick = () => switchView('budgets');
+  document.getElementById('tab-investments').onclick = () => switchView('investments');
+  document.getElementById('tab-reports').onclick = () => switchView('reports');
   document.getElementById('tab-settings').onclick = () => switchView('settings');
 }
 
