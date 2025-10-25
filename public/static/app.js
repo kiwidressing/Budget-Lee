@@ -327,6 +327,10 @@ async function renderMonthView() {
   const budgetDataResponse = await fetchBudgetVsSpending(yearMonth);
   const budgetData = budgetDataResponse.data || [];
   
+  // 월별 통계 데이터 가져오기 (카테고리별 지출)
+  const monthlyStats = await fetchMonthlyStatistics(yearMonth);
+  const expenseByCategory = monthlyStats.expenseByCategory || [];
+  
   contentArea.innerHTML = `
     <div class="space-y-6">
       <!-- 월 네비게이션 -->
@@ -368,6 +372,9 @@ async function renderMonthView() {
         <h3 class="text-xl font-bold mb-4">월간 달력</h3>
         ${renderCalendar(calendarData)}
       </div>
+      
+      <!-- 카테고리별 지출 바 그래프 -->
+      ${renderExpenseBarChart(expenseByCategory, '월별')}
       
       <!-- 거래 내역 -->
       <div class="bg-white p-6 rounded-lg shadow">
@@ -492,6 +499,93 @@ function renderBudgetChart(budgetData, period) {
   return html;
 }
 
+// 카테고리별 지출 바 그래프 렌더링
+function renderExpenseBarChart(expenseByCategory, period) {
+  if (!expenseByCategory || expenseByCategory.length === 0) {
+    return `
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-xl font-bold mb-4">${period} 카테고리별 지출</h3>
+        <p class="text-center text-gray-500 py-4">지출 내역이 없습니다.</p>
+      </div>
+    `;
+  }
+  
+  // 카테고리별 색상 매핑 (일관된 색상 사용)
+  const categoryColors = {
+    '의복비': '#8B5CF6',
+    '식비': '#10B981',
+    '주거비': '#F59E0B',
+    '교통비': '#3B82F6',
+    '문화생활': '#EC4899',
+    '쇼핑': '#F97316',
+    '의료비': '#EF4444',
+    '교육비': '#6366F1',
+    '통신비': '#14B8A6',
+    '보험': '#8B5CF6',
+    '기타지출': '#6B7280'
+  };
+  
+  // 총 지출 계산
+  const totalExpense = expenseByCategory.reduce((sum, item) => sum + item.total, 0);
+  
+  // 최대값 찾기 (바 너비 계산용)
+  const maxAmount = Math.max(...expenseByCategory.map(item => item.total));
+  
+  let html = `
+    <div class="bg-white p-6 rounded-lg shadow">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold">
+          <i class="fas fa-chart-bar mr-2 text-blue-600"></i>${period} 카테고리별 지출
+        </h3>
+        <div class="text-right">
+          <p class="text-sm text-gray-600">총 지출</p>
+          <p class="text-2xl font-bold text-red-600">${formatCurrency(totalExpense)}</p>
+        </div>
+      </div>
+      <div class="space-y-3">
+  `;
+  
+  // 지출 금액 순으로 정렬
+  const sortedExpenses = [...expenseByCategory].sort((a, b) => b.total - a.total);
+  
+  sortedExpenses.forEach(item => {
+    const percentage = totalExpense > 0 ? (item.total / totalExpense * 100) : 0;
+    const barWidth = maxAmount > 0 ? (item.total / maxAmount * 100) : 0;
+    const color = categoryColors[item.category] || '#6B7280';
+    
+    html += `
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded-full" style="background-color: ${color}"></div>
+            <span class="font-medium text-gray-700">${item.category}</span>
+            <span class="text-xs text-gray-500">(${item.count}건)</span>
+          </div>
+          <div class="text-right">
+            <span class="font-bold text-gray-900">${formatCurrency(item.total)}</span>
+            <span class="text-xs ml-2 px-2 py-1 rounded" style="background-color: ${color}20; color: ${color}">
+              ${percentage.toFixed(1)}%
+            </span>
+          </div>
+        </div>
+        <div class="w-full bg-gray-100 rounded-full h-6 overflow-hidden">
+          <div class="h-6 rounded-full transition-all flex items-center px-3" 
+               style="width: ${barWidth}%; background-color: ${color}">
+            ${barWidth > 15 ? `<span class="text-xs text-white font-bold">${formatCurrencyShort(item.total)}</span>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  
+  html += `
+      </div>
+    </div>
+  `;
+  
+  return html;
+}
+
 // 거래 내역 리스트 렌더링
 function renderTransactionList(transactions) {
   if (!transactions || transactions.length === 0) {
@@ -551,6 +645,10 @@ async function renderWeekView() {
       .reduce((sum, t) => sum + t.amount, 0)
   }));
   
+  // 주간 통계 데이터 가져오기 (카테고리별 지출)
+  const weeklyStats = await fetchWeeklyStatistics(getDateString(state.currentWeekStart));
+  const expenseByCategory = weeklyStats.expenseByCategory || [];
+  
   const contentArea = document.getElementById('content-area');
   contentArea.innerHTML = `
     <div class="space-y-6">
@@ -581,6 +679,9 @@ async function renderWeekView() {
       
       <!-- 주간 예산 vs 지출 그래프 -->
       ${renderBudgetChart(budgetData, '주별')}
+      
+      <!-- 주간 카테고리별 지출 바 그래프 -->
+      ${renderExpenseBarChart(expenseByCategory, '주별')}
       
       <div class="bg-white p-6 rounded-lg shadow">
         <div class="flex justify-between items-center mb-4">
