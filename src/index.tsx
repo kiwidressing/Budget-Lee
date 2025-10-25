@@ -423,6 +423,120 @@ app.get('/api/fixed-expenses/:id/payments/:yearMonth', async (c) => {
   return c.json({ success: true, data: result.results })
 })
 
+// 5.6 고정지출 반복 인스턴스 조회 (월별/주별)
+app.get('/api/fixed-expenses/instances/:yearMonth', async (c) => {
+  const { DB } = c.env
+  const yearMonth = c.req.param('yearMonth')
+  
+  // 모든 활성화된 고정지출 가져오기
+  const fixedExpenses = await DB.prepare(`
+    SELECT * FROM fixed_expenses WHERE is_active = 1
+  `).all()
+  
+  // 해당 월의 모든 지불 내역 가져오기
+  const payments = await DB.prepare(`
+    SELECT 
+      fep.fixed_expense_id,
+      fep.payment_date,
+      fep.transaction_id
+    FROM fixed_expense_payments fep
+    WHERE strftime('%Y-%m', fep.payment_date) = ?
+  `).bind(yearMonth).all()
+  
+  const instances: any[] = []
+  const [year, month] = yearMonth.split('-').map(Number)
+  
+  for (const expense of fixedExpenses.results as any[]) {
+    if (expense.frequency === 'monthly') {
+      // 월별: 해당 월의 n번째 요일 계산
+      const date = getNthDayOfMonth(year, month - 1, expense.week_of_month, expense.day_of_week)
+      if (date) {
+        const dateStr = formatDate(date)
+        const payment = (payments.results as any[]).find(
+          p => p.fixed_expense_id === expense.id && p.payment_date === dateStr
+        )
+        
+        instances.push({
+          ...expense,
+          scheduled_date: dateStr,
+          is_paid: !!payment,
+          transaction_id: payment?.transaction_id || null
+        })
+      }
+    } else if (expense.frequency === 'weekly') {
+      // 주별: 해당 월의 모든 해당 요일 찾기
+      const dates = getAllDaysOfWeekInMonth(year, month - 1, expense.day_of_week)
+      
+      for (const date of dates) {
+        const dateStr = formatDate(date)
+        const payment = (payments.results as any[]).find(
+          p => p.fixed_expense_id === expense.id && p.payment_date === dateStr
+        )
+        
+        instances.push({
+          ...expense,
+          scheduled_date: dateStr,
+          is_paid: !!payment,
+          transaction_id: payment?.transaction_id || null
+        })
+      }
+    }
+  }
+  
+  // 날짜순 정렬
+  instances.sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date))
+  
+  return c.json({ success: true, data: instances })
+})
+
+// 헬퍼 함수들
+function getNthDayOfMonth(year: number, month: number, weekOfMonth: number, dayOfWeek: number): Date | null {
+  const firstDay = new Date(year, month, 1)
+  const firstDayOfWeek = firstDay.getDay()
+  
+  // 첫 번째 해당 요일 찾기
+  let daysToAdd = (dayOfWeek - firstDayOfWeek + 7) % 7
+  const firstOccurrence = 1 + daysToAdd
+  
+  // n번째 해당 요일 계산
+  const targetDay = firstOccurrence + (weekOfMonth - 1) * 7
+  
+  // 해당 월에 존재하는지 확인
+  const targetDate = new Date(year, month, targetDay)
+  if (targetDate.getMonth() !== month) {
+    return null
+  }
+  
+  return targetDate
+}
+
+function getAllDaysOfWeekInMonth(year: number, month: number, dayOfWeek: number): Date[] {
+  const dates: Date[] = []
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
+  
+  // 첫 번째 해당 요일 찾기
+  let current = new Date(firstDay)
+  while (current.getDay() !== dayOfWeek) {
+    current.setDate(current.getDate() + 1)
+  }
+  
+  // 모든 해당 요일 수집
+  while (current <= lastDay) {
+    dates.push(new Date(current))
+    current.setDate(current.getDate() + 7)
+  }
+  
+  return dates
+}
+
+function formatDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 // -----------------------------------------------------------------------------
 // 그룹 6: 예산 API (4개)
 // -----------------------------------------------------------------------------

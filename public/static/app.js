@@ -168,6 +168,20 @@ async function fetchFixedExpenses() {
   }
 }
 
+// 고정지출 반복 인스턴스 가져오기
+async function fetchFixedExpenseInstances(yearMonth) {
+  try {
+    const response = await axios.get(`/api/fixed-expenses/instances/${yearMonth}`);
+    if (response.data.success) {
+      return response.data.data;
+    }
+    return [];
+  } catch (error) {
+    console.error('고정지출 인스턴스 조회 오류:', error);
+    return [];
+  }
+}
+
 // 예산 가져오기
 async function fetchBudgets() {
   try {
@@ -623,118 +637,112 @@ async function renderSavingsView() {
 async function renderFixedExpensesView() {
   await fetchFixedExpenses();
   
-  // 현재 월의 고정지출 날짜 계산
+  // 현재 월의 고정지출 반복 인스턴스 가져오기
   const currentYearMonth = getYearMonth(new Date());
-  const fixedExpensesWithDates = await calculateFixedExpenseDates(state.fixedExpenses, currentYearMonth);
+  const fixedExpenseInstances = await fetchFixedExpenseInstances(currentYearMonth);
   
   const contentArea = document.getElementById('content-area');
   contentArea.innerHTML = `
     <div class="space-y-6">
-      <div class="flex justify-between items-center">
+      <div class="flex justify-between items-center mb-4">
         <h3 class="text-xl font-bold">고정지출 관리</h3>
         <button onclick="openFixedExpenseModal()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
           <i class="fas fa-plus mr-2"></i>고정지출 추가
         </button>
       </div>
       
+      <!-- 월 선택 네비게이션 -->
+      <div class="flex items-center justify-between bg-white p-4 rounded-lg shadow">
+        <button onclick="changeFixedExpenseMonth(-1)" class="p-2 hover:bg-gray-100 rounded">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <h3 class="text-lg font-semibold">
+          ${state.currentMonth.getFullYear()}년 ${state.currentMonth.getMonth() + 1}월
+        </h3>
+        <button onclick="changeFixedExpenseMonth(1)" class="p-2 hover:bg-gray-100 rounded">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+      
+      <!-- 고정지출 인스턴스 목록 -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        ${fixedExpensesWithDates.map(expense => `
+        ${fixedExpenseInstances.map((instance, index) => `
           <div class="bg-white p-6 rounded-lg shadow">
             <div class="flex justify-between items-start mb-3">
               <div class="flex items-center gap-2">
                 <input 
                   type="checkbox" 
-                  id="check-${expense.id}"
-                  ${expense.isPaid ? 'checked' : ''}
-                  onchange="handleFixedExpenseCheck(${expense.id}, '${expense.scheduledDate}', this.checked)"
+                  id="check-${instance.id}-${index}"
+                  ${instance.is_paid ? 'checked' : ''}
+                  onchange="handleFixedExpenseCheck(${instance.id}, '${instance.scheduled_date}', this.checked)"
                   class="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 >
-                <h4 class="text-lg font-bold ${expense.isPaid ? 'line-through text-gray-400' : ''}">${expense.name}</h4>
+                <h4 class="text-lg font-bold ${instance.is_paid ? 'line-through text-gray-400' : ''}">${instance.name}</h4>
               </div>
-              <button onclick="deleteFixedExpense(${expense.id})" class="text-red-500 hover:text-red-700">
+              <button onclick="deleteFixedExpense(${instance.id})" class="text-red-500 hover:text-red-700">
                 <i class="fas fa-trash"></i>
               </button>
             </div>
-            <p class="text-2xl font-bold ${expense.isPaid ? 'text-gray-400' : 'text-red-600'} mb-2">${formatCurrency(expense.amount)}</p>
+            <p class="text-2xl font-bold ${instance.is_paid ? 'text-gray-400' : 'text-red-600'} mb-2">${formatCurrency(instance.amount)}</p>
             
-            ${expense.isPaid ? `
+            ${instance.is_paid ? `
               <div class="mb-3 px-3 py-2 bg-green-50 border border-green-200 rounded">
                 <p class="text-sm text-green-700">
                   <i class="fas fa-check-circle mr-1"></i>
-                  ${expense.scheduledDate} 지불 완료
+                  ${instance.scheduled_date} 지불 완료
                 </p>
               </div>
             ` : `
               <div class="mb-3 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded">
                 <p class="text-sm text-yellow-700">
                   <i class="fas fa-clock mr-1"></i>
-                  예정일: ${expense.scheduledDate}
+                  예정일: ${instance.scheduled_date}
                 </p>
               </div>
             `}
             
             <div class="flex flex-wrap gap-1 mb-3">
-              <span class="px-2 py-1 text-xs rounded-full ${expense.frequency === 'monthly' ? 'bg-blue-500' : 'bg-green-500'} text-white">
-                ${expense.frequency === 'monthly' ? '월별' : '주별'}
+              <span class="px-2 py-1 text-xs rounded-full ${instance.frequency === 'monthly' ? 'bg-blue-500' : 'bg-green-500'} text-white">
+                ${instance.frequency === 'monthly' ? '월별' : '주별'}
               </span>
-              ${expense.frequency === 'monthly' ? `
+              ${instance.frequency === 'monthly' ? `
                 <span class="px-2 py-1 text-xs rounded-full bg-orange-500 text-white">
-                  ${getWeekName(expense.week_of_month)}주
+                  ${getWeekName(instance.week_of_month)}주
                 </span>
               ` : ''}
               <span class="px-2 py-1 text-xs rounded-full bg-purple-500 text-white">
-                ${getDayName(expense.day_of_week)}요일
+                ${getDayName(instance.day_of_week)}요일
               </span>
             </div>
-            <p class="text-sm text-gray-600">카테고리: ${expense.category}</p>
+            <p class="text-sm text-gray-600">카테고리: ${instance.category}</p>
           </div>
         `).join('')}
       </div>
       
-      ${state.fixedExpenses.length === 0 ? '<p class="text-center text-gray-500 py-8">등록된 고정지출이 없습니다.</p>' : ''}
+      ${fixedExpenseInstances.length === 0 ? '<p class="text-center text-gray-500 py-8">이번 달에 예정된 고정지출이 없습니다.</p>' : ''}
     </div>
   `;
 }
 
-// 고정지출 날짜 계산 및 지불 여부 확인
-async function calculateFixedExpenseDates(expenses, yearMonth) {
-  const [year, month] = yearMonth.split('-').map(Number);
-  const results = [];
+// 고정지출 날짜 계산 헬퍼 함수 (getNthDayOfMonth는 이미 백엔드에 있지만 프론트엔드에서도 필요)
+function getNthDayOfMonth(year, month, weekOfMonth, dayOfWeek) {
+  const firstDay = new Date(year, month, 1);
+  const firstDayOfWeek = firstDay.getDay();
   
-  for (const expense of expenses) {
-    let scheduledDate = null;
-    
-    if (expense.frequency === 'monthly') {
-      const date = getNthDayOfMonth(year, month - 1, expense.week_of_month, expense.day_of_week);
-      scheduledDate = date ? getDateString(date) : null;
-    } else {
-      // 주별: 해당 월의 첫 번째 해당 요일 찾기
-      const firstDay = new Date(year, month - 1, 1);
-      while (firstDay.getDay() !== expense.day_of_week) {
-        firstDay.setDate(firstDay.getDate() + 1);
-      }
-      scheduledDate = getDateString(firstDay);
-    }
-    
-    // 지불 여부 확인
-    let isPaid = false;
-    if (scheduledDate) {
-      try {
-        const response = await axios.get(`/api/fixed-expenses/${expense.id}/payments/${yearMonth}`);
-        isPaid = response.data.success && response.data.data && response.data.data.length > 0;
-      } catch (error) {
-        console.error('지불 내역 조회 오류:', error);
-      }
-    }
-    
-    results.push({
-      ...expense,
-      scheduledDate,
-      isPaid
-    });
+  // 첫 번째 해당 요일 찾기
+  let daysToAdd = (dayOfWeek - firstDayOfWeek + 7) % 7;
+  const firstOccurrence = 1 + daysToAdd;
+  
+  // n번째 해당 요일 계산
+  const targetDay = firstOccurrence + (weekOfMonth - 1) * 7;
+  
+  // 해당 월에 존재하는지 확인
+  const targetDate = new Date(year, month, targetDay);
+  if (targetDate.getMonth() !== month) {
+    return null;
   }
   
-  return results;
+  return targetDate;
 }
 
 // 고정지출 체크박스 핸들러
@@ -875,6 +883,11 @@ function changeMonth(delta) {
 function changeWeek(delta) {
   state.currentWeekStart.setDate(state.currentWeekStart.getDate() + (delta * 7));
   renderWeekView();
+}
+
+function changeFixedExpenseMonth(delta) {
+  state.currentMonth.setMonth(state.currentMonth.getMonth() + delta);
+  renderFixedExpensesView();
 }
 
 async function openTransactionModal(date) {
@@ -1178,8 +1191,38 @@ async function saveSettings() {
     });
     
     if (response.data.success) {
-      alert('설정이 저장되었습니다.');
+      const previousCurrency = state.settings.currency;
       await fetchSettings();
+      
+      // 통화가 변경되었으면 현재 화면을 다시 렌더링
+      if (previousCurrency !== currency) {
+        alert(`설정이 저장되었습니다. 통화가 ${CURRENCIES[previousCurrency]?.name || previousCurrency}에서 ${CURRENCIES[currency]?.name || currency}로 변경되었습니다.`);
+        
+        // 현재 활성화된 뷰에 따라 다시 렌더링
+        switch(state.activeView) {
+          case 'month':
+            await renderMonthView();
+            break;
+          case 'week':
+            await renderWeekView();
+            break;
+          case 'savings':
+            await renderSavingsView();
+            break;
+          case 'fixed-expenses':
+            await renderFixedExpensesView();
+            break;
+          case 'budgets':
+            await renderBudgetsView();
+            break;
+          case 'settings':
+            await renderSettingsView();
+            break;
+        }
+      } else {
+        alert('설정이 저장되었습니다.');
+        await renderSettingsView();
+      }
     }
   } catch (error) {
     alert('설정 저장 중 오류가 발생했습니다.');
