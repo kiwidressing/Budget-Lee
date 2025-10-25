@@ -666,15 +666,19 @@ async function renderFixedExpensesView() {
       
       <!-- 고정지출 인스턴스 목록 -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        ${fixedExpenseInstances.map((instance, index) => `
+        ${fixedExpenseInstances.map((instance, index) => {
+          // 체크박스 ID를 날짜 기반으로 고유하게 생성
+          const checkboxId = 'check-' + instance.id + '-' + instance.scheduled_date.replace(/-/g, '');
+          
+          return `
           <div class="bg-white p-6 rounded-lg shadow">
             <div class="flex justify-between items-start mb-3">
               <div class="flex items-center gap-2">
                 <input 
                   type="checkbox" 
-                  id="check-${instance.id}-${index}"
+                  id="${checkboxId}"
                   ${instance.is_paid ? 'checked' : ''}
-                  onchange="handleFixedExpenseCheck(${instance.id}, '${instance.scheduled_date}', this.checked)"
+                  onchange="handleFixedExpenseCheck('${checkboxId}', ${instance.id}, '${instance.scheduled_date}', this.checked)"
                   class="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 >
                 <h4 class="text-lg font-bold ${instance.is_paid ? 'line-through text-gray-400' : ''}">${instance.name}</h4>
@@ -716,7 +720,8 @@ async function renderFixedExpensesView() {
             </div>
             <p class="text-sm text-gray-600">카테고리: ${instance.category}</p>
           </div>
-        `).join('')}
+        `;
+        }).join('')}
       </div>
       
       ${fixedExpenseInstances.length === 0 ? '<p class="text-center text-gray-500 py-8">이번 달에 예정된 고정지출이 없습니다.</p>' : ''}
@@ -746,12 +751,12 @@ function getNthDayOfMonth(year, month, weekOfMonth, dayOfWeek) {
 }
 
 // 고정지출 체크박스 핸들러
-async function handleFixedExpenseCheck(expenseId, date, isChecked) {
+async function handleFixedExpenseCheck(checkboxId, expenseId, date, isChecked) {
   if (isChecked) {
     // 체크 시: 지불 처리
     if (!confirm(`이 고정지출을 ${date}에 지불하시겠습니까?`)) {
       // 취소 시 체크박스 원상복구
-      document.getElementById(`check-${expenseId}`).checked = false;
+      document.getElementById(checkboxId).checked = false;
       return;
     }
     
@@ -763,12 +768,12 @@ async function handleFixedExpenseCheck(expenseId, date, isChecked) {
       }
     } catch (error) {
       alert(error.response?.data?.error || '지불 처리 중 오류가 발생했습니다.');
-      document.getElementById(`check-${expenseId}`).checked = false;
+      document.getElementById(checkboxId).checked = false;
     }
   } else {
     // 체크 해제 시: 삭제 여부 확인
     if (!confirm('이 지불 내역을 취소하시겠습니까? 거래 내역도 함께 삭제됩니다.')) {
-      document.getElementById(`check-${expenseId}`).checked = true;
+      document.getElementById(checkboxId).checked = true;
       return;
     }
     
@@ -777,14 +782,23 @@ async function handleFixedExpenseCheck(expenseId, date, isChecked) {
       const paymentsResponse = await axios.get(`/api/fixed-expenses/${expenseId}/payments/${yearMonth}`);
       
       if (paymentsResponse.data.success && paymentsResponse.data.data && paymentsResponse.data.data.length > 0) {
-        const payment = paymentsResponse.data.data[0];
-        await axios.delete(`/api/transactions/${payment.transaction_id}`);
-        alert('지불 내역이 취소되었습니다.');
-        renderFixedExpensesView();
+        // 특정 날짜의 지불 내역 찾기
+        const payment = paymentsResponse.data.data.find(p => p.payment_date === date);
+        if (payment) {
+          await axios.delete(`/api/transactions/${payment.transaction_id}`);
+          alert('지불 내역이 취소되었습니다.');
+          renderFixedExpensesView();
+        } else {
+          alert('해당 날짜의 지불 내역을 찾을 수 없습니다.');
+          document.getElementById(checkboxId).checked = false;
+        }
+      } else {
+        alert('지불 내역이 없습니다.');
+        document.getElementById(checkboxId).checked = false;
       }
     } catch (error) {
       alert('지불 취소 중 오류가 발생했습니다.');
-      document.getElementById(`check-${expenseId}`).checked = true;
+      document.getElementById(checkboxId).checked = true;
     }
   }
 }
@@ -809,6 +823,7 @@ async function renderBudgetsView() {
         ${categories.expense.map(category => {
           const budget = state.budgets.find(b => b.category === category);
           const budgetAmount = budget ? budget.monthly_budget : 0;
+          const currencySymbol = CURRENCIES[state.settings.currency]?.symbol || '₩';
           
           return `
             <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -821,7 +836,7 @@ async function renderBudgetsView() {
                 class="flex-1 px-4 py-2 border rounded"
                 onchange="handleBudgetChange('${category}', this.value)"
                 placeholder="예산 없음 (0원 입력 시 삭제)">
-              <span class="text-gray-600">₩</span>
+              <span class="text-gray-600">${currencySymbol}</span>
             </div>
           `;
         }).join('')}
