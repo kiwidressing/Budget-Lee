@@ -223,6 +223,17 @@ async function fetchMonthlyStatistics(yearMonth) {
   }
 }
 
+// 주별 통계 가져오기
+async function fetchWeeklyStatistics(startDate) {
+  try {
+    const response = await axios.get(`/api/statistics/weekly/${startDate}`);
+    return response.data;
+  } catch (error) {
+    console.error('주별 통계 조회 오류:', error);
+    return { success: false, summary: [], expenseByCategory: [] };
+  }
+}
+
 // 달력 데이터 가져오기
 async function fetchCalendarData(yearMonth) {
   try {
