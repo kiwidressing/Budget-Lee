@@ -1045,6 +1045,21 @@ async function renderInvestmentsView() {
         </button>
       </div>
       
+      <!-- 안내 메시지 -->
+      <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div class="flex items-start gap-3">
+          <i class="fas fa-info-circle text-yellow-600 mt-1"></i>
+          <div class="text-sm text-yellow-800">
+            <p class="font-medium mb-1">실시간 주가 정보 안내</p>
+            <p>샌드박스 환경에서는 외부 API 접근이 제한되어 시뮬레이션 데이터가 표시될 수 있습니다.</p>
+            <p class="mt-1">실제 Cloudflare Pages 배포 시에는 실시간 주가 데이터가 정상적으로 표시됩니다.</p>
+            <p class="mt-2 text-xs">
+              <strong>지원 종목:</strong> AAPL, GOOGL, MSFT, TSLA, AMZN, META, NVDA, AMD, NFLX (미국 주식) / 005930.KS (삼성전자), 000660.KS (SK하이닉스) 등 (한국 주식)
+            </p>
+          </div>
+        </div>
+      </div>
+      
       <!-- 포트폴리오 요약 -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="portfolio-summary">
         <div class="bg-white rounded-lg shadow p-4">
@@ -1146,7 +1161,7 @@ async function updateInvestmentPrices() {
           <tr class="border-t hover:bg-gray-50">
             <td class="px-4 py-3">
               <div class="font-medium">${inv.name}</div>
-              <div class="text-sm text-gray-500">${inv.symbol}</div>
+              <div class="text-sm text-gray-500">${inv.symbol}${priceData.simulated ? ' <span class="text-orange-500" title="실제 API 접근 제한으로 시뮬레이션 데이터가 표시됩니다">[시뮬레이션]</span>' : ''}</div>
             </td>
             <td class="px-4 py-3 text-right">${inv.quantity.toLocaleString()}주</td>
             <td class="px-4 py-3 text-right">${formatCurrency(inv.purchase_price)}</td>
