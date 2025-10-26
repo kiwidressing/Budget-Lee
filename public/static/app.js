@@ -1506,331 +1506,530 @@ async function handleEditTransactionSubmit(event, transactionId) {
 }
 
 // =============================================================================
-// 월간/연간 비교 리포트 뷰
+// 연간 지출 리포트 뷰 (3단계 드릴다운)
 // =============================================================================
 
 async function renderReportsView() {
   const contentArea = document.getElementById('content-area');
-  
   const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth();
   
   contentArea.innerHTML = `
     <div class="space-y-6">
-      <h2 class="text-2xl font-bold">지출 비교 리포트</h2>
-      
-      <!-- 리포트 유형 선택 -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex gap-4 mb-6">
-          <button onclick="renderMonthlyReport()" 
-                  class="flex-1 py-3 px-6 rounded border-2 border-blue-500 bg-blue-500 text-white font-medium hover:bg-blue-600"
-                  id="btn-monthly-report">
-            월간 비교
+      <!-- 헤더 -->
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="text-2xl font-bold" id="report-title">연간 지출 현황</h2>
+          <p class="text-gray-600 text-sm mt-1" id="report-subtitle">월별 총 지출을 확인하세요. 막대를 클릭하면 카테고리별 상세 내역을 볼 수 있습니다.</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="changeReportYear(-1)" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+            <i class="fas fa-chevron-left"></i>
           </button>
-          <button onclick="renderYearlyReport()" 
-                  class="flex-1 py-3 px-6 rounded border-2 border-gray-300 text-gray-700 font-medium hover:bg-gray-100"
-                  id="btn-yearly-report">
-            연간 비교
-          </button>
-        </div>
-        
-        <!-- 카테고리 선택 -->
-        <div class="mb-6">
-          <label class="block text-sm font-medium mb-2">카테고리 선택</label>
-          <select id="report-category" class="w-full px-4 py-2 border rounded" onchange="refreshReport()">
-            <option value="all">전체</option>
-            ${categories.expense.map(cat => `<option value="${cat}">${cat}</option>`).join('')}
-          </select>
-        </div>
-        
-        <!-- 기간 선택 (월간 비교용) -->
-        <div id="monthly-period-selector" class="mb-6">
-          <label class="block text-sm font-medium mb-2">비교 기간</label>
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="text-xs text-gray-600">시작 월</label>
-              <input type="month" id="start-month" 
-                     value="${currentYear}-${String(currentMonth - 2).padStart(2, '0')}" 
-                     class="w-full px-4 py-2 border rounded">
-            </div>
-            <div>
-              <label class="text-xs text-gray-600">종료 월</label>
-              <input type="month" id="end-month" 
-                     value="${currentYear}-${String(currentMonth + 1).padStart(2, '0')}" 
-                     class="w-full px-4 py-2 border rounded">
-            </div>
-          </div>
-        </div>
-        
-        <!-- 연도 선택 (연간 비교용) -->
-        <div id="yearly-period-selector" class="mb-6" style="display: none;">
-          <label class="block text-sm font-medium mb-2">비교 연도</label>
-          <div class="grid grid-cols-3 gap-4">
-            ${[0, 1, 2].map(offset => `
-              <label class="flex items-center space-x-2">
-                <input type="checkbox" value="${currentYear - offset}" 
-                       ${offset === 0 ? 'checked' : ''} 
-                       class="year-checkbox">
-                <span>${currentYear - offset}년</span>
-              </label>
+          <select id="report-year" onchange="loadYearlyReport()" class="px-4 py-2 border rounded">
+            ${[0, 1, 2, 3, 4].map(offset => `
+              <option value="${currentYear - offset}" ${offset === 0 ? 'selected' : ''}>${currentYear - offset}년</option>
             `).join('')}
-          </div>
+          </select>
+          <button onclick="changeReportYear(1)" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+            <i class="fas fa-chevron-right"></i>
+          </button>
         </div>
-        
-        <button onclick="refreshReport()" class="w-full bg-blue-500 text-white py-3 rounded font-medium hover:bg-blue-600">
-          <i class="fas fa-sync-alt mr-2"></i>리포트 생성
-        </button>
       </div>
       
-      <!-- 리포트 결과 -->
-      <div id="report-results" class="bg-white rounded-lg shadow p-6">
-        <p class="text-center text-gray-500">리포트를 생성하려면 위의 버튼을 클릭하세요.</p>
+      <!-- 네비게이션 경로 (Breadcrumb) -->
+      <div id="report-breadcrumb" class="bg-white rounded-lg shadow px-6 py-3">
+        <div class="flex items-center gap-2 text-sm">
+          <button onclick="loadYearlyReport()" class="text-blue-600 hover:text-blue-800 font-medium">
+            <i class="fas fa-home mr-1"></i>연간 지출
+          </button>
+        </div>
       </div>
       
       <!-- 차트 영역 -->
       <div class="bg-white rounded-lg shadow p-6">
-        <canvas id="report-chart" style="max-height: 400px;"></canvas>
+        <canvas id="report-chart" style="height: 400px;"></canvas>
+      </div>
+      
+      <!-- 상세 데이터 테이블 -->
+      <div id="report-details" class="bg-white rounded-lg shadow p-6">
+        <p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>
       </div>
     </div>
   `;
+  
+  // 초기 로드
+  await loadYearlyReport();
 }
 
-let currentReportType = 'monthly';
+// 리포트 상태 관리
 let reportChart = null;
+let reportState = {
+  year: new Date().getFullYear(),
+  selectedMonth: null,
+  selectedCategory: null,
+  yearlyData: null
+};
 
-function renderMonthlyReport() {
-  currentReportType = 'monthly';
-  document.getElementById('btn-monthly-report').className = 'flex-1 py-3 px-6 rounded border-2 border-blue-500 bg-blue-500 text-white font-medium hover:bg-blue-600';
-  document.getElementById('btn-yearly-report').className = 'flex-1 py-3 px-6 rounded border-2 border-gray-300 text-gray-700 font-medium hover:bg-gray-100';
-  document.getElementById('monthly-period-selector').style.display = 'block';
-  document.getElementById('yearly-period-selector').style.display = 'none';
+// 연도 변경
+function changeReportYear(delta) {
+  reportState.year += delta;
+  document.getElementById('report-year').value = reportState.year;
+  loadYearlyReport();
 }
 
-function renderYearlyReport() {
-  currentReportType = 'yearly';
-  document.getElementById('btn-yearly-report').className = 'flex-1 py-3 px-6 rounded border-2 border-blue-500 bg-blue-500 text-white font-medium hover:bg-blue-600';
-  document.getElementById('btn-monthly-report').className = 'flex-1 py-3 px-6 rounded border-2 border-gray-300 text-gray-700 font-medium hover:bg-gray-100';
-  document.getElementById('monthly-period-selector').style.display = 'none';
-  document.getElementById('yearly-period-selector').style.display = 'block';
-}
-
-async function refreshReport() {
-  const category = document.getElementById('report-category').value;
-  const resultsDiv = document.getElementById('report-results');
+// 1단계: 연간 월별 지출 현황 (바 그래프)
+async function loadYearlyReport() {
+  reportState.selectedMonth = null;
+  reportState.selectedCategory = null;
+  reportState.year = parseInt(document.getElementById('report-year').value);
   
-  resultsDiv.innerHTML = '<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>';
+  const detailsDiv = document.getElementById('report-details');
+  detailsDiv.innerHTML = '<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>';
   
-  if (currentReportType === 'monthly') {
-    await generateMonthlyReport(category);
-  } else {
-    await generateYearlyReport(category);
-  }
-}
-
-async function generateMonthlyReport(category) {
-  const startMonth = document.getElementById('start-month').value;
-  const endMonth = document.getElementById('end-month').value;
+  // 업데이트 제목과 서브타이틀
+  document.getElementById('report-title').textContent = `${reportState.year}년 월별 지출 현황`;
+  document.getElementById('report-subtitle').textContent = '막대를 클릭하면 해당 월의 카테고리별 지출을 확인할 수 있습니다.';
   
-  if (!startMonth || !endMonth) {
-    alert('시작 월과 종료 월을 선택해주세요.');
-    return;
-  }
+  // Breadcrumb 업데이트
+  document.getElementById('report-breadcrumb').innerHTML = `
+    <div class="flex items-center gap-2 text-sm">
+      <button onclick="loadYearlyReport()" class="text-blue-600 hover:text-blue-800 font-medium">
+        <i class="fas fa-home mr-1"></i>${reportState.year}년 연간 지출
+      </button>
+    </div>
+  `;
   
-  // 월 범위 생성
-  const months = [];
-  let current = new Date(startMonth + '-01');
-  const end = new Date(endMonth + '-01');
-  
-  while (current <= end) {
-    months.push(getYearMonth(current));
-    current.setMonth(current.getMonth() + 1);
-  }
-  
-  // 각 월의 데이터 가져오기
+  // 12개월 데이터 가져오기
   const monthlyData = [];
-  for (const month of months) {
-    const firstDay = `${month}-01`;
-    const lastDay = `${month}-${new Date(month.split('-')[0], month.split('-')[1], 0).getDate()}`;
+  const monthLabels = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+  
+  for (let month = 1; month <= 12; month++) {
+    const monthStr = `${reportState.year}-${String(month).padStart(2, '0')}`;
+    const firstDay = `${monthStr}-01`;
+    const lastDay = `${monthStr}-${new Date(reportState.year, month, 0).getDate()}`;
     
     const response = await axios.get(`/api/transactions?start_date=${firstDay}&end_date=${lastDay}`);
     const transactions = response.data.data || [];
     
-    let total = 0;
-    if (category === 'all') {
-      total = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-    } else {
-      total = transactions.filter(t => t.type === 'expense' && t.category === category).reduce((sum, t) => sum + t.amount, 0);
-    }
+    const total = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
     
     monthlyData.push({
-      period: month,
+      month: month,
+      monthStr: monthStr,
+      label: monthLabels[month - 1],
       total: total
     });
   }
   
-  // 결과 렌더링
-  const resultsDiv = document.getElementById('report-results');
-  let html = `
-    <h3 class="text-lg font-bold mb-4">월별 ${category === 'all' ? '전체' : category} 지출</h3>
+  reportState.yearlyData = monthlyData;
+  
+  // 바 차트 그리기
+  drawYearlyBarChart(monthlyData);
+  
+  // 상세 테이블
+  const maxAmount = Math.max(...monthlyData.map(d => d.total));
+  const prevYearSameMonthComparison = await getPreviousYearComparison(reportState.year);
+  
+  let tableHTML = `
+    <h3 class="text-lg font-bold mb-4">월별 상세</h3>
     <div class="overflow-x-auto">
       <table class="w-full">
         <thead class="bg-gray-50">
           <tr>
-            <th class="px-4 py-3 text-left">기간</th>
+            <th class="px-4 py-3 text-left">월</th>
             <th class="px-4 py-3 text-right">지출액</th>
-            <th class="px-4 py-3 text-right">전월 대비</th>
+            <th class="px-4 py-3 text-right">전년 대비</th>
+            <th class="px-4 py-3 text-center">액션</th>
           </tr>
         </thead>
         <tbody>
   `;
   
   monthlyData.forEach((data, index) => {
-    const prevTotal = index > 0 ? monthlyData[index - 1].total : 0;
-    const diff = prevTotal > 0 ? ((data.total - prevTotal) / prevTotal * 100).toFixed(1) : 0;
+    const prevYearAmount = prevYearSameMonthComparison[data.month - 1] || 0;
+    const diff = prevYearAmount > 0 ? ((data.total - prevYearAmount) / prevYearAmount * 100).toFixed(1) : 0;
     const diffClass = diff > 0 ? 'text-red-600' : diff < 0 ? 'text-blue-600' : 'text-gray-600';
     const diffSign = diff > 0 ? '+' : '';
     
-    html += `
+    tableHTML += `
       <tr class="border-t hover:bg-gray-50">
-        <td class="px-4 py-3">${data.period}</td>
-        <td class="px-4 py-3 text-right font-medium">${formatCurrency(data.total)}</td>
+        <td class="px-4 py-3 font-medium">${data.label}</td>
+        <td class="px-4 py-3 text-right">
+          <div class="font-bold">${formatCurrency(data.total)}</div>
+          <div class="text-xs text-gray-500">전체의 ${maxAmount > 0 ? ((data.total / maxAmount) * 100).toFixed(0) : 0}%</div>
+        </td>
         <td class="px-4 py-3 text-right ${diffClass}">
-          ${index > 0 ? `${diffSign}${diff}%` : '-'}
+          ${prevYearAmount > 0 ? `${diffSign}${diff}%` : '-'}
+        </td>
+        <td class="px-4 py-3 text-center">
+          <button onclick="loadMonthCategoryReport(${data.month})" 
+                  class="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600">
+            <i class="fas fa-chart-bar mr-1"></i>상세보기
+          </button>
         </td>
       </tr>
     `;
   });
   
-  html += `
-        </tbody>
-      </table>
+  const yearTotal = monthlyData.reduce((sum, d) => sum + d.total, 0);
+  tableHTML += `
+      <tr class="border-t-2 bg-gray-50 font-bold">
+        <td class="px-4 py-3">연간 합계</td>
+        <td class="px-4 py-3 text-right">${formatCurrency(yearTotal)}</td>
+        <td class="px-4 py-3"></td>
+        <td class="px-4 py-3"></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+  `;
+  
+  detailsDiv.innerHTML = tableHTML;
+}
+
+// 전년 동월 비교 데이터 가져오기
+async function getPreviousYearComparison(currentYear) {
+  const prevYear = currentYear - 1;
+  const prevYearData = [];
+  
+  for (let month = 1; month <= 12; month++) {
+    const monthStr = `${prevYear}-${String(month).padStart(2, '0')}`;
+    const firstDay = `${monthStr}-01`;
+    const lastDay = `${monthStr}-${new Date(prevYear, month, 0).getDate()}`;
+    
+    try {
+      const response = await axios.get(`/api/transactions?start_date=${firstDay}&end_date=${lastDay}`);
+      const transactions = response.data.data || [];
+      const total = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+      prevYearData.push(total);
+    } catch (error) {
+      prevYearData.push(0);
+    }
+  }
+  
+  return prevYearData;
+}
+
+// 2단계: 특정 월의 카테고리별 지출 (바 그래프)
+async function loadMonthCategoryReport(month) {
+  reportState.selectedMonth = month;
+  reportState.selectedCategory = null;
+  
+  const monthStr = `${reportState.year}-${String(month).padStart(2, '0')}`;
+  const monthLabel = ['', '1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'][month];
+  
+  const detailsDiv = document.getElementById('report-details');
+  detailsDiv.innerHTML = '<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>';
+  
+  // 제목 업데이트
+  document.getElementById('report-title').textContent = `${reportState.year}년 ${monthLabel} 카테고리별 지출`;
+  document.getElementById('report-subtitle').textContent = '막대를 클릭하면 해당 카테고리의 거래 내역을 확인할 수 있습니다.';
+  
+  // Breadcrumb 업데이트
+  document.getElementById('report-breadcrumb').innerHTML = `
+    <div class="flex items-center gap-2 text-sm">
+      <button onclick="loadYearlyReport()" class="text-blue-600 hover:text-blue-800">
+        <i class="fas fa-home mr-1"></i>${reportState.year}년 연간 지출
+      </button>
+      <i class="fas fa-chevron-right text-gray-400"></i>
+      <span class="text-gray-700 font-medium">${monthLabel}</span>
     </div>
   `;
   
-  resultsDiv.innerHTML = html;
+  // 해당 월의 거래 데이터 가져오기
+  const firstDay = `${monthStr}-01`;
+  const lastDay = `${monthStr}-${new Date(reportState.year, month, 0).getDate()}`;
   
-  // 차트 그리기
-  drawReportChart(monthlyData.map(d => d.period), monthlyData.map(d => d.total), '월별 지출');
-}
-
-async function generateYearlyReport(category) {
-  const yearCheckboxes = document.querySelectorAll('.year-checkbox:checked');
-  const years = Array.from(yearCheckboxes).map(cb => cb.value);
+  const response = await axios.get(`/api/transactions?start_date=${firstDay}&end_date=${lastDay}`);
+  const transactions = response.data.data || [];
+  const expenses = transactions.filter(t => t.type === 'expense');
   
-  if (years.length === 0) {
-    alert('비교할 연도를 최소 1개 이상 선택해주세요.');
+  // 카테고리별 집계
+  const categoryData = {};
+  categories.expense.forEach(cat => {
+    categoryData[cat] = {
+      category: cat,
+      total: 0,
+      count: 0
+    };
+  });
+  
+  expenses.forEach(t => {
+    if (categoryData[t.category]) {
+      categoryData[t.category].total += t.amount;
+      categoryData[t.category].count++;
+    }
+  });
+  
+  // 배열로 변환하고 금액 순으로 정렬
+  const categoryArray = Object.values(categoryData)
+    .filter(d => d.total > 0)
+    .sort((a, b) => b.total - a.total);
+  
+  if (categoryArray.length === 0) {
+    detailsDiv.innerHTML = '<p class="text-center text-gray-500">이 달에는 지출 내역이 없습니다.</p>';
+    
+    if (reportChart) {
+      reportChart.destroy();
+      reportChart = null;
+    }
     return;
   }
   
-  // 각 연도의 월별 데이터 가져오기
-  const yearlyData = {};
+  // 바 차트 그리기
+  drawCategoryBarChart(categoryArray, monthLabel);
   
-  for (const year of years) {
-    const monthlyTotals = [];
-    
-    for (let month = 1; month <= 12; month++) {
-      const monthStr = `${year}-${String(month).padStart(2, '0')}`;
-      const firstDay = `${monthStr}-01`;
-      const lastDay = `${monthStr}-${new Date(year, month, 0).getDate()}`;
-      
-      const response = await axios.get(`/api/transactions?start_date=${firstDay}&end_date=${lastDay}`);
-      const transactions = response.data.data || [];
-      
-      let total = 0;
-      if (category === 'all') {
-        total = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-      } else {
-        total = transactions.filter(t => t.type === 'expense' && t.category === category).reduce((sum, t) => sum + t.amount, 0);
-      }
-      
-      monthlyTotals.push(total);
-    }
-    
-    yearlyData[year] = monthlyTotals;
-  }
+  // 상세 테이블
+  const monthTotal = categoryArray.reduce((sum, d) => sum + d.total, 0);
   
-  // 결과 렌더링
-  const resultsDiv = document.getElementById('report-results');
-  let html = `
-    <h3 class="text-lg font-bold mb-4">연도별 ${category === 'all' ? '전체' : category} 지출 비교</h3>
+  let tableHTML = `
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold">카테고리별 상세</h3>
+      <div class="text-sm text-gray-600">
+        총 <span class="font-bold text-blue-600">${formatCurrency(monthTotal)}</span>
+      </div>
+    </div>
     <div class="overflow-x-auto">
       <table class="w-full">
         <thead class="bg-gray-50">
           <tr>
-            <th class="px-4 py-3 text-left">월</th>
-            ${years.map(year => `<th class="px-4 py-3 text-right">${year}년</th>`).join('')}
+            <th class="px-4 py-3 text-left">카테고리</th>
+            <th class="px-4 py-3 text-right">지출액</th>
+            <th class="px-4 py-3 text-right">비율</th>
+            <th class="px-4 py-3 text-right">건수</th>
+            <th class="px-4 py-3 text-center">액션</th>
           </tr>
         </thead>
         <tbody>
   `;
   
-  const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
-  
-  for (let month = 0; month < 12; month++) {
-    html += `<tr class="border-t hover:bg-gray-50">`;
-    html += `<td class="px-4 py-3">${monthNames[month]}</td>`;
+  categoryArray.forEach(data => {
+    const percentage = ((data.total / monthTotal) * 100).toFixed(1);
     
-    years.forEach(year => {
-      const amount = yearlyData[year][month];
-      html += `<td class="px-4 py-3 text-right font-medium">${formatCurrency(amount)}</td>`;
-    });
-    
-    html += `</tr>`;
-  }
-  
-  // 합계 행
-  html += `<tr class="border-t-2 bg-gray-50 font-bold">`;
-  html += `<td class="px-4 py-3">합계</td>`;
-  years.forEach(year => {
-    const total = yearlyData[year].reduce((sum, amount) => sum + amount, 0);
-    html += `<td class="px-4 py-3 text-right">${formatCurrency(total)}</td>`;
+    tableHTML += `
+      <tr class="border-t hover:bg-gray-50">
+        <td class="px-4 py-3">
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded" style="background-color: ${getCategoryColor(data.category)}"></div>
+            <span class="font-medium">${data.category}</span>
+          </div>
+        </td>
+        <td class="px-4 py-3 text-right font-bold">${formatCurrency(data.total)}</td>
+        <td class="px-4 py-3 text-right text-gray-600">${percentage}%</td>
+        <td class="px-4 py-3 text-right text-gray-600">${data.count}건</td>
+        <td class="px-4 py-3 text-center">
+          <button onclick="loadCategoryTransactions('${data.category}')" 
+                  class="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600">
+            <i class="fas fa-list mr-1"></i>거래내역
+          </button>
+        </td>
+      </tr>
+    `;
   });
-  html += `</tr>`;
   
-  html += `
-        </tbody>
-      </table>
+  tableHTML += `
+    </tbody>
+  </table>
+</div>
+  `;
+  
+  detailsDiv.innerHTML = tableHTML;
+}
+
+// 카테고리별 색상 (Chart.js 기본 팔레트)
+function getCategoryColor(category) {
+  const colors = {
+    '의복비': '#FF6384',
+    '식비': '#36A2EB',
+    '주거비': '#FFCE56',
+    '교통비': '#4BC0C0',
+    '문화생활': '#9966FF',
+    '쇼핑': '#FF9F40',
+    '의료비': '#FF6384',
+    '교육비': '#C9CBCF',
+    '통신비': '#4BC0C0',
+    '보험': '#FF6384',
+    '기타지출': '#36A2EB'
+  };
+  return colors[category] || '#999999';
+}
+
+// 3단계: 특정 카테고리의 거래 내역 리스트
+async function loadCategoryTransactions(category) {
+  reportState.selectedCategory = category;
+  
+  const month = reportState.selectedMonth;
+  const monthStr = `${reportState.year}-${String(month).padStart(2, '0')}`;
+  const monthLabel = ['', '1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'][month];
+  
+  const detailsDiv = document.getElementById('report-details');
+  detailsDiv.innerHTML = '<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>';
+  
+  // 제목 업데이트
+  document.getElementById('report-title').textContent = `${reportState.year}년 ${monthLabel} - ${category}`;
+  document.getElementById('report-subtitle').textContent = '해당 카테고리의 모든 거래 내역입니다.';
+  
+  // Breadcrumb 업데이트
+  document.getElementById('report-breadcrumb').innerHTML = `
+    <div class="flex items-center gap-2 text-sm">
+      <button onclick="loadYearlyReport()" class="text-blue-600 hover:text-blue-800">
+        <i class="fas fa-home mr-1"></i>${reportState.year}년 연간 지출
+      </button>
+      <i class="fas fa-chevron-right text-gray-400"></i>
+      <button onclick="loadMonthCategoryReport(${month})" class="text-blue-600 hover:text-blue-800">
+        ${monthLabel}
+      </button>
+      <i class="fas fa-chevron-right text-gray-400"></i>
+      <span class="text-gray-700 font-medium">${category}</span>
     </div>
   `;
   
-  resultsDiv.innerHTML = html;
+  // 해당 월의 거래 데이터 가져오기
+  const firstDay = `${monthStr}-01`;
+  const lastDay = `${monthStr}-${new Date(reportState.year, month, 0).getDate()}`;
   
-  // 차트 그리기 (첫 번째 연도만)
-  const firstYear = years[0];
-  drawReportChart(monthNames, yearlyData[firstYear], `${firstYear}년 월별 지출`);
+  const response = await axios.get(`/api/transactions?start_date=${firstDay}&end_date=${lastDay}`);
+  const transactions = response.data.data || [];
+  const categoryTransactions = transactions
+    .filter(t => t.type === 'expense' && t.category === category)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  if (categoryTransactions.length === 0) {
+    detailsDiv.innerHTML = '<p class="text-center text-gray-500">거래 내역이 없습니다.</p>';
+    
+    if (reportChart) {
+      reportChart.destroy();
+      reportChart = null;
+    }
+    return;
+  }
+  
+  // 차트 숨기기 (거래 내역은 차트가 필요없음)
+  if (reportChart) {
+    reportChart.destroy();
+    reportChart = null;
+  }
+  
+  // 거래 내역 테이블
+  const categoryTotal = categoryTransactions.reduce((sum, t) => sum + t.amount, 0);
+  
+  let tableHTML = `
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold">거래 내역</h3>
+      <div class="text-sm">
+        총 <span class="font-bold text-red-600">${formatCurrency(categoryTotal)}</span>
+        <span class="text-gray-500 ml-2">(${categoryTransactions.length}건)</span>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-3 text-left">날짜</th>
+            <th class="px-4 py-3 text-left">설명</th>
+            <th class="px-4 py-3 text-right">금액</th>
+            <th class="px-4 py-3 text-center">액션</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+  
+  categoryTransactions.forEach(t => {
+    const dayOfWeek = ['일', '월', '화', '수', '목', '금', '토'][new Date(t.date).getDay()];
+    
+    tableHTML += `
+      <tr class="border-t hover:bg-gray-50">
+        <td class="px-4 py-3">
+          <div class="font-medium">${t.date}</div>
+          <div class="text-xs text-gray-500">${dayOfWeek}요일</div>
+        </td>
+        <td class="px-4 py-3">
+          ${t.description ? `<div class="text-gray-700">${t.description}</div>` : '<div class="text-gray-400 text-sm">-</div>'}
+        </td>
+        <td class="px-4 py-3 text-right">
+          <span class="font-bold text-red-600">${formatCurrency(t.amount)}</span>
+        </td>
+        <td class="px-4 py-3 text-center">
+          <button onclick="openEditTransactionModal(${t.id})" 
+                  class="text-blue-600 hover:text-blue-800 mr-2"
+                  title="수정">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button onclick="deleteTransaction(${t.id})" 
+                  class="text-red-600 hover:text-red-800"
+                  title="삭제">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+  
+  tableHTML += `
+    </tbody>
+  </table>
+</div>
+  `;
+  
+  detailsDiv.innerHTML = tableHTML;
 }
 
-function drawReportChart(labels, data, title) {
+// 바 차트 그리기 함수들
+function drawYearlyBarChart(data) {
   const ctx = document.getElementById('report-chart');
   
   if (reportChart) {
     reportChart.destroy();
   }
   
+  const labels = data.map(d => d.label);
+  const amounts = data.map(d => d.total);
+  const maxAmount = Math.max(...amounts);
+  
   reportChart = new Chart(ctx, {
-    type: 'line',
+    type: 'bar',
     data: {
       labels: labels,
       datasets: [{
-        label: title,
-        data: data,
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        tension: 0.3,
-        fill: true
+        label: '지출액',
+        data: amounts,
+        backgroundColor: amounts.map((amount, index) => {
+          // 금액에 따라 색상 그라데이션
+          const intensity = maxAmount > 0 ? (amount / maxAmount) : 0;
+          return `rgba(239, 68, 68, ${0.3 + intensity * 0.7})`;
+        }),
+        borderColor: 'rgb(239, 68, 68)',
+        borderWidth: 1
       }]
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: false,
+      onClick: (event, elements) => {
+        if (elements.length > 0) {
+          const index = elements[0].index;
+          const month = data[index].month;
+          loadMonthCategoryReport(month);
+        }
+      },
       plugins: {
         legend: {
-          display: true,
-          position: 'top'
+          display: false
         },
         title: {
           display: true,
-          text: title
+          text: `${reportState.year}년 월별 지출 (클릭하여 상세보기)`,
+          font: {
+            size: 16,
+            weight: 'bold'
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return formatCurrency(context.parsed.y);
+            }
+          }
         }
       },
       scales: {
@@ -1838,7 +2037,74 @@ function drawReportChart(labels, data, title) {
           beginAtZero: true,
           ticks: {
             callback: function(value) {
-              return formatCurrency(value);
+              return formatCurrencyShort(value);
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function drawCategoryBarChart(data, monthLabel) {
+  const ctx = document.getElementById('report-chart');
+  
+  if (reportChart) {
+    reportChart.destroy();
+  }
+  
+  const labels = data.map(d => d.category);
+  const amounts = data.map(d => d.total);
+  const colors = data.map(d => getCategoryColor(d.category));
+  
+  reportChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '지출액',
+        data: amounts,
+        backgroundColor: colors.map(c => c + '80'), // 80% opacity
+        borderColor: colors,
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      onClick: (event, elements) => {
+        if (elements.length > 0) {
+          const index = elements[0].index;
+          const category = data[index].category;
+          loadCategoryTransactions(category);
+        }
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        title: {
+          display: true,
+          text: `${reportState.year}년 ${monthLabel} 카테고리별 지출 (클릭하여 상세보기)`,
+          font: {
+            size: 16,
+            weight: 'bold'
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return formatCurrency(context.parsed.y);
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return formatCurrencyShort(value);
             }
           }
         }
