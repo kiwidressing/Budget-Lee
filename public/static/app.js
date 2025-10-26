@@ -1175,11 +1175,15 @@ async function updateInvestmentPrices() {
             <td class="px-4 py-3 text-right ${profitClass} font-medium">${profitSign}${profitLossPercent}%</td>
             <td class="px-4 py-3 text-right ${profitClass} font-medium">${profitSign}${formatCurrency(Math.abs(profitLoss))}</td>
             <td class="px-4 py-3 text-center">
-              <button onclick="editInvestment(${inv.id})" class="text-blue-600 hover:text-blue-800 mr-2">
-                <i class="fas fa-edit"></i>
+              <button onclick="editInvestment(${inv.id})" 
+                      class="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 mr-2"
+                      title="투자 정보 수정">
+                <i class="fas fa-edit mr-1"></i>수정
               </button>
-              <button onclick="deleteInvestment(${inv.id})" class="text-red-600 hover:text-red-800">
-                <i class="fas fa-trash"></i>
+              <button onclick="deleteInvestment(${inv.id})" 
+                      class="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
+                      title="투자 삭제">
+                <i class="fas fa-trash mr-1"></i>삭제
               </button>
             </td>
           </tr>
@@ -1325,35 +1329,63 @@ async function handleInvestmentSubmit(event, investmentId = null) {
   };
   
   try {
+    let response;
     if (investmentId) {
       // 수정
-      await axios.put(`/api/investments/${investmentId}`, data);
+      response = await axios.put(`/api/investments/${investmentId}`, data);
+      if (response.data.success) {
+        alert(`${data.name} 투자 정보가 수정되었습니다.`);
+      }
     } else {
       // 추가
-      await axios.post('/api/investments', data);
+      response = await axios.post('/api/investments', data);
+      if (response.data.success) {
+        alert(`${data.name} 투자가 추가되었습니다.`);
+      }
     }
     
     closeModal();
     await renderInvestmentsView();
   } catch (error) {
-    alert('투자 정보 저장 중 오류가 발생했습니다.');
-    console.error(error);
+    console.error('Failed to save investment:', error);
+    alert('투자 정보 저장 중 오류가 발생했습니다.\n' + (error.response?.data?.error || error.message));
   }
 }
 
 async function editInvestment(id) {
-  await openInvestmentModal(id);
+  console.log('Edit investment:', id);
+  try {
+    // 투자 목록 다시 로드 (최신 데이터 확보)
+    await fetchInvestments();
+    await openInvestmentModal(id);
+  } catch (error) {
+    console.error('Failed to open edit modal:', error);
+    alert('투자 수정 모달을 여는 중 오류가 발생했습니다.');
+  }
 }
 
 async function deleteInvestment(id) {
-  if (!confirm('이 투자를 삭제하시겠습니까?')) return;
+  console.log('Delete investment:', id);
+  
+  const investment = state.investments.find(inv => inv.id === id);
+  const confirmMessage = investment 
+    ? `${investment.name} (${investment.symbol}) 투자를 삭제하시겠습니까?`
+    : '이 투자를 삭제하시겠습니까?';
+  
+  if (!confirm(confirmMessage)) return;
   
   try {
-    await axios.delete(`/api/investments/${id}`);
-    await renderInvestmentsView();
+    const response = await axios.delete(`/api/investments/${id}`);
+    
+    if (response.data.success) {
+      alert('투자가 삭제되었습니다.');
+      await renderInvestmentsView();
+    } else {
+      alert('투자 삭제에 실패했습니다.');
+    }
   } catch (error) {
+    console.error('Failed to delete investment:', error);
     alert('투자 삭제 중 오류가 발생했습니다.');
-    console.error(error);
   }
 }
 
