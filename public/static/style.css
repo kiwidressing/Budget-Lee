@@ -1,6 +1,35 @@
 /* 기본 스타일 */
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+}
+
+/* 반응형 글씨 크기 */
+@media (max-width: 640px) {
+  body {
+    font-size: 13px;
+  }
+  h1 {
+    font-size: 1.25rem !important;
+  }
+  h2 {
+    font-size: 1.125rem !important;
+  }
+  h3 {
+    font-size: 1rem !important;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  body {
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 1025px) {
+  body {
+    font-size: 15px;
+  }
 }
 
 /* 탭 버튼 호버 효과 */
@@ -51,13 +80,69 @@ body {
 }
 
 /* 반응형 그리드 */
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .container {
-    padding: 1rem;
+    padding: 0.75rem;
   }
   
   .tab-button {
-    font-size: 0.875rem;
-    padding: 0.75rem 1rem;
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+/* 달력 점 스타일 */
+.calendar-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  margin: 0 1px;
+}
+
+.calendar-dot.income {
+  background-color: #3B82F6;
+}
+
+.calendar-dot.expense {
+  background-color: #EF4444;
+}
+
+.calendar-dot.savings {
+  background-color: #10B981;
+}
+
+/* 달력 셀 컴팩트 모드 */
+.calendar-cell-compact {
+  height: 50px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.calendar-dots-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  justify-content: center;
+  max-width: 100%;
+}
+
+/* 버튼 아이콘 전용 스타일 */
+.btn-icon-only {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 640px) {
+  .btn-icon-only {
+    width: 32px;
+    height: 32px;
   }
 }

@@ -323,13 +323,13 @@ app.get('/api/fixed-expenses', async (c) => {
 // 5.2 고정지출 생성
 app.post('/api/fixed-expenses', async (c) => {
   const { DB } = c.env
-  const { name, category, amount, frequency, week_of_month, day_of_week } = await c.req.json()
+  const { name, category, amount, frequency, week_of_month, day_of_week, payment_day } = await c.req.json()
   
-  if (!name || !category || !amount || !frequency || day_of_week === undefined) {
+  if (!name || !category || !amount || !frequency) {
     return c.json({ success: false, error: '필수 항목을 입력해주세요.' }, 400)
   }
   
-  if (!['monthly', 'weekly'].includes(frequency)) {
+  if (!['monthly', 'weekly', 'monthly_day'].includes(frequency)) {
     return c.json({ success: false, error: '유효하지 않은 주기입니다.' }, 400)
   }
   
@@ -337,11 +337,23 @@ app.post('/api/fixed-expenses', async (c) => {
     return c.json({ success: false, error: '주차를 선택해주세요.' }, 400)
   }
   
+  if (frequency === 'monthly' && day_of_week === undefined) {
+    return c.json({ success: false, error: '요일을 선택해주세요.' }, 400)
+  }
+  
+  if (frequency === 'monthly_day' && !payment_day) {
+    return c.json({ success: false, error: '일자를 선택해주세요.' }, 400)
+  }
+  
+  if (frequency === 'weekly' && day_of_week === undefined) {
+    return c.json({ success: false, error: '요일을 선택해주세요.' }, 400)
+  }
+  
   const result = await DB.prepare(`
     INSERT INTO fixed_expenses 
-    (name, category, amount, frequency, week_of_month, day_of_week, is_active)
-    VALUES (?, ?, ?, ?, ?, ?, 1)
-  `).bind(name, category, amount, frequency, week_of_month || null, day_of_week).run()
+    (name, category, amount, frequency, week_of_month, day_of_week, payment_day, is_active)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+  `).bind(name, category, amount, frequency, week_of_month || null, day_of_week ?? null, payment_day || null).run()
   
   return c.json({ success: true, id: result.meta.last_row_id })
 })
@@ -463,6 +475,23 @@ app.get('/api/fixed-expenses/instances/:yearMonth', async (c) => {
           transaction_id: payment?.transaction_id || null
         })
       }
+    } else if (expense.frequency === 'monthly_day') {
+      // 매월 특정 일자
+      const day = expense.payment_day
+      const lastDay = new Date(year, month, 0).getDate()
+      const actualDay = Math.min(day, lastDay) // 31일이 없는 달 처리
+      const date = new Date(year, month - 1, actualDay)
+      const dateStr = formatDate(date)
+      const payment = (payments.results as any[]).find(
+        p => p.fixed_expense_id === expense.id && p.payment_date === dateStr
+      )
+      
+      instances.push({
+        ...expense,
+        scheduled_date: dateStr,
+        is_paid: !!payment,
+        transaction_id: payment?.transaction_id || null
+      })
     } else if (expense.frequency === 'weekly') {
       // 주별: 해당 월의 모든 해당 요일 찾기
       const dates = getAllDaysOfWeekInMonth(year, month - 1, expense.day_of_week)
@@ -697,6 +726,7 @@ app.get('/api/investments/price/:symbol', async (c) => {
 function generateSimulatedPrice(symbol: string) {
   // 심볼별 기준 가격 (실제와 유사한 범위)
   const basePrices: { [key: string]: number } = {
+    // 미국 주식
     'AAPL': 180,
     'GOOGL': 140,
     'MSFT': 370,
@@ -706,18 +736,44 @@ function generateSimulatedPrice(symbol: string) {
     'NVDA': 870,
     'AMD': 165,
     'NFLX': 600,
+    
+    // 한국 주식
     '005930.KS': 70000, // 삼성전자
     '000660.KS': 120000, // SK하이닉스
+    
+    // 암호화폐 (USD 기준)
+    'BTC': 65000,  // 비트코인
+    'ETH': 3200,   // 이더리움
+    'BNB': 580,    // 바이낸스코인
+    'XRP': 0.60,   // 리플
+    'SOL': 140,    // 솔라나
+    'ADA': 0.45,   // 카르다노
+    'DOGE': 0.08,  // 도지코인
+    'DOT': 6.5,    // 폴카닷
+    'MATIC': 0.85, // 폴리곤
+    'AVAX': 35,    // 아발란체
   }
   
   const basePrice = basePrices[symbol] || 100
   
   // 한국 주식 여부 확인
   const isKoreanStock = symbol.endsWith('.KS') || symbol.endsWith('.KQ')
-  const currency = isKoreanStock ? 'KRW' : 'USD'
   
-  // 랜덤 변동 (-5% ~ +5%)
-  const randomVariation = (Math.random() - 0.5) * 0.1 // -5% ~ +5%
+  // 암호화폐 여부 확인 (주요 코인 심볼)
+  const cryptoSymbols = ['BTC', 'ETH', 'BNB', 'XRP', 'SOL', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX']
+  const isCrypto = cryptoSymbols.includes(symbol)
+  
+  // 통화 결정
+  let currency = 'USD'
+  if (isKoreanStock) {
+    currency = 'KRW'
+  } else if (isCrypto) {
+    currency = 'USD' // 암호화폐는 USD 기준
+  }
+  
+  // 랜덤 변동 (암호화폐는 변동성이 더 큼)
+  const volatility = isCrypto ? 0.15 : 0.1 // 암호화폐 -7.5% ~ +7.5%, 주식 -5% ~ +5%
+  const randomVariation = (Math.random() - 0.5) * volatility
   const currentPrice = basePrice * (1 + randomVariation)
   const previousPrice = basePrice * (1 + (randomVariation * 0.5))
   
@@ -741,6 +797,219 @@ app.get('/api/investments/:id/transactions', async (c) => {
   
   return c.json({ success: true, data: result.results })
 })
+
+// -----------------------------------------------------------------------------
+// 그룹 8: 영수증 관리 API (5개)
+// -----------------------------------------------------------------------------
+
+// 8.1 영수증 목록 조회 (이미지 데이터 제외)
+app.get('/api/receipts', async (c) => {
+  const { DB } = c.env
+  const category = c.req.query('category')
+  const store = c.req.query('store')
+  const startDate = c.req.query('start_date')
+  const endDate = c.req.query('end_date')
+  const tags = c.req.query('tags')
+  
+  let query = `
+    SELECT 
+      id, store_name, purchase_date, amount, category, 
+      description, payment_method, tags, notes, 
+      image_type, created_at, updated_at
+    FROM receipts 
+    WHERE 1=1
+  `
+  const params: any[] = []
+  
+  if (category) {
+    query += ` AND category = ?`
+    params.push(category)
+  }
+  
+  if (store) {
+    query += ` AND store_name LIKE ?`
+    params.push(`%${store}%`)
+  }
+  
+  if (startDate) {
+    query += ` AND purchase_date >= ?`
+    params.push(startDate)
+  }
+  
+  if (endDate) {
+    query += ` AND purchase_date <= ?`
+    params.push(endDate)
+  }
+  
+  if (tags) {
+    query += ` AND tags LIKE ?`
+    params.push(`%${tags}%`)
+  }
+  
+  query += ` ORDER BY purchase_date DESC, created_at DESC`
+  
+  const result = await DB.prepare(query).bind(...params).all()
+  
+  return c.json({ success: true, data: result.results })
+})
+
+// 8.2 영수증 상세 조회 (이미지 포함)
+app.get('/api/receipts/:id', async (c) => {
+  const { DB } = c.env
+  const id = c.req.param('id')
+  
+  const result = await DB.prepare(`
+    SELECT * FROM receipts WHERE id = ?
+  `).bind(id).first()
+  
+  if (!result) {
+    return c.json({ success: false, error: '영수증을 찾을 수 없습니다.' }, 404)
+  }
+  
+  return c.json({ success: true, data: result })
+})
+
+// 8.3 영수증 생성 (이미지 포함)
+app.post('/api/receipts', async (c) => {
+  const { DB } = c.env
+  const body = await c.req.json()
+  
+  const { 
+    store_name, 
+    purchase_date, 
+    amount, 
+    category, 
+    description,
+    payment_method,
+    image_data,
+    image_type,
+    tags,
+    notes
+  } = body
+  
+  if (!store_name || !purchase_date || !amount || !image_data || !image_type) {
+    return c.json({ success: false, error: '필수 항목을 입력해주세요. (구매처, 날짜, 금액, 이미지)' }, 400)
+  }
+  
+  const result = await DB.prepare(`
+    INSERT INTO receipts 
+    (store_name, purchase_date, amount, category, description, 
+     payment_method, image_data, image_type, tags, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    store_name, 
+    purchase_date, 
+    amount, 
+    category || null,
+    description || null,
+    payment_method || null,
+    image_data,
+    image_type,
+    tags || null,
+    notes || null
+  ).run()
+  
+  return c.json({ 
+    success: true, 
+    data: { 
+      id: result.meta.last_row_id,
+      store_name,
+      purchase_date,
+      amount,
+      category,
+      description,
+      payment_method,
+      image_type,
+      tags,
+      notes
+    }
+  })
+})
+
+// 8.4 영수증 수정
+app.put('/api/receipts/:id', async (c) => {
+  const { DB } = c.env
+  const id = c.req.param('id')
+  const body = await c.req.json()
+  
+  const { 
+    store_name, 
+    purchase_date, 
+    amount, 
+    category,
+    description,
+    payment_method, 
+    image_data,
+    image_type,
+    tags,
+    notes
+  } = body
+  
+  // 기존 영수증 확인
+  const existing = await DB.prepare(`
+    SELECT * FROM receipts WHERE id = ?
+  `).bind(id).first()
+  
+  if (!existing) {
+    return c.json({ success: false, error: '영수증을 찾을 수 없습니다.' }, 404)
+  }
+  
+  // 이미지 업데이트 처리 (새 이미지가 있으면 업데이트, 없으면 기존 유지)
+  const finalImageData = image_data || existing.image_data
+  const finalImageType = image_type || existing.image_type
+  
+  await DB.prepare(`
+    UPDATE receipts 
+    SET store_name = ?,
+        purchase_date = ?,
+        amount = ?,
+        category = ?,
+        description = ?,
+        payment_method = ?,
+        image_data = ?,
+        image_type = ?,
+        tags = ?,
+        notes = ?,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).bind(
+    store_name,
+    purchase_date,
+    amount,
+    category || null,
+    description || null,
+    payment_method || null,
+    finalImageData,
+    finalImageType,
+    tags || null,
+    notes || null,
+    id
+  ).run()
+  
+  return c.json({ success: true })
+})
+
+// 8.5 영수증 삭제
+app.delete('/api/receipts/:id', async (c) => {
+  const { DB } = c.env
+  const id = c.req.param('id')
+  
+  const existing = await DB.prepare(`
+    SELECT * FROM receipts WHERE id = ?
+  `).bind(id).first()
+  
+  if (!existing) {
+    return c.json({ success: false, error: '영수증을 찾을 수 없습니다.' }, 404)
+  }
+  
+  await DB.prepare(`
+    DELETE FROM receipts WHERE id = ?
+  `).bind(id).run()
+  
+  return c.json({ success: true })
+})
+
+
 
 // =============================================================================
 // 메인 페이지
@@ -793,6 +1062,9 @@ app.get('/', (c) => {
                     </button>
                     <button id="tab-investments" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
                         <i class="fas fa-chart-line mr-2"></i>투자
+                    </button>
+                    <button id="tab-receipts" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
+                        <i class="fas fa-receipt mr-2"></i>영수증
                     </button>
                     <button id="tab-reports" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
                         <i class="fas fa-chart-bar mr-2"></i>리포트

@@ -14,6 +14,7 @@ const state = {
   fixedExpenses: [],
   budgets: [],
   investments: [],
+  receipts: [],
   settings: {
     currency: 'KRW',
     initial_balance: 0,
@@ -266,7 +267,7 @@ async function switchView(view) {
   state.activeView = view;
   
   // 모든 탭 버튼 업데이트
-  const tabs = ['month', 'week', 'savings', 'fixed-expenses', 'budgets', 'investments', 'reports', 'settings'];
+  const tabs = ['month', 'week', 'savings', 'fixed-expenses', 'budgets', 'investments', 'receipts', 'reports', 'settings'];
   tabs.forEach(tabName => {
     const tab = document.getElementById(`tab-${tabName}`);
     if (tab) {
@@ -297,6 +298,9 @@ async function switchView(view) {
       break;
     case 'investments':
       await renderInvestmentsView();
+      break;
+    case 'receipts':
+      await renderReceiptsView();
       break;
     case 'reports':
       await renderReportsView();
@@ -354,12 +358,12 @@ async function renderMonthView() {
     <div class="space-y-6">
       <!-- 월 네비게이션 -->
       <div class="flex justify-between items-center">
-        <button onclick="changeMonth(-1)" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-          <i class="fas fa-chevron-left"></i> 이전 달
+        <button onclick="changeMonth(-1)" class="w-8 h-8 md:w-10 md:h-10 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center">
+          <i class="fas fa-chevron-left text-sm"></i>
         </button>
-        <h2 class="text-2xl font-bold">${state.currentMonth.getFullYear()}년 ${state.currentMonth.getMonth() + 1}월</h2>
-        <button onclick="changeMonth(1)" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-          다음 달 <i class="fas fa-chevron-right"></i>
+        <h2 class="text-sm md:text-base font-semibold">${state.currentMonth.getFullYear()}년 ${state.currentMonth.getMonth() + 1}월</h2>
+        <button onclick="changeMonth(1)" class="w-8 h-8 md:w-10 md:h-10 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center">
+          <i class="fas fa-chevron-right text-sm"></i>
         </button>
       </div>
       
@@ -400,7 +404,7 @@ async function renderMonthView() {
         <div class="flex justify-between items-center mb-4">
           <h3 class="text-xl font-bold">거래 내역</h3>
           <button onclick="openTransactionModal(null)" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-            <i class="fas fa-plus mr-2"></i>거래 추가
+            <i class="fas fa-plus"></i>
           </button>
         </div>
         
@@ -454,7 +458,7 @@ function renderCalendar(calendarData) {
     html += '<div></div>';
   }
   
-  // 날짜 렌더링
+  // 날짜 렌더링 (컴팩트 모드 - 점으로 표시)
   for (let day = 1; day <= daysInMonth; day++) {
     const currentDate = new Date(year, month, day);
     const dateStr = getDateString(currentDate);
@@ -462,17 +466,27 @@ function renderCalendar(calendarData) {
     const dayData = calendarData[dateStr] || {};
     
     // 토요일(6) 파란색, 일요일(0) 빨간색
-    let dayColor = 'text-gray-800';
-    if (dayOfWeek === 0) dayColor = 'text-red-600';
-    else if (dayOfWeek === 6) dayColor = 'text-blue-600';
+    let dayColor = 'text-gray-700';
+    if (dayOfWeek === 0) dayColor = 'text-red-500';
+    else if (dayOfWeek === 6) dayColor = 'text-blue-500';
+    
+    // 거래 점 생성
+    let dots = '';
+    const hasIncome = dayData.income && dayData.income > 0;
+    const hasExpense = dayData.expense && dayData.expense > 0;
+    const hasSavings = dayData.savings && dayData.savings > 0;
+    
+    if (hasIncome) dots += '<span class="calendar-dot income"></span>';
+    if (hasExpense) dots += '<span class="calendar-dot expense"></span>';
+    if (hasSavings) dots += '<span class="calendar-dot savings"></span>';
     
     html += `
-      <div class="border p-2 rounded cursor-pointer hover:bg-gray-50 min-h-[80px]" 
+      <div class="border p-1 md:p-2 rounded cursor-pointer hover:bg-gray-50 calendar-cell-compact" 
            onclick="openTransactionModal('${dateStr}')">
-        <div class="font-bold mb-1 ${dayColor}">${day}</div>
-        ${dayData.income ? `<div class="text-xs text-blue-600">+${formatCurrencyShort(dayData.income)}</div>` : ''}
-        ${dayData.expense ? `<div class="text-xs text-red-600">-${formatCurrencyShort(dayData.expense)}</div>` : ''}
-        ${dayData.savings ? `<div class="text-xs text-green-600">저축${formatCurrencyShort(dayData.savings)}</div>` : ''}
+        <div class="text-xs md:text-sm font-semibold mb-1 ${dayColor}">${day}</div>
+        <div class="calendar-dots-container">
+          ${dots}
+        </div>
       </div>
     `;
   }
@@ -730,12 +744,12 @@ async function renderWeekView() {
   contentArea.innerHTML = `
     <div class="space-y-6">
       <div class="flex justify-between items-center">
-        <button onclick="changeWeek(-1)" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-          <i class="fas fa-chevron-left"></i> 이전 주
+        <button onclick="changeWeek(-1)" class="w-8 h-8 md:w-10 md:h-10 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center">
+          <i class="fas fa-chevron-left text-sm"></i>
         </button>
-        <h2 class="text-2xl font-bold">${getDateString(state.currentWeekStart)} ~ ${getDateString(weekEnd)}</h2>
-        <button onclick="changeWeek(1)" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-          다음 주 <i class="fas fa-chevron-right"></i>
+        <h2 class="text-xs md:text-sm font-semibold">${getDateString(state.currentWeekStart)} ~ ${getDateString(weekEnd)}</h2>
+        <button onclick="changeWeek(1)" class="w-8 h-8 md:w-10 md:h-10 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center">
+          <i class="fas fa-chevron-right text-sm"></i>
         </button>
       </div>
       
@@ -764,7 +778,7 @@ async function renderWeekView() {
         <div class="flex justify-between items-center mb-4">
           <h3 class="text-xl font-bold">거래 내역</h3>
           <button onclick="openTransactionModal(null)" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-            <i class="fas fa-plus mr-2"></i>거래 추가
+            <i class="fas fa-plus"></i>
           </button>
         </div>
         ${renderTransactionList(state.transactions)}
@@ -790,7 +804,7 @@ async function renderSavingsView() {
       <div class="flex justify-between items-center">
         <h3 class="text-xl font-bold">저축 통장 목록</h3>
         <button onclick="openSavingsAccountModal()" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-          <i class="fas fa-plus mr-2"></i>통장 추가
+          <i class="fas fa-plus"></i>
         </button>
       </div>
       
@@ -825,7 +839,7 @@ async function renderFixedExpensesView() {
       <div class="flex justify-between items-center mb-4">
         <h3 class="text-xl font-bold">고정지출 관리</h3>
         <button onclick="openFixedExpenseModal()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-          <i class="fas fa-plus mr-2"></i>고정지출 추가
+          <i class="fas fa-plus"></i>
         </button>
       </div>
       
@@ -884,17 +898,25 @@ async function renderFixedExpensesView() {
             `}
             
             <div class="flex flex-wrap gap-1 mb-3">
-              <span class="px-2 py-1 text-xs rounded-full ${instance.frequency === 'monthly' ? 'bg-blue-500' : 'bg-green-500'} text-white">
-                ${instance.frequency === 'monthly' ? '월별' : '주별'}
+              <span class="px-2 py-1 text-xs rounded-full ${instance.frequency === 'monthly' ? 'bg-blue-500' : instance.frequency === 'monthly_day' ? 'bg-indigo-500' : 'bg-green-500'} text-white">
+                ${instance.frequency === 'monthly' ? '월별' : instance.frequency === 'monthly_day' ? '매월' : '주별'}
               </span>
               ${instance.frequency === 'monthly' ? `
                 <span class="px-2 py-1 text-xs rounded-full bg-orange-500 text-white">
                   ${getWeekName(instance.week_of_month)}주
                 </span>
-              ` : ''}
-              <span class="px-2 py-1 text-xs rounded-full bg-purple-500 text-white">
-                ${getDayName(instance.day_of_week)}요일
-              </span>
+                <span class="px-2 py-1 text-xs rounded-full bg-purple-500 text-white">
+                  ${getDayName(instance.day_of_week)}요일
+                </span>
+              ` : instance.frequency === 'monthly_day' ? `
+                <span class="px-2 py-1 text-xs rounded-full bg-purple-500 text-white">
+                  ${instance.payment_day}일
+                </span>
+              ` : `
+                <span class="px-2 py-1 text-xs rounded-full bg-purple-500 text-white">
+                  ${getDayName(instance.day_of_week)}요일
+                </span>
+              `}
             </div>
             <p class="text-sm text-gray-600">카테고리: ${instance.category}</p>
           </div>
@@ -1041,7 +1063,7 @@ async function renderInvestmentsView() {
       <div class="flex justify-between items-center">
         <h2 class="text-2xl font-bold">투자 관리</h2>
         <button onclick="openInvestmentModal()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-          <i class="fas fa-plus mr-2"></i>투자 추가
+          <i class="fas fa-plus"></i>
         </button>
       </div>
       
@@ -1054,7 +1076,10 @@ async function renderInvestmentsView() {
             <p>샌드박스 환경에서는 외부 API 접근이 제한되어 시뮬레이션 데이터가 표시될 수 있습니다.</p>
             <p class="mt-1">실제 Cloudflare Pages 배포 시에는 실시간 주가 데이터가 정상적으로 표시됩니다.</p>
             <p class="mt-2 text-xs">
-              <strong>지원 종목:</strong> AAPL, GOOGL, MSFT, TSLA, AMZN, META, NVDA, AMD, NFLX (미국 주식) / 005930.KS (삼성전자), 000660.KS (SK하이닉스) 등 (한국 주식)
+              <strong>지원 종목:</strong> 
+              <br/>• 미국 주식: AAPL, GOOGL, MSFT, TSLA, AMZN, META, NVDA, AMD, NFLX
+              <br/>• 한국 주식: 005930.KS (삼성전자), 000660.KS (SK하이닉스)
+              <br/>• 암호화폐: BTC, ETH, BNB, XRP, SOL, ADA, DOGE, DOT, MATIC, AVAX
             </p>
           </div>
         </div>
@@ -1176,14 +1201,14 @@ async function updateInvestmentPrices() {
             <td class="px-4 py-3 text-right ${profitClass} font-medium">${profitSign}${formatCurrency(Math.abs(profitLoss))}</td>
             <td class="px-4 py-3 text-center">
               <button onclick="editInvestment(${inv.id})" 
-                      class="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 mr-2"
-                      title="투자 정보 수정">
-                <i class="fas fa-edit mr-1"></i>수정
+                      class="px-2 py-1 text-blue-600 hover:bg-blue-50 text-xs rounded mr-1"
+                      title="수정">
+                <i class="fas fa-edit"></i>
               </button>
               <button onclick="deleteInvestment(${inv.id})" 
-                      class="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
-                      title="투자 삭제">
-                <i class="fas fa-trash mr-1"></i>삭제
+                      class="px-2 py-1 text-red-600 hover:bg-red-50 text-xs rounded"
+                      title="삭제">
+                <i class="fas fa-trash"></i>
               </button>
             </td>
           </tr>
@@ -1260,17 +1285,17 @@ async function openInvestmentModal(investmentId = null) {
         
         <form onsubmit="handleInvestmentSubmit(event, ${investmentId})" class="space-y-4">
           <div>
-            <label class="block text-sm font-medium mb-2">주식 심볼</label>
+            <label class="block text-sm font-medium mb-2">종목 심볼</label>
             <input type="text" name="symbol" value="${investment?.symbol || ''}" 
-                   placeholder="예: AAPL, TSLA" required
+                   placeholder="예: AAPL, BTC, 005930.KS" required
                    class="w-full px-4 py-2 border rounded">
-            <p class="text-xs text-gray-500 mt-1">미국 주식: AAPL, 한국 주식: 005930.KS</p>
+            <p class="text-xs text-gray-500 mt-1">주식: AAPL, 005930.KS / 코인: BTC, ETH, SOL</p>
           </div>
           
           <div>
-            <label class="block text-sm font-medium mb-2">회사 이름</label>
+            <label class="block text-sm font-medium mb-2">종목 이름</label>
             <input type="text" name="name" value="${investment?.name || ''}" 
-                   placeholder="예: Apple Inc." required
+                   placeholder="예: Apple Inc., 비트코인, 삼성전자" required
                    class="w-full px-4 py-2 border rounded">
           </div>
           
@@ -2411,13 +2436,14 @@ function openFixedExpenseModal() {
           </div>
           <div>
             <label class="block text-sm font-medium mb-2">주기</label>
-            <select name="frequency" class="w-full px-4 py-2 border rounded" required onchange="toggleWeekOfMonth(this.value)">
-              <option value="monthly">월별</option>
+            <select name="frequency" class="w-full px-4 py-2 border rounded" required onchange="toggleFixedExpenseFields(this.value)">
+              <option value="monthly">월별 (특정 주/요일)</option>
+              <option value="monthly_day">매월 (특정 일자)</option>
               <option value="weekly">주별</option>
             </select>
           </div>
           <div id="week-of-month-container">
-            <label class="block text-sm font-medium mb-2">주차 (월별만)</label>
+            <label class="block text-sm font-medium mb-2">주차</label>
             <select name="week_of_month" class="w-full px-4 py-2 border rounded">
               <option value="1">첫째 주</option>
               <option value="2">둘째 주</option>
@@ -2425,9 +2451,9 @@ function openFixedExpenseModal() {
               <option value="4">넷째 주</option>
             </select>
           </div>
-          <div>
+          <div id="day-of-week-container">
             <label class="block text-sm font-medium mb-2">요일</label>
-            <select name="day_of_week" class="w-full px-4 py-2 border rounded" required>
+            <select name="day_of_week" class="w-full px-4 py-2 border rounded">
               <option value="0">일요일</option>
               <option value="1">월요일</option>
               <option value="2">화요일</option>
@@ -2436,6 +2462,10 @@ function openFixedExpenseModal() {
               <option value="5">금요일</option>
               <option value="6">토요일</option>
             </select>
+          </div>
+          <div id="payment-day-container" style="display: none;">
+            <label class="block text-sm font-medium mb-2">일자</label>
+            <input type="number" name="payment_day" class="w-full px-4 py-2 border rounded" min="1" max="31" placeholder="1-31">
           </div>
           <button type="submit" class="w-full py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
             추가
@@ -2446,23 +2476,49 @@ function openFixedExpenseModal() {
   `;
 }
 
-function toggleWeekOfMonth(frequency) {
-  const container = document.getElementById('week-of-month-container');
-  container.style.display = frequency === 'monthly' ? 'block' : 'none';
+function toggleFixedExpenseFields(frequency) {
+  const weekOfMonthContainer = document.getElementById('week-of-month-container');
+  const dayOfWeekContainer = document.getElementById('day-of-week-container');
+  const paymentDayContainer = document.getElementById('payment-day-container');
+  
+  if (frequency === 'monthly') {
+    // 월별 (특정 주/요일)
+    weekOfMonthContainer.style.display = 'block';
+    dayOfWeekContainer.style.display = 'block';
+    paymentDayContainer.style.display = 'none';
+  } else if (frequency === 'monthly_day') {
+    // 매월 (특정 일자)
+    weekOfMonthContainer.style.display = 'none';
+    dayOfWeekContainer.style.display = 'none';
+    paymentDayContainer.style.display = 'block';
+  } else if (frequency === 'weekly') {
+    // 주별
+    weekOfMonthContainer.style.display = 'none';
+    dayOfWeekContainer.style.display = 'block';
+    paymentDayContainer.style.display = 'none';
+  }
 }
 
 async function handleFixedExpenseSubmit(event) {
   event.preventDefault();
   const formData = new FormData(event.target);
+  const frequency = formData.get('frequency');
   
   const data = {
     name: formData.get('name'),
     category: formData.get('category'),
     amount: parseInt(formData.get('amount')),
-    frequency: formData.get('frequency'),
-    week_of_month: formData.get('frequency') === 'monthly' ? parseInt(formData.get('week_of_month')) : null,
-    day_of_week: parseInt(formData.get('day_of_week'))
+    frequency: frequency
   };
+  
+  if (frequency === 'monthly') {
+    data.week_of_month = parseInt(formData.get('week_of_month'));
+    data.day_of_week = parseInt(formData.get('day_of_week'));
+  } else if (frequency === 'monthly_day') {
+    data.payment_day = parseInt(formData.get('payment_day'));
+  } else if (frequency === 'weekly') {
+    data.day_of_week = parseInt(formData.get('day_of_week'));
+  }
   
   try {
     const response = await axios.post('/api/fixed-expenses', data);
@@ -2471,7 +2527,7 @@ async function handleFixedExpenseSubmit(event) {
       renderFixedExpensesView();
     }
   } catch (error) {
-    alert('고정지출 추가 중 오류가 발생했습니다.');
+    alert(error.response?.data?.error || '고정지출 추가 중 오류가 발생했습니다.');
   }
 }
 
@@ -2545,6 +2601,9 @@ async function saveSettings() {
           case 'budgets':
             await renderBudgetsView();
             break;
+          case 'receipts':
+            await renderReceiptsView();
+            break;
           case 'settings':
             await renderSettingsView();
             break;
@@ -2565,6 +2624,490 @@ function closeModal(event) {
 }
 
 // =============================================================================
+// 영수증 관리
+// =============================================================================
+
+// =============================================================================
+// 영수증 관리
+// =============================================================================
+
+async function renderReceiptsView() {
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+  
+  const html = `
+    <div class="mb-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-bold text-gray-800">
+          <i class="fas fa-receipt mr-2 text-blue-600"></i>영수증 관리
+        </h2>
+        <button onclick="showReceiptModal()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      
+      <!-- 필터 -->
+      <div class="bg-gray-50 p-4 rounded-lg mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-2">연도</label>
+            <select id="receipt-year-filter" class="w-full px-3 py-2 border rounded-lg" onchange="loadReceipts()">
+              ${[currentYear, currentYear - 1, currentYear - 2].map(year => 
+                `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}년</option>`
+              ).join('')}
+              <option value="">전체</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-2">월</label>
+            <select id="receipt-month-filter" class="w-full px-3 py-2 border rounded-lg" onchange="loadReceipts()">
+              <option value="">전체</option>
+              ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m => 
+                `<option value="${m}" ${m === currentMonth ? 'selected' : ''}>${m}월</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-2">카테고리</label>
+            <select id="receipt-category-filter" class="w-full px-3 py-2 border rounded-lg" onchange="loadReceipts()">
+              <option value="">전체</option>
+              ${categories.expense.map(cat => `<option value="${cat}">${cat}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-2">세금공제</label>
+            <select id="receipt-tax-filter" class="w-full px-3 py-2 border rounded-lg" onchange="loadReceipts()">
+              <option value="">전체</option>
+              <option value="true">공제 대상</option>
+              <option value="false">일반</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 통계 요약 -->
+      <div id="receipt-stats" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <!-- 통계가 여기에 표시됩니다 -->
+      </div>
+      
+      <!-- 영수증 목록 -->
+      <div id="receipt-list" class="bg-white rounded-lg">
+        <div class="text-center py-8 text-gray-500">
+          <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+          <p>로딩 중...</p>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  contentArea.innerHTML = html;
+  await loadReceipts();
+}
+
+async function loadReceipts() {
+  try {
+    const year = document.getElementById('receipt-year-filter')?.value || '';
+    const month = document.getElementById('receipt-month-filter')?.value || '';
+    const category = document.getElementById('receipt-category-filter')?.value || '';
+    const taxDeductible = document.getElementById('receipt-tax-filter')?.value || '';
+    
+    // 필터 파라미터 구성
+    const params = new URLSearchParams();
+    if (year) params.append('year', year);
+    if (month) params.append('month', month);
+    if (category) params.append('category', category);
+    if (taxDeductible) params.append('tax_deductible', taxDeductible);
+    
+    const response = await axios.get(`/api/receipts?${params.toString()}`);
+    const receipts = response.data.data;
+    
+    // 통계 계산
+    const totalAmount = receipts.reduce((sum, r) => sum + (r.amount || 0), 0);
+    const taggedAmount = receipts.filter(r => r.tags && r.tags.includes('세금공제')).reduce((sum, r) => sum + (r.amount || 0), 0);
+    const totalCount = receipts.length;
+    
+    // 통계 표시
+    document.getElementById('receipt-stats').innerHTML = `
+      <div class="bg-blue-50 p-4 rounded-lg">
+        <div class="text-sm text-gray-600 mb-1">총 영수증 수</div>
+        <div class="text-2xl font-bold text-blue-600">${totalCount}건</div>
+      </div>
+      <div class="bg-green-50 p-4 rounded-lg">
+        <div class="text-sm text-gray-600 mb-1">총 지출액</div>
+        <div class="text-2xl font-bold text-green-600">${formatCurrency(totalAmount)}</div>
+      </div>
+      <div class="bg-purple-50 p-4 rounded-lg">
+        <div class="text-sm text-gray-600 mb-1">세금공제 태그</div>
+        <div class="text-2xl font-bold text-purple-600">${formatCurrency(taggedAmount)}</div>
+      </div>
+    `;
+    
+    // 영수증 목록 표시
+    if (receipts.length === 0) {
+      document.getElementById('receipt-list').innerHTML = `
+        <div class="text-center py-12 text-gray-500">
+          <i class="fas fa-receipt text-6xl mb-4 opacity-20"></i>
+          <p class="text-lg">등록된 영수증이 없습니다.</p>
+          <button onclick="showReceiptModal()" class="mt-4 text-blue-600 hover:text-blue-700">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+      `;
+      return;
+    }
+    
+    let listHTML = `
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">구매일</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">구매처</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">카테고리</th>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">금액</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">결제수단</th>
+              <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">세금공제</th>
+              <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">영수증</th>
+              <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">관리</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+    `;
+    
+    for (const receipt of receipts) {
+      const date = new Date(receipt.purchase_date);
+      const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      
+      listHTML += `
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-3 text-sm">${formattedDate}</td>
+          <td class="px-4 py-3">
+            <div class="font-medium">${receipt.store_name}</div>
+            ${receipt.description ? `<div class="text-xs text-gray-500">${receipt.description}</div>` : ''}
+          </td>
+          <td class="px-4 py-3">
+            ${receipt.category ? `<span class="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">${receipt.category}</span>` : '<span class="text-gray-400 text-xs">미분류</span>'}
+          </td>
+          <td class="px-4 py-3 text-right font-medium">${formatCurrency(receipt.amount)}</td>
+          <td class="px-4 py-3 text-sm">${receipt.payment_method || '-'}</td>
+          <td class="px-4 py-3 text-center">
+            ${receipt.tags && receipt.tags.includes('세금공제') ? '<span class="text-green-600"><i class="fas fa-check-circle"></i></span>' : '<span class="text-gray-300"><i class="fas fa-times-circle"></i></span>'}
+          </td>
+          <td class="px-4 py-3 text-center">
+            ${receipt.image_data ? `<button onclick="viewReceiptImage(${receipt.id})" class="text-blue-600 hover:text-blue-800" title="영수증 보기"><i class="fas fa-image"></i></button>` : '<span class="text-gray-300"><i class="fas fa-image"></i></span>'}
+          </td>
+          <td class="px-4 py-3 text-center">
+            <button onclick="editReceipt(${receipt.id})" 
+                    class="px-2 py-1 text-blue-600 hover:bg-blue-50 text-xs rounded mr-1"
+                    title="수정">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button onclick="deleteReceipt(${receipt.id})" 
+                    class="px-2 py-1 text-red-600 hover:bg-red-50 text-xs rounded"
+                    title="삭제">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+    }
+    
+    listHTML += `
+          </tbody>
+        </table>
+      </div>
+    `;
+    
+    document.getElementById('receipt-list').innerHTML = listHTML;
+    
+  } catch (error) {
+    console.error('영수증 로딩 오류:', error);
+    document.getElementById('receipt-list').innerHTML = `
+      <div class="text-center py-8 text-red-500">
+        <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
+        <p>영수증을 불러오는 중 오류가 발생했습니다.</p>
+      </div>
+    `;
+  }
+}
+
+function showReceiptModal(receiptId = null) {
+  let receipt = null;
+  
+  if (receiptId) {
+    // 수정 모드: 기존 영수증 데이터 가져오기
+    axios.get(`/api/receipts/${receiptId}`)
+      .then(response => {
+        receipt = response.data.data;
+        renderReceiptModal(receipt);
+      })
+      .catch(error => {
+        alert('영수증 정보를 불러올 수 없습니다.');
+      });
+  } else {
+    renderReceiptModal(null);
+  }
+}
+
+function renderReceiptModal(receipt) {
+  const today = new Date().toISOString().split('T')[0];
+  
+  const modalHTML = `
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onclick="closeModal(event)">
+      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+        <div class="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+          <h3 class="text-xl font-bold">
+            <i class="fas fa-receipt mr-2 text-blue-600"></i>
+            ${receipt ? '영수증 수정' : '새 영수증 추가'}
+          </h3>
+          <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times text-2xl"></i>
+          </button>
+        </div>
+        
+        <form id="receipt-form" class="p-6">
+          <input type="hidden" name="id" value="${receipt?.id || ''}">
+          
+          <!-- 이미지 업로드 -->
+          <div class="mb-6">
+            <label class="block text-sm font-medium mb-2">영수증 사진</label>
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+              <input type="file" id="receipt-image" accept="image/*" class="hidden" onchange="previewReceiptImage(event)">
+              <div id="image-preview-area">
+                ${receipt?.image_data ? `
+                  <img src="${receipt.image_data}" class="max-w-full max-h-64 mx-auto mb-2 rounded">
+                  <p class="text-sm text-gray-500 mb-2">사진을 변경하려면 클릭하세요</p>
+                ` : `
+                  <i class="fas fa-camera text-4xl text-gray-400 mb-2"></i>
+                  <p class="text-sm text-gray-500 mb-2">영수증 사진을 추가하세요 (필수)</p>
+                `}
+              </div>
+              <button type="button" onclick="document.getElementById('receipt-image').click()" 
+                      class="mt-2 px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
+                <i class="fas fa-upload mr-2"></i>사진 선택
+              </button>
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- 구매처명 -->
+            <div>
+              <label class="block text-sm font-medium mb-2">구매처명 <span class="text-red-500">*</span></label>
+              <input type="text" name="store_name" value="${receipt?.store_name || ''}" 
+                     placeholder="예: 스타벅스, 이마트" required
+                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <!-- 구매일 -->
+            <div>
+              <label class="block text-sm font-medium mb-2">구매일 <span class="text-red-500">*</span></label>
+              <input type="date" name="purchase_date" value="${receipt?.purchase_date || today}" required
+                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <!-- 총 금액 -->
+            <div>
+              <label class="block text-sm font-medium mb-2">총 금액 <span class="text-red-500">*</span></label>
+              <input type="number" name="amount" value="${receipt?.amount || ''}" 
+                     placeholder="10000" min="0" step="100" required
+                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <!-- 카테고리 -->
+            <div>
+              <label class="block text-sm font-medium mb-2">카테고리</label>
+              <select name="category" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option value="">선택 안함</option>
+                ${categories.expense.map(cat => 
+                  `<option value="${cat}" ${receipt?.category === cat ? 'selected' : ''}>${cat}</option>`
+                ).join('')}
+              </select>
+            </div>
+            
+            <!-- 결제수단 -->
+            <div>
+              <label class="block text-sm font-medium mb-2">결제수단</label>
+              <select name="payment_method" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option value="">선택 안함</option>
+                <option value="카드" ${receipt?.payment_method === '카드' ? 'selected' : ''}>카드</option>
+                <option value="현금" ${receipt?.payment_method === '현금' ? 'selected' : ''}>현금</option>
+                <option value="계좌이체" ${receipt?.payment_method === '계좌이체' ? 'selected' : ''}>계좌이체</option>
+                <option value="기타" ${receipt?.payment_method === '기타' ? 'selected' : ''}>기타</option>
+              </select>
+            </div>
+            
+            <!-- 태그 -->
+            <div>
+              <label class="block text-sm font-medium mb-2">태그</label>
+              <input type="text" name="tags" value="${receipt?.tags || ''}" 
+                     placeholder="예: 세금공제,사업비용" 
+                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+              <p class="text-xs text-gray-500 mt-1">쉼표로 구분해서 여러 태그 입력 가능</p>
+            </div>
+          </div>
+          
+          <!-- 구매 내역 설명 -->
+          <div class="mt-4">
+            <label class="block text-sm font-medium mb-2">구매 내역</label>
+            <textarea name="description" rows="2" 
+                      placeholder="예: 커피 2잔, 샌드위치 1개"
+                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">${receipt?.description || ''}</textarea>
+          </div>
+          
+          <!-- 추가 메모 -->
+          <div class="mt-4">
+            <label class="block text-sm font-medium mb-2">추가 메모</label>
+            <textarea name="notes" rows="2" 
+                      placeholder="기타 메모 사항"
+                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">${receipt?.notes || ''}</textarea>
+          </div>
+          
+          <!-- 버튼 -->
+          <div class="flex justify-end space-x-3 mt-6">
+            <button type="button" onclick="closeModal()" 
+                    class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+              취소
+            </button>
+            <button type="submit" 
+                    class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              <i class="fas fa-save mr-2"></i>${receipt ? '수정' : '추가'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('modal-container').innerHTML = modalHTML;
+  
+  // 폼 제출 이벤트
+  document.getElementById('receipt-form').onsubmit = async (e) => {
+    e.preventDefault();
+    await saveReceipt(receipt?.id);
+  };
+}
+
+function previewReceiptImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const previewArea = document.getElementById('image-preview-area');
+    previewArea.innerHTML = `
+      <img src="${e.target.result}" class="max-w-full max-h-64 mx-auto mb-2 rounded">
+      <p class="text-sm text-gray-500 mb-2">사진을 변경하려면 다시 선택하세요</p>
+    `;
+    
+    // Base64 데이터 저장 (나중에 서버로 전송)
+    previewArea.dataset.imageBase64 = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveReceipt(receiptId) {
+  try {
+    const form = document.getElementById('receipt-form');
+    const formData = new FormData(form);
+    
+    const data = {
+      store_name: formData.get('store_name'),
+      purchase_date: formData.get('purchase_date'),
+      amount: parseFloat(formData.get('amount')),
+      category: formData.get('category') || null,
+      payment_method: formData.get('payment_method') || null,
+      description: formData.get('description') || null,
+      tags: formData.get('tags') || null,
+      notes: formData.get('notes') || null,
+    };
+    
+    // 이미지 Base64 데이터 추가 (필수)
+    const previewArea = document.getElementById('image-preview-area');
+    if (previewArea.dataset.imageBase64) {
+      data.image_data = previewArea.dataset.imageBase64;
+      // MIME 타입 추출
+      const matches = data.image_data.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,/);
+      data.image_type = matches ? matches[1] : 'image/jpeg';
+    } else if (!receiptId) {
+      alert('영수증 사진은 필수입니다.');
+      return;
+    }
+    
+    if (receiptId) {
+      // 수정
+      await axios.put(`/api/receipts/${receiptId}`, data);
+      alert('영수증이 수정되었습니다.');
+    } else {
+      // 추가
+      await axios.post('/api/receipts', data);
+      alert('영수증이 추가되었습니다.');
+    }
+    
+    closeModal();
+    await loadReceipts();
+    
+  } catch (error) {
+    console.error('영수증 저장 오류:', error);
+    alert('영수증 저장 중 오류가 발생했습니다.');
+  }
+}
+
+async function editReceipt(receiptId) {
+  showReceiptModal(receiptId);
+}
+
+async function deleteReceipt(receiptId) {
+  if (!confirm('이 영수증을 삭제하시겠습니까?')) return;
+  
+  try {
+    await axios.delete(`/api/receipts/${receiptId}`);
+    alert('영수증이 삭제되었습니다.');
+    await loadReceipts();
+  } catch (error) {
+    console.error('영수증 삭제 오류:', error);
+    alert('영수증 삭제 중 오류가 발생했습니다.');
+  }
+}
+
+async function viewReceiptImage(receiptId) {
+  try {
+    const response = await axios.get(`/api/receipts/${receiptId}`);
+    const receipt = response.data.data;
+    
+    if (!receipt.image_data) {
+      alert('영수증 이미지가 없습니다.');
+      return;
+    }
+    
+    const modalHTML = `
+      <div class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onclick="closeModal(event)">
+        <div class="relative max-w-4xl w-full" onclick="event.stopPropagation()">
+          <button onclick="closeModal()" class="absolute -top-10 right-0 text-white text-2xl hover:text-gray-300">
+            <i class="fas fa-times"></i>
+          </button>
+          <div class="bg-white rounded-lg p-4">
+            <div class="mb-3">
+              <h3 class="text-lg font-bold">${receipt.store_name}</h3>
+              <p class="text-sm text-gray-500">${receipt.purchase_date} | ${formatCurrency(receipt.amount)}</p>
+              ${receipt.tags ? `<p class="text-xs text-blue-600 mt-1"><i class="fas fa-tags mr-1"></i>${receipt.tags}</p>` : ''}
+            </div>
+            <img src="${receipt.image_data}" class="w-full max-h-[70vh] object-contain rounded">
+            ${receipt.description ? `<p class="mt-3 text-sm text-gray-600"><strong>구매 내역:</strong> ${receipt.description}</p>` : ''}
+            ${receipt.notes ? `<p class="mt-2 text-sm text-gray-500"><strong>메모:</strong> ${receipt.notes}</p>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.getElementById('modal-container').innerHTML = modalHTML;
+    
+  } catch (error) {
+    console.error('영수증 이미지 로딩 오류:', error);
+    alert('영수증 이미지를 불러올 수 없습니다.');
+  }
+}
+
+// =============================================================================
 // 초기화
 // =============================================================================
 
@@ -2579,6 +3122,7 @@ async function init() {
   document.getElementById('tab-fixed-expenses').onclick = () => switchView('fixed-expenses');
   document.getElementById('tab-budgets').onclick = () => switchView('budgets');
   document.getElementById('tab-investments').onclick = () => switchView('investments');
+  document.getElementById('tab-receipts').onclick = () => switchView('receipts');
   document.getElementById('tab-reports').onclick = () => switchView('reports');
   document.getElementById('tab-settings').onclick = () => switchView('settings');
 }
