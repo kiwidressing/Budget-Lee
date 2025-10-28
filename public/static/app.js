@@ -2020,7 +2020,11 @@ async function updateInvestmentPrices() {
           <tr class="border-t hover:bg-gray-50">
             <td class="px-4 py-3">
               <div class="font-medium">${inv.name}</div>
-              <div class="text-sm text-gray-500">${inv.symbol}${priceData.simulated ? ' <span class="text-orange-500" title="실제 API 접근 제한으로 시뮬레이션 데이터가 표시됩니다">[시뮬레이션]</span>' : ''}</div>
+              <div class="text-sm text-gray-500">
+                ${inv.symbol}
+                ${priceData.simulated ? ' <span class="text-orange-500" title="실제 API 접근 제한으로 시뮬레이션 데이터가 표시됩니다">[시뮬레이션]</span>' : ''}
+                ${priceResponse.data.cached ? ' <span class="text-green-500" title="60초 캐시된 데이터">⚡</span>' : ''}
+              </div>
             </td>
             <td class="px-4 py-3 text-right">${inv.quantity.toLocaleString()}주</td>
             <td class="px-4 py-3 text-right">${formatCurrency(inv.purchase_price)}</td>

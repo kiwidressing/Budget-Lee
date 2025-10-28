@@ -15,6 +15,33 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
+// 메모리 캐시 (Yahoo Finance 주가용 - 60초)
+interface CacheEntry {
+  data: any;
+  expiry: number;
+}
+
+const memoryCache = new Map<string, CacheEntry>()
+
+function getCached(key: string): any | null {
+  const entry = memoryCache.get(key)
+  if (!entry) return null
+  
+  if (Date.now() > entry.expiry) {
+    memoryCache.delete(key)
+    return null
+  }
+  
+  return entry.data
+}
+
+function setCache(key: string, data: any, ttlSeconds: number = 60): void {
+  memoryCache.set(key, {
+    data,
+    expiry: Date.now() + (ttlSeconds * 1000)
+  })
+}
+
 // CORS 활성화
 app.use('/api/*', cors())
 
@@ -1004,22 +1031,81 @@ app.delete('/api/investments/:id', authMiddleware, async (c) => {
 app.get('/api/investments/price/:symbol', async (c) => {
   const symbol = c.req.param('symbol')
   
-
+  // 캐시 확인
+  const cacheKey = `yf:${symbol}`
+  const cached = getCached(cacheKey)
   
-  const simulatedPrice = generateSimulatedPrice(symbol)
+  if (cached) {
+    return c.json({ 
+      success: true, 
+      data: cached, 
+      cached: true 
+    })
+  }
   
-  return c.json({
-    success: true,
-    data: {
-      symbol: symbol,
-      price: simulatedPrice.current,
-      previousClose: simulatedPrice.previous,
-      change: simulatedPrice.current - simulatedPrice.previous,
-      changePercent: ((simulatedPrice.current - simulatedPrice.previous) / simulatedPrice.previous * 100),
-      currency: simulatedPrice.currency,
-      simulated: true // 시뮬레이션 데이터임을 표시
+  try {
+    // Yahoo Finance API 호출
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'BudgetLee/1.0'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Yahoo Finance API returned ${response.status}`)
     }
-  })
+    
+    const json = await response.json() as any
+    const quote = json?.quoteResponse?.result?.[0]
+    
+    if (!quote) {
+      throw new Error('No quote data found')
+    }
+    
+    // 데이터 가공
+    const priceData = {
+      symbol: quote.symbol,
+      price: quote.regularMarketPrice || 0,
+      previousClose: quote.regularMarketPreviousClose || 0,
+      change: quote.regularMarketChange || 0,
+      changePercent: quote.regularMarketChangePercent || 0,
+      currency: quote.currency || 'USD',
+      marketState: quote.marketState || 'REGULAR',
+      simulated: false
+    }
+    
+    // 60초 캐시
+    setCache(cacheKey, priceData, 60)
+    
+    return c.json({
+      success: true,
+      data: priceData,
+      cached: false
+    })
+    
+  } catch (error: any) {
+    console.warn(`[Yahoo Finance] API failed for ${symbol}, using simulated data:`, error.message)
+    
+    // 실패 시 시뮬레이션 데이터 사용
+    const simulatedPrice = generateSimulatedPrice(symbol)
+    
+    return c.json({
+      success: true,
+      data: {
+        symbol: symbol,
+        price: simulatedPrice.current,
+        previousClose: simulatedPrice.previous,
+        change: simulatedPrice.current - simulatedPrice.previous,
+        changePercent: ((simulatedPrice.current - simulatedPrice.previous) / simulatedPrice.previous * 100),
+        currency: simulatedPrice.currency,
+        marketState: 'CLOSED',
+        simulated: true
+      },
+      fallback: true,
+      error: error.message
+    })
+  }
 })
 function generateSimulatedPrice(symbol: string) {
   // 심볼별 기준 가격 (실제와 유사한 범위)
