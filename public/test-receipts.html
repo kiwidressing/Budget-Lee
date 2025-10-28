@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipts Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-2xl font-bold mb-4">Receipts Tab Test</h1>
+        <button id="test-receipts" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+            Click to Test Receipts
+        </button>
+        <div id="content" class="mt-4"></div>
+        <div id="error" class="mt-4 text-red-600"></div>
+    </div>
+    
+    <script>
+        const contentArea = document.getElementById('content');
+        const categories = {
+            expense: ['식비', '교통', '쇼핑', '의료', '교육', '주거', '보험', '통신', '문화', '기타']
+        };
+        
+        document.getElementById('test-receipts').onclick = async () => {
+            try {
+                console.log('Testing receipts view...');
+                await renderReceiptsView();
+                console.log('Receipts view rendered successfully!');
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('error').textContent = 'Error: ' + error.message + '\n' + error.stack;
+            }
+        };
+        
+        // Copy the renderReceiptsView function here
+        async function renderReceiptsView() {
+            const currentYear = new Date().getFullYear();
+            const currentMonth = new Date().getMonth() + 1;
+            
+            const html = `
+                <div class="mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-receipt mr-2 text-blue-600"></i>영수증 관리
+                    </h2>
+                    <button onclick="alert('Add receipt')" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+                    <i class="fas fa-plus mr-2"></i>영수증 추가
+                    </button>
+                </div>
+                
+                <!-- 필터 -->
+                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">시작 날짜</label>
+                        <input type="date" id="receipt-start-date" class="w-full px-3 py-2 border rounded-lg" onchange="loadReceipts()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">종료 날짜</label>
+                        <input type="date" id="receipt-end-date" class="w-full px-3 py-2 border rounded-lg" onchange="loadReceipts()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">카테고리</label>
+                        <select id="receipt-category-filter" class="w-full px-3 py-2 border rounded-lg" onchange="loadReceipts()">
+                        <option value="">전체</option>
+                        ${categories.expense.map(cat => `<option value="${cat}">${cat}</option>`).join('')}
+                        </select>
+                    </div>
+                    </div>
+                </div>
+                
+                <!-- 영수증 목록 -->
+                <div id="receipt-list" class="bg-white rounded-lg p-4">
+                    <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p>로딩 중...</p>
+                    </div>
+                </div>
+                </div>
+            `;
+            
+            contentArea.innerHTML = html;
+            
+            // 기본 날짜 설정 (이번 달)
+            const startDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+            const lastDay = new Date(currentYear, currentMonth, 0).getDate();
+            const endDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${lastDay}`;
+            document.getElementById('receipt-start-date').value = startDate;
+            document.getElementById('receipt-end-date').value = endDate;
+            
+            await loadReceipts();
+        }
+        
+        async function loadReceipts() {
+            try {
+                const startDate = document.getElementById('receipt-start-date')?.value || '';
+                const endDate = document.getElementById('receipt-end-date')?.value || '';
+                const category = document.getElementById('receipt-category-filter')?.value || '';
+                
+                let url = '/api/receipts?';
+                if (startDate && endDate) url += `start_date=${startDate}&end_date=${endDate}&`;
+                if (category) url += `category=${category}&`;
+                
+                const response = await axios.get(url);
+                const receipts = response.data.data || [];
+                
+                const listDiv = document.getElementById('receipt-list');
+                
+                if (receipts.length === 0) {
+                    listDiv.innerHTML = `
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-receipt text-4xl mb-4 opacity-50"></i>
+                            <p>영수증이 없습니다.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                console.log('Loaded receipts:', receipts);
+            } catch (error) {
+                console.error('Error loading receipts:', error);
+                document.getElementById('error').textContent = 'Load error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

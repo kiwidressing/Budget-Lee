@@ -28,13 +28,7 @@ app.use('/api/*', async (c, next) => {
 // 정적 파일 서빙
 app.use('/static/*', serveStatic({ root: './public' }))
 
-// =============================================================================
-// API 엔드포인트
-// =============================================================================
-
-// -----------------------------------------------------------------------------
-// 그룹 1: 저축 통장 API (3개)
-// -----------------------------------------------------------------------------
+// API 엔드포인트 - 저축 통장
 
 // 1.1 저축 통장 목록 조회
 app.get('/api/savings-accounts', async (c) => {
@@ -83,9 +77,26 @@ app.delete('/api/savings-accounts/:id', async (c) => {
   return c.json({ success: true })
 })
 
-// -----------------------------------------------------------------------------
-// 그룹 2: 거래 내역 API (5개)
-// -----------------------------------------------------------------------------
+// 1.4 저축 목표 설정
+app.put('/api/savings-accounts/:id/goal', async (c) => {
+  const { DB } = c.env
+  const id = c.req.param('id')
+  const { savings_goal } = await c.req.json()
+  
+  if (savings_goal === undefined || savings_goal < 0) {
+    return c.json({ success: false, error: '유효한 목표 금액을 입력해주세요.' }, 400)
+  }
+  
+  await DB.prepare(`
+    UPDATE savings_accounts 
+    SET savings_goal = ?
+    WHERE id = ?
+  `).bind(savings_goal, id).run()
+  
+  return c.json({ success: true })
+})
+
+// 거래 내역 API
 
 // 2.1 거래 내역 조회 (날짜 범위)
 app.get('/api/transactions', async (c) => {
@@ -144,7 +155,7 @@ app.get('/api/transactions/date/:date', async (c) => {
 // 2.3 거래 생성
 app.post('/api/transactions', async (c) => {
   const { DB } = c.env
-  const { type, category, amount, description, date, savings_account_id } = await c.req.json()
+  const { type, category, amount, description, date, payment_method, savings_account_id } = await c.req.json()
   
   if (!type || !category || !amount || !date) {
     return c.json({ success: false, error: '필수 항목을 입력해주세요.' }, 400)
@@ -159,9 +170,9 @@ app.post('/api/transactions', async (c) => {
   }
   
   const result = await DB.prepare(`
-    INSERT INTO transactions (type, category, amount, description, date, savings_account_id)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).bind(type, category, amount, description || null, date, savings_account_id || null).run()
+    INSERT INTO transactions (type, category, amount, description, date, payment_method, savings_account_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).bind(type, category, amount, description || null, date, payment_method || 'card', savings_account_id || null).run()
   
   return c.json({ success: true, id: result.meta.last_row_id })
 })
@@ -170,7 +181,7 @@ app.post('/api/transactions', async (c) => {
 app.put('/api/transactions/:id', async (c) => {
   const { DB } = c.env
   const id = c.req.param('id')
-  const { type, category, amount, description, date, savings_account_id } = await c.req.json()
+  const { type, category, amount, description, date, payment_method, savings_account_id } = await c.req.json()
   
   if (!type || !category || !amount || !date) {
     return c.json({ success: false, error: '필수 항목을 입력해주세요.' }, 400)
@@ -178,9 +189,9 @@ app.put('/api/transactions/:id', async (c) => {
   
   await DB.prepare(`
     UPDATE transactions 
-    SET type = ?, category = ?, amount = ?, description = ?, date = ?, savings_account_id = ?
+    SET type = ?, category = ?, amount = ?, description = ?, date = ?, payment_method = ?, savings_account_id = ?
     WHERE id = ?
-  `).bind(type, category, amount, description || null, date, savings_account_id || null, id).run()
+  `).bind(type, category, amount, description || null, date, payment_method || 'card', savings_account_id || null, id).run()
   
   return c.json({ success: true })
 })
@@ -195,9 +206,7 @@ app.delete('/api/transactions/:id', async (c) => {
   return c.json({ success: true })
 })
 
-// -----------------------------------------------------------------------------
-// 그룹 3: 통계 API (3개)
-// -----------------------------------------------------------------------------
+// 통계 API
 
 // 3.1 월별 통계
 app.get('/api/statistics/monthly/:yearMonth', async (c) => {
@@ -287,9 +296,7 @@ app.get('/api/calendar/:yearMonth', async (c) => {
   return c.json({ success: true, data: result.results })
 })
 
-// -----------------------------------------------------------------------------
-// 그룹 4: 설정 API (2개)
-// -----------------------------------------------------------------------------
+// 설정 API
 
 // 4.1 설정 조회
 app.get('/api/settings', async (c) => {
@@ -321,9 +328,7 @@ app.put('/api/settings', async (c) => {
   return c.json({ success: true })
 })
 
-// -----------------------------------------------------------------------------
-// 그룹 5: 고정지출 API (5개)
-// -----------------------------------------------------------------------------
+// 고정지출 API
 
 // 5.1 고정지출 목록 조회
 app.get('/api/fixed-expenses', async (c) => {
@@ -388,8 +393,8 @@ app.delete('/api/fixed-expenses/:id', async (c) => {
   return c.json({ success: true })
 })
 
-// 5.4 고정지출 지불
-app.post('/api/fixed-expenses/:id/pay', async (c) => {
+// 고정지출 지불 표시
+app.post('/api/fixed-expenses/:id/mark-paid', async (c) => {
   const { DB } = c.env
   const id = c.req.param('id')
   const { date } = await c.req.json()
@@ -398,62 +403,39 @@ app.post('/api/fixed-expenses/:id/pay', async (c) => {
     return c.json({ success: false, error: '날짜를 입력해주세요.' }, 400)
   }
   
-  const fixedExpense = await DB.prepare(`
-    SELECT * FROM fixed_expenses WHERE id = ?
-  `).bind(id).first() as any
-  
-  if (!fixedExpense) {
-    return c.json({ success: false, error: '고정지출을 찾을 수 없습니다.' }, 404)
-  }
-  
   const existingPayment = await DB.prepare(`
     SELECT id FROM fixed_expense_payments 
     WHERE fixed_expense_id = ? AND payment_date = ?
   `).bind(id, date).first()
   
   if (existingPayment) {
-    return c.json({ success: false, error: '이미 지불된 항목입니다.' }, 400)
+    return c.json({ success: true }) // 이미 표시된 경우
   }
   
-  const transactionResult = await DB.prepare(`
-    INSERT INTO transactions (type, category, amount, description, date)
-    VALUES ('expense', ?, ?, ?, ?)
-  `).bind(
-    fixedExpense.category, 
-    fixedExpense.amount, 
-    `[고정지출] ${fixedExpense.name}`, 
-    date
-  ).run()
-  
+  // 지불 표시만 저장 (transaction_id는 null)
   await DB.prepare(`
     INSERT INTO fixed_expense_payments (fixed_expense_id, transaction_id, payment_date)
-    VALUES (?, ?, ?)
-  `).bind(id, transactionResult.meta.last_row_id, date).run()
+    VALUES (?, NULL, ?)
+  `).bind(id, date).run()
   
-  return c.json({ success: true, transaction_id: transactionResult.meta.last_row_id })
+  return c.json({ success: true })
 })
 
-// 5.5 지불 내역 조회
-app.get('/api/fixed-expenses/:id/payments/:yearMonth', async (c) => {
+// 5.5 고정지출 지불 표시 제거
+app.delete('/api/fixed-expenses/:id/mark-paid/:date', async (c) => {
   const { DB } = c.env
   const id = c.req.param('id')
-  const yearMonth = c.req.param('yearMonth')
+  const date = c.req.param('date')
   
-  const result = await DB.prepare(`
-    SELECT 
-      fep.*,
-      t.date as transaction_date,
-      t.amount as transaction_amount
-    FROM fixed_expense_payments fep
-    JOIN transactions t ON fep.transaction_id = t.id
-    WHERE fep.fixed_expense_id = ? AND strftime('%Y-%m', fep.payment_date) = ?
-    ORDER BY fep.payment_date DESC
-  `).bind(id, yearMonth).all()
+  await DB.prepare(`
+    DELETE FROM fixed_expense_payments 
+    WHERE fixed_expense_id = ? AND payment_date = ?
+  `).bind(id, date).run()
   
-  return c.json({ success: true, data: result.results })
+  return c.json({ success: true })
 })
 
-// 5.6 고정지출 반복 인스턴스 조회 (월별/주별)
+// 고정지출 반복 인스턴스 조회
 app.get('/api/fixed-expenses/instances/:yearMonth', async (c) => {
   const { DB } = c.env
   const yearMonth = c.req.param('yearMonth')
@@ -535,8 +517,6 @@ app.get('/api/fixed-expenses/instances/:yearMonth', async (c) => {
   
   return c.json({ success: true, data: instances })
 })
-
-// 헬퍼 함수들
 function getNthDayOfMonth(year: number, month: number, weekOfMonth: number, dayOfWeek: number): Date | null {
   const firstDay = new Date(year, month, 1)
   const firstDayOfWeek = firstDay.getDay()
@@ -584,9 +564,7 @@ function formatDate(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
-// -----------------------------------------------------------------------------
-// 그룹 6: 예산 API (4개)
-// -----------------------------------------------------------------------------
+// 예산 API
 
 // 6.1 예산 목록 조회
 app.get('/api/budgets', async (c) => {
@@ -658,9 +636,7 @@ app.get('/api/budgets/vs-spending/:yearMonth', async (c) => {
   return c.json({ success: true, data: result.results })
 })
 
-// -----------------------------------------------------------------------------
-// 그룹 7: 투자 관리 API (6개)
-// -----------------------------------------------------------------------------
+// 투자 관리 API
 
 // 7.1 투자 목록 조회
 app.get('/api/investments', async (c) => {
@@ -720,9 +696,7 @@ app.delete('/api/investments/:id', async (c) => {
 app.get('/api/investments/price/:symbol', async (c) => {
   const symbol = c.req.param('symbol')
   
-  // 방법: 시뮬레이션 데이터 사용 (개발/테스트용)
-  // 샌드박스 환경에서는 외부 API 접근이 제한되므로 시뮬레이션 데이터를 제공합니다
-  // 실제 Cloudflare Pages 배포 환경에서는 Yahoo Finance나 다른 주가 API를 사용하세요
+
   
   const simulatedPrice = generateSimulatedPrice(symbol)
   
@@ -739,8 +713,6 @@ app.get('/api/investments/price/:symbol', async (c) => {
     }
   })
 })
-
-// 시뮬레이션 주가 생성 함수 (개발/테스트용)
 function generateSimulatedPrice(symbol: string) {
   // 심볼별 기준 가격 (실제와 유사한 범위)
   const basePrices: { [key: string]: number } = {
@@ -816,171 +788,7 @@ app.get('/api/investments/:id/transactions', async (c) => {
   return c.json({ success: true, data: result.results })
 })
 
-// -----------------------------------------------------------------------------
-// 그룹 8: 영수증 관리 API (5개)
-// -----------------------------------------------------------------------------
-
-// 8.1 영수증 목록 조회
-app.get('/api/receipts', async (c) => {
-  const { DB } = c.env
-  
-  const category = c.req.query('category')
-  const startDate = c.req.query('start_date')
-  const endDate = c.req.query('end_date')
-  
-  let query = `
-    SELECT 
-      r.*,
-      t.id as transaction_id,
-      t.payment_method
-    FROM receipts r
-    LEFT JOIN transactions t ON r.transaction_id = t.id
-    WHERE 1=1
-  `
-  const params: any[] = []
-  
-  if (category) {
-    query += ` AND r.category = ?`
-    params.push(category)
-  }
-  
-  if (startDate && endDate) {
-    query += ` AND r.purchase_date BETWEEN ? AND ?`
-    params.push(startDate, endDate)
-  }
-  
-  query += ` ORDER BY r.purchase_date DESC, r.created_at DESC`
-  
-  const result = await DB.prepare(query).bind(...params).all()
-  
-  return c.json({ success: true, data: result.results })
-})
-
-// 8.2 영수증 상세 조회 (이미지 포함)
-app.get('/api/receipts/:id', async (c) => {
-  const { DB } = c.env
-  const id = c.req.param('id')
-  
-  const result = await DB.prepare(`
-    SELECT 
-      r.*,
-      t.id as transaction_id,
-      t.payment_method
-    FROM receipts r
-    LEFT JOIN transactions t ON r.transaction_id = t.id
-    WHERE r.id = ?
-  `).bind(id).first()
-  
-  if (!result) {
-    return c.json({ success: false, error: '영수증을 찾을 수 없습니다.' }, 404)
-  }
-  
-  return c.json({ success: true, data: result })
-})
-
-// 8.3 영수증 추가 (자동으로 거래내역 생성)
-app.post('/api/receipts', async (c) => {
-  const { DB } = c.env
-  const { store_name, purchase_date, amount, category, payment_method, image_data, description, notes } = await c.req.json()
-  
-  if (!store_name || !purchase_date || !amount || !category || !payment_method) {
-    return c.json({ success: false, error: '필수 항목을 입력해주세요.' }, 400)
-  }
-  
-  // 1. 거래 내역 먼저 생성
-  const transactionResult = await DB.prepare(`
-    INSERT INTO transactions (type, category, amount, description, date, payment_method)
-    VALUES ('expense', ?, ?, ?, ?, ?)
-  `).bind(category, amount, `[영수증] ${store_name}${description ? ' - ' + description : ''}`, purchase_date, payment_method).run()
-  
-  const transactionId = transactionResult.meta.last_row_id
-  
-  // 2. 영수증 생성 (거래 내역 ID 연결)
-  const receiptResult = await DB.prepare(`
-    INSERT INTO receipts (store_name, purchase_date, amount, category, payment_method, image_data, description, notes, transaction_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(store_name, purchase_date, amount, category, payment_method, image_data, description, notes, transactionId).run()
-  
-  return c.json({ success: true, id: receiptResult.meta.last_row_id, transaction_id: transactionId })
-})
-
-// 8.4 영수증 수정
-app.put('/api/receipts/:id', async (c) => {
-  const { DB } = c.env
-  const id = c.req.param('id')
-  const { store_name, purchase_date, amount, category, payment_method, image_data, description, notes } = await c.req.json()
-  
-  // 영수증 조회 (transaction_id 확인)
-  const receipt = await DB.prepare(`
-    SELECT transaction_id FROM receipts WHERE id = ?
-  `).bind(id).first() as any
-  
-  if (!receipt) {
-    return c.json({ success: false, error: '영수증을 찾을 수 없습니다.' }, 404)
-  }
-  
-  // 1. 연결된 거래 내역 수정
-  if (receipt.transaction_id) {
-    await DB.prepare(`
-      UPDATE transactions 
-      SET category = ?, amount = ?, description = ?, date = ?, payment_method = ?
-      WHERE id = ?
-    `).bind(category, amount, `[영수증] ${store_name}${description ? ' - ' + description : ''}`, purchase_date, payment_method, receipt.transaction_id).run()
-  }
-  
-  // 2. 영수증 수정
-  let updateQuery = `
-    UPDATE receipts 
-    SET store_name = ?, purchase_date = ?, amount = ?, category = ?, payment_method = ?, description = ?, notes = ?
-  `
-  const params: any[] = [store_name, purchase_date, amount, category, payment_method, description, notes]
-  
-  if (image_data) {
-    updateQuery += `, image_data = ?`
-    params.push(image_data)
-  }
-  
-  updateQuery += ` WHERE id = ?`
-  params.push(id)
-  
-  await DB.prepare(updateQuery).bind(...params).run()
-  
-  return c.json({ success: true })
-})
-
-// 8.5 영수증 삭제 (연결된 거래내역도 삭제)
-app.delete('/api/receipts/:id', async (c) => {
-  const { DB } = c.env
-  const id = c.req.param('id')
-  
-  // 영수증 조회 (transaction_id 확인)
-  const receipt = await DB.prepare(`
-    SELECT transaction_id FROM receipts WHERE id = ?
-  `).bind(id).first() as any
-  
-  if (!receipt) {
-    return c.json({ success: false, error: '영수증을 찾을 수 없습니다.' }, 404)
-  }
-  
-  // 1. 연결된 거래 내역 삭제
-  if (receipt.transaction_id) {
-    await DB.prepare(`
-      DELETE FROM transactions WHERE id = ?
-    `).bind(receipt.transaction_id).run()
-  }
-  
-  // 2. 영수증 삭제
-  await DB.prepare(`
-    DELETE FROM receipts WHERE id = ?
-  `).bind(id).run()
-  
-  return c.json({ success: true })
-})
-
-
-// =============================================================================
 // 메인 페이지
-// =============================================================================
 
 app.get('/', (c) => {
   return c.html(`<!DOCTYPE html>
@@ -1030,9 +838,6 @@ app.get('/', (c) => {
                     </button>
                     <button id="tab-investments" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
                         <i class="fas fa-chart-line mr-2"></i>투자
-                    </button>
-                    <button id="tab-receipts" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
-                        <i class="fas fa-receipt mr-2"></i>영수증
                     </button>
                     <button id="tab-reports" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
                         <i class="fas fa-chart-bar mr-2"></i>리포트

@@ -1,7 +1,56 @@
+/* 다크모드 CSS 변수 */
+:root {
+  --bg-primary: #F3F4F6;
+  --bg-secondary: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --border-color: #E5E7EB;
+}
+
+.dark {
+  --bg-primary: #111827;
+  --bg-secondary: #1F2937;
+  --bg-card: #374151;
+  --text-primary: #F9FAFB;
+  --text-secondary: #D1D5DB;
+  --border-color: #4B5563;
+}
+
+.dark body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.dark .bg-white {
+  background-color: var(--bg-card) !important;
+  color: var(--text-primary);
+}
+
+.dark .bg-gray-50 {
+  background-color: var(--bg-secondary) !important;
+}
+
+.dark .bg-gray-100 {
+  background-color: var(--bg-secondary) !important;
+}
+
+.dark .text-gray-600,
+.dark .text-gray-700,
+.dark .text-gray-800 {
+  color: var(--text-secondary) !important;
+}
+
+.dark .border-gray-200,
+.dark .border {
+  border-color: var(--border-color) !important;
+}
+
 /* 기본 스타일 */
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
   font-size: 14px;
+  transition: background-color 0.3s, color 0.3s;
 }
 
 /* 반응형 글씨 크기 */

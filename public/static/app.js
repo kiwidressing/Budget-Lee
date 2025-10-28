@@ -1,10 +1,4 @@
-// =============================================================================
-// 가계부 앱 - 프론트엔드 JavaScript
-// =============================================================================
-
-// =============================================================================
 // 전역 상태 객체
-// =============================================================================
 
 const state = {
   currentMonth: new Date(),
@@ -17,7 +11,7 @@ const state = {
   settings: {
     currency: 'KRW',
     initial_balance: 0,
-    initial_savings: 0,
+    cash_on_hand: 0,
     category_colors: {
       income: '#3B82F6',
       expense: '#EF4444',
@@ -27,12 +21,11 @@ const state = {
   activeView: 'month',
   expenseChart: null,
   currentTransactionType: 'income',
-  investmentPriceRefreshInterval: null
+  investmentPriceRefreshInterval: null,
+  darkMode: localStorage.getItem('darkMode') === 'true'
 };
 
-// =============================================================================
 // 카테고리 정의
-// =============================================================================
 
 const categories = {
   income: ['급여', '상여금', '부수입', '기타수입'],
@@ -44,9 +37,7 @@ const categories = {
   savings: ['저축']
 };
 
-// =============================================================================
 // 통화 정의
-// =============================================================================
 
 const CURRENCIES = {
   'KRW': { symbol: '₩', name: '원화 (KRW)' },
@@ -57,9 +48,7 @@ const CURRENCIES = {
   'GBP': { symbol: '£', name: '영국 파운드 (GBP)' }
 };
 
-// =============================================================================
 // 유틸리티 함수
-// =============================================================================
 
 function formatCurrency(amount) {
   const currency = state.settings.currency || 'KRW';
@@ -89,11 +78,6 @@ function getDateString(date) {
 
 function getDaysInMonth(date) {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-}
-
-function getWeekName(nth) {
-  const names = ['', '첫째', '둘째', '셋째', '넷째'];
-  return names[nth] || '';
 }
 
 function getDayName(dayOfWeek) {
@@ -126,9 +110,157 @@ function getNthDayOfMonth(year, month, nth, dayOfWeek) {
   return null;
 }
 
-// =============================================================================
+// 입력 검증 유틸리티 함수들
+
+function validateNumber(value, min = 0, max = null, fieldName = '값') {
+  const num = parseFloat(value);
+  
+  if (isNaN(num)) {
+    return { valid: false, error: `${fieldName}은(는) 유효한 숫자여야 합니다.` };
+  }
+  
+  if (num < min) {
+    return { valid: false, error: `${fieldName}은(는) ${min} 이상이어야 합니다.` };
+  }
+  
+  if (max !== null && num > max) {
+    return { valid: false, error: `${fieldName}은(는) ${max} 이하여야 합니다.` };
+  }
+  
+  return { valid: true, value: num };
+}
+
+function validateInteger(value, min = 0, max = null, fieldName = '값') {
+  const result = validateNumber(value, min, max, fieldName);
+  
+  if (!result.valid) {
+    return result;
+  }
+  
+  if (!Number.isInteger(result.value)) {
+    return { valid: false, error: `${fieldName}은(는) 정수여야 합니다.` };
+  }
+  
+  return result;
+}
+
+function validatePositiveNumber(value, fieldName = '금액') {
+  const result = validateNumber(value, 0.01, null, fieldName);
+  
+  if (!result.valid) {
+    return result;
+  }
+  
+  if (result.value <= 0) {
+    return { valid: false, error: `${fieldName}은(는) 0보다 커야 합니다.` };
+  }
+  
+  return result;
+}
+
+function validateDate(dateString, fieldName = '날짜') {
+  if (!dateString || dateString.trim() === '') {
+    return { valid: false, error: `${fieldName}을(를) 입력해주세요.` };
+  }
+  
+  const date = new Date(dateString);
+  
+  if (isNaN(date.getTime())) {
+    return { valid: false, error: `${fieldName}이(가) 유효하지 않습니다.` };
+  }
+  
+  // 1900년 ~ 2100년 사이만 허용
+  const year = date.getFullYear();
+  if (year < 1900 || year > 2100) {
+    return { valid: false, error: `${fieldName}은(는) 1900년부터 2100년 사이여야 합니다.` };
+  }
+  
+  return { valid: true, value: dateString };
+}
+
+function validateDateRange(startDate, endDate) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  
+  if (start > end) {
+    return { valid: false, error: '시작 날짜는 종료 날짜보다 이전이어야 합니다.' };
+  }
+  
+  return { valid: true };
+}
+
+function validateString(value, minLength = 1, maxLength = 255, fieldName = '텍스트') {
+  if (!value || typeof value !== 'string') {
+    return { valid: false, error: `${fieldName}을(를) 입력해주세요.` };
+  }
+  
+  const trimmed = value.trim();
+  
+  if (trimmed.length < minLength) {
+    return { valid: false, error: `${fieldName}은(는) 최소 ${minLength}자 이상이어야 합니다.` };
+  }
+  
+  if (trimmed.length > maxLength) {
+    return { valid: false, error: `${fieldName}은(는) 최대 ${maxLength}자 이하여야 합니다.` };
+  }
+  
+  return { valid: true, value: trimmed };
+}
+
+function sanitizeString(value) {
+  if (!value || typeof value !== 'string') {
+    return '';
+  }
+  
+  // HTML 태그 제거 및 특수 문자 이스케이프
+  return value
+    .trim()
+    .replace(/[<>]/g, '')
+    .substring(0, 500); // 최대 500자로 제한
+}
+
+function validateRequired(value, fieldName = '필드') {
+  if (value === null || value === undefined || value === '') {
+    return { valid: false, error: `${fieldName}은(는) 필수 입력 항목입니다.` };
+  }
+  
+  if (typeof value === 'string' && value.trim() === '') {
+    return { valid: false, error: `${fieldName}을(를) 입력해주세요.` };
+  }
+  
+  return { valid: true };
+}
+
+function showValidationError(message) {
+  alert(`⚠️ 입력 오류\n\n${message}`);
+}
+
+function validateTransactionAmount(amount) {
+  // 거래 금액은 1원 이상 100억 원 이하
+  return validateNumber(amount, 1, 10000000000, '거래 금액');
+}
+
+function validateBudgetAmount(amount) {
+  // 예산은 0원 이상 (0은 삭제를 의미)
+  return validateNumber(amount, 0, 100000000000, '예산 금액');
+}
+
+function validateSavingsGoal(amount) {
+  // 저축 목표는 0원 이상 (0은 목표 제거를 의미)
+  return validateNumber(amount, 0, 100000000000, '저축 목표');
+}
+
+function validateInvestmentQuantity(quantity) {
+  // 투자 수량은 1 이상의 정수 또는 소수
+  return validateNumber(quantity, 0.00000001, 1000000000, '보유 수량');
+}
+
+function validateInvestmentPrice(price) {
+  // 투자 가격은 0.01 이상
+  return validateNumber(price, 0.01, 100000000, '매수 가격');
+}
+
 // API 호출 함수
-// =============================================================================
 
 // 거래 내역 가져오기
 async function fetchTransactions(startDate, endDate, type = null) {
@@ -141,9 +273,7 @@ async function fetchTransactions(startDate, endDate, type = null) {
     if (response.data.success) {
       state.transactions = response.data.data;
     }
-  } catch (error) {
-    console.error('거래 내역 조회 오류:', error);
-  }
+  } catch (error) {}
 }
 
 // 저축 통장 가져오기
@@ -153,9 +283,7 @@ async function fetchSavingsAccounts() {
     if (response.data.success) {
       state.savingsAccounts = response.data.data;
     }
-  } catch (error) {
-    console.error('저축 통장 조회 오류:', error);
-  }
+  } catch (error) {}
 }
 
 // 고정지출 가져오기
@@ -165,9 +293,7 @@ async function fetchFixedExpenses() {
     if (response.data.success) {
       state.fixedExpenses = response.data.data;
     }
-  } catch (error) {
-    console.error('고정지출 조회 오류:', error);
-  }
+  } catch (error) {}
 }
 
 // 고정지출 반복 인스턴스 가져오기
@@ -179,7 +305,7 @@ async function fetchFixedExpenseInstances(yearMonth) {
     }
     return [];
   } catch (error) {
-    console.error('고정지출 인스턴스 조회 오류:', error);
+
     return [];
   }
 }
@@ -191,9 +317,7 @@ async function fetchBudgets() {
     if (response.data.success) {
       state.budgets = response.data.data;
     }
-  } catch (error) {
-    console.error('예산 조회 오류:', error);
-  }
+  } catch (error) {}
 }
 
 // 설정 가져오기
@@ -209,9 +333,7 @@ async function fetchSettings() {
           : state.settings.category_colors
       };
     }
-  } catch (error) {
-    console.error('설정 조회 오류:', error);
-  }
+  } catch (error) {}
 }
 
 // 월별 통계 가져오기
@@ -220,7 +342,7 @@ async function fetchMonthlyStatistics(yearMonth) {
     const response = await axios.get(`/api/statistics/monthly/${yearMonth}`);
     return response.data;
   } catch (error) {
-    console.error('월별 통계 조회 오류:', error);
+
     return { success: false, summary: [], expenseByCategory: [] };
   }
 }
@@ -231,7 +353,7 @@ async function fetchWeeklyStatistics(startDate) {
     const response = await axios.get(`/api/statistics/weekly/${startDate}`);
     return response.data;
   } catch (error) {
-    console.error('주별 통계 조회 오류:', error);
+
     return { success: false, summary: [], expenseByCategory: [] };
   }
 }
@@ -242,7 +364,7 @@ async function fetchCalendarData(yearMonth) {
     const response = await axios.get(`/api/calendar/${yearMonth}`);
     return response.data;
   } catch (error) {
-    console.error('달력 데이터 조회 오류:', error);
+
     return { success: false, data: [] };
   }
 }
@@ -253,21 +375,18 @@ async function fetchBudgetVsSpending(yearMonth) {
     const response = await axios.get(`/api/budgets/vs-spending/${yearMonth}`);
     return response.data;
   } catch (error) {
-    console.error('예산 현황 조회 오류:', error);
+
     return { success: false, data: [] };
   }
 }
 
-// =============================================================================
 // 탭 전환 함수
-// =============================================================================
 
 async function switchView(view) {
-  console.log('🔀 switchView 호출:', view);
   state.activeView = view;
   
   // 모든 탭 버튼 업데이트
-  const tabs = ['month', 'week', 'savings', 'fixed-expenses', 'budgets', 'investments', 'receipts', 'reports', 'settings'];
+  const tabs = ['month', 'week', 'savings', 'fixed-expenses', 'budgets', 'investments', 'reports', 'settings'];
   tabs.forEach(tabName => {
     const tab = document.getElementById(`tab-${tabName}`);
     if (tab) {
@@ -299,9 +418,6 @@ async function switchView(view) {
     case 'investments':
       await renderInvestmentsView();
       break;
-    case 'receipts':
-      await renderReceiptsView();
-      break;
     case 'reports':
       await renderReportsView();
       break;
@@ -311,10 +427,7 @@ async function switchView(view) {
   }
 }
 
-
-// =============================================================================
 // 뷰 렌더링 함수들
-// =============================================================================
 
 // 월별 뷰 렌더링
 async function renderMonthView() {
@@ -334,6 +447,12 @@ async function renderMonthView() {
   const expense = state.transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const savings = state.transactions.filter(t => t.type === 'savings').reduce((sum, t) => sum + t.amount, 0);
   const balance = state.settings.initial_balance + income - expense - savings;
+  
+  // 현금 거래 계산
+  const cashIncome = state.transactions.filter(t => t.type === 'income' && t.payment_method === 'cash').reduce((sum, t) => sum + t.amount, 0);
+  const cashExpense = state.transactions.filter(t => t.type === 'expense' && t.payment_method === 'cash').reduce((sum, t) => sum + t.amount, 0);
+  const cashSavings = state.transactions.filter(t => t.type === 'savings' && t.payment_method === 'cash').reduce((sum, t) => sum + t.amount, 0);
+  const cashBalance = (state.settings.cash_on_hand || 0) + cashIncome - cashExpense - cashSavings;
   
   // 달력 데이터 준비
   const calendarDataResponse = await fetchCalendarData(yearMonth);
@@ -370,20 +489,32 @@ async function renderMonthView() {
       <!-- 통계 카드 -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-blue-50 p-4 rounded-lg shadow">
-          <p class="text-blue-600 text-sm font-medium">수입</p>
+          <p class="text-blue-600 text-sm font-medium">📈 수입</p>
           <p class="text-2xl font-bold text-blue-800">${formatCurrency(income)}</p>
+          <p class="text-xs text-blue-600 mt-1">💵 현금: ${formatCurrency(cashIncome)}</p>
         </div>
         <div class="bg-red-50 p-4 rounded-lg shadow">
-          <p class="text-red-600 text-sm font-medium">지출</p>
+          <p class="text-red-600 text-sm font-medium">📉 지출</p>
           <p class="text-2xl font-bold text-red-800">${formatCurrency(expense)}</p>
+          <p class="text-xs text-red-600 mt-1">💵 현금: ${formatCurrency(cashExpense)}</p>
         </div>
         <div class="bg-green-50 p-4 rounded-lg shadow">
-          <p class="text-green-600 text-sm font-medium">저축</p>
+          <p class="text-green-600 text-sm font-medium">💚 저축</p>
           <p class="text-2xl font-bold text-green-800">${formatCurrency(savings)}</p>
+          <p class="text-xs text-green-600 mt-1">💵 현금: ${formatCurrency(cashSavings)}</p>
         </div>
         <div class="bg-gray-50 p-4 rounded-lg shadow">
-          <p class="text-gray-600 text-sm font-medium">잔액</p>
+          <p class="text-gray-600 text-sm font-medium">💰 잔액</p>
           <p class="text-2xl font-bold text-gray-800">${formatCurrency(balance)}</p>
+          <p class="text-xs text-gray-600 mt-1">💵 현금: ${formatCurrency(cashBalance)}</p>
+        </div>
+      </div>
+      
+      <!-- 수입/지출/저축 비율 파이차트 -->
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-xl font-bold mb-4">월별 수입/지출/저축 비율</h3>
+        <div class="flex justify-center">
+          <canvas id="month-pie-chart" style="max-width: 300px; max-height: 300px;"></canvas>
         </div>
       </div>
       
@@ -434,6 +565,64 @@ async function renderMonthView() {
       </div>
     </div>
   `;
+  
+  // 파이차트 그리기
+  setTimeout(() => drawPieChart('month-pie-chart', income, expense, savings), 100);
+}
+
+// 파이차트 그리기
+function drawPieChart(canvasId, income, expense, savings) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  const total = income + expense + savings;
+  
+  if (total === 0) {
+    ctx.font = '14px sans-serif';
+    ctx.fillStyle = '#999';
+    ctx.textAlign = 'center';
+    ctx.fillText('데이터 없음', canvas.width / 2, canvas.height / 2);
+    return;
+  }
+  
+  new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: ['수입', '지출', '저축'],
+      datasets: [{
+        data: [income, expense, savings],
+        backgroundColor: ['#3B82F6', '#EF4444', '#10B981'],
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            padding: 15,
+            font: {
+              size: 12
+            }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const label = context.label || '';
+              const value = context.parsed || 0;
+              const percentage = ((value / total) * 100).toFixed(1);
+              return `${label}: ${formatCurrency(value)} (${percentage}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
 }
 
 // 달력 렌더링 (토요일 파란색, 일요일 빨간색)
@@ -652,11 +841,13 @@ function renderTransactionList(transactions) {
   transactions.forEach(t => {
     const typeColor = t.type === 'income' ? 'blue' : t.type === 'expense' ? 'red' : 'green';
     const typeText = t.type === 'income' ? '수입' : t.type === 'expense' ? '지출' : '저축';
+    const paymentIcon = t.payment_method === 'cash' ? '💵' : '💳';
     
     html += `
       <div class="flex justify-between items-center p-3 bg-gray-50 rounded hover:bg-gray-100">
         <div class="flex-1">
           <div class="flex items-center gap-2">
+            <span class="text-lg">${paymentIcon}</span>
             <span class="px-2 py-1 text-xs rounded bg-${typeColor}-100 text-${typeColor}-600">${typeText}</span>
             <span class="font-medium">${t.category}</span>
           </div>
@@ -725,6 +916,11 @@ async function renderWeekView() {
   const expense = state.transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const savings = state.transactions.filter(t => t.type === 'savings').reduce((sum, t) => sum + t.amount, 0);
   
+  // 현금 거래 계산
+  const cashIncome = state.transactions.filter(t => t.type === 'income' && t.payment_method === 'cash').reduce((sum, t) => sum + t.amount, 0);
+  const cashExpense = state.transactions.filter(t => t.type === 'expense' && t.payment_method === 'cash').reduce((sum, t) => sum + t.amount, 0);
+  const cashSavings = state.transactions.filter(t => t.type === 'savings' && t.payment_method === 'cash').reduce((sum, t) => sum + t.amount, 0);
+  
   // 주간 예산 계산 (월별 예산을 4로 나눔)
   const yearMonth = getYearMonth(state.currentWeekStart);
   const budgetDataResponse = await fetchBudgetVsSpending(yearMonth);
@@ -755,16 +951,27 @@ async function renderWeekView() {
       
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-blue-50 p-4 rounded-lg shadow">
-          <p class="text-blue-600 text-sm font-medium">수입</p>
+          <p class="text-blue-600 text-sm font-medium">📈 수입</p>
           <p class="text-2xl font-bold text-blue-800">${formatCurrency(income)}</p>
+          <p class="text-xs text-blue-600 mt-1">💵 현금: ${formatCurrency(cashIncome)}</p>
         </div>
         <div class="bg-red-50 p-4 rounded-lg shadow">
-          <p class="text-red-600 text-sm font-medium">지출</p>
+          <p class="text-red-600 text-sm font-medium">📉 지출</p>
           <p class="text-2xl font-bold text-red-800">${formatCurrency(expense)}</p>
+          <p class="text-xs text-red-600 mt-1">💵 현금: ${formatCurrency(cashExpense)}</p>
         </div>
         <div class="bg-green-50 p-4 rounded-lg shadow">
-          <p class="text-green-600 text-sm font-medium">저축</p>
+          <p class="text-green-600 text-sm font-medium">💚 저축</p>
           <p class="text-2xl font-bold text-green-800">${formatCurrency(savings)}</p>
+          <p class="text-xs text-green-600 mt-1">💵 현금: ${formatCurrency(cashSavings)}</p>
+        </div>
+      </div>
+      
+      <!-- 수입/지출/저축 비율 파이차트 -->
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-xl font-bold mb-4">주별 수입/지출/저축 비율</h3>
+        <div class="flex justify-center">
+          <canvas id="week-pie-chart" style="max-width: 300px; max-height: 300px;"></canvas>
         </div>
       </div>
       
@@ -785,6 +992,9 @@ async function renderWeekView() {
       </div>
     </div>
   `;
+  
+  // 파이차트 그리기
+  setTimeout(() => drawPieChart('week-pie-chart', income, expense, savings), 100);
 }
 
 // 저축 뷰 렌더링
@@ -809,17 +1019,53 @@ async function renderSavingsView() {
       </div>
       
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        ${state.savingsAccounts.map(acc => `
+        ${state.savingsAccounts.map(acc => {
+          const savingsGoal = acc.savings_goal || 0;
+          const currentSavings = acc.total_savings || 0;
+          const progress = savingsGoal > 0 ? Math.min((currentSavings / savingsGoal) * 100, 100) : 0;
+          const progressColor = progress >= 100 ? '#10B981' : progress >= 75 ? '#F59E0B' : '#3B82F6';
+          
+          return `
           <div class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition">
-            <div class="flex justify-between items-start mb-4">
+            <div class="flex justify-between items-start mb-3">
               <h4 class="text-lg font-bold">${acc.name}</h4>
-              <button onclick="deleteSavingsAccount(${acc.id})" class="text-red-500 hover:text-red-700">
-                <i class="fas fa-trash"></i>
-              </button>
+              <div class="flex gap-2">
+                <button onclick="openSavingsGoalModal(${acc.id}, ${savingsGoal})" 
+                        class="text-blue-500 hover:text-blue-700" title="목표 설정">
+                  <i class="fas fa-target"></i>
+                </button>
+                <button onclick="deleteSavingsAccount(${acc.id})" 
+                        class="text-red-500 hover:text-red-700" title="삭제">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
             </div>
-            <p class="text-3xl font-bold text-green-600">${formatCurrency(acc.total_savings || 0)}</p>
+            
+            <p class="text-3xl font-bold text-green-600 mb-2">${formatCurrency(currentSavings)}</p>
+            
+            ${savingsGoal > 0 ? `
+              <div class="mt-3">
+                <div class="flex justify-between text-xs text-gray-600 mb-1">
+                  <span>목표: ${formatCurrency(savingsGoal)}</span>
+                  <span>${progress.toFixed(1)}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div class="h-3 rounded-full transition-all" 
+                       style="width: ${progress}%; background-color: ${progressColor}">
+                  </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">
+                  ${currentSavings >= savingsGoal ? '🎉 목표 달성!' : `남은 금액: ${formatCurrency(savingsGoal - currentSavings)}`}
+                </p>
+              </div>
+            ` : `
+              <p class="text-xs text-gray-500 mt-2">
+                <i class="fas fa-info-circle mr-1"></i>목표를 설정하려면 타겟 아이콘을 클릭하세요
+              </p>
+            `}
           </div>
-        `).join('')}
+        `;
+        }).join('')}
       </div>
     </div>
   `;
@@ -843,6 +1089,21 @@ async function renderFixedExpensesView() {
         </button>
       </div>
       
+      <!-- 안내 메시지 -->
+      <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+        <div class="flex items-start">
+          <i class="fas fa-info-circle text-blue-500 text-xl mr-3 mt-1"></i>
+          <div>
+            <h4 class="font-bold text-blue-800 mb-1">📌 고정지출 항목 안내</h4>
+            <p class="text-sm text-blue-700 leading-relaxed">
+              고정지출 항목은 <strong>확인용</strong>으로 만들어졌습니다.<br>
+              번거롭겠지만 <strong>거래내역</strong> 탭에서 고정지출 지불내역을 <strong>별도로 입력</strong>해야 합니다.<br>
+              이곳은 매월/매주 발생하는 고정지출을 잊지 않도록 관리하는 용도입니다.
+            </p>
+          </div>
+        </div>
+      </div>
+      
       <!-- 월 선택 네비게이션 -->
       <div class="flex items-center justify-between bg-white p-4 rounded-lg shadow">
         <button onclick="changeFixedExpenseMonth(-1)" class="p-2 hover:bg-gray-100 rounded">
@@ -863,62 +1124,36 @@ async function renderFixedExpensesView() {
           const checkboxId = 'check-' + instance.id + '-' + instance.scheduled_date.replace(/-/g, '');
           
           return `
-          <div class="bg-white p-6 rounded-lg shadow">
-            <div class="flex justify-between items-start mb-3">
-              <div class="flex items-center gap-2">
-                <input 
-                  type="checkbox" 
-                  id="${checkboxId}"
-                  ${instance.is_paid ? 'checked' : ''}
-                  onchange="handleFixedExpenseCheck('${checkboxId}', ${instance.id}, '${instance.scheduled_date}', this.checked)"
-                  class="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                >
-                <h4 class="text-lg font-bold ${instance.is_paid ? 'line-through text-gray-400' : ''}">${instance.name}</h4>
+          <div class="bg-white p-5 rounded-lg shadow hover:shadow-md transition">
+            <div class="flex items-center gap-3 mb-3">
+              <input 
+                type="checkbox" 
+                id="${checkboxId}"
+                ${instance.is_paid ? 'checked' : ''}
+                onchange="handleFixedExpenseCheck('${checkboxId}', ${instance.id}, '${instance.scheduled_date}', this.checked)"
+                class="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-500 cursor-pointer"
+              >
+              <div class="flex-1">
+                <h4 class="text-lg font-bold ${instance.is_paid ? 'text-gray-400 line-through' : 'text-gray-800'}">${instance.name}</h4>
+                <p class="text-2xl font-bold ${instance.is_paid ? 'text-gray-400' : 'text-red-600'}">${formatCurrency(instance.amount)}</p>
               </div>
-              <button onclick="deleteFixedExpense(${instance.id})" class="text-red-500 hover:text-red-700">
+              <button onclick="deleteFixedExpense(${instance.id})" class="text-gray-400 hover:text-red-600 transition">
                 <i class="fas fa-trash"></i>
               </button>
             </div>
-            <p class="text-2xl font-bold ${instance.is_paid ? 'text-gray-400' : 'text-red-600'} mb-2">${formatCurrency(instance.amount)}</p>
             
-            ${instance.is_paid ? `
-              <div class="mb-3 px-3 py-2 bg-green-50 border border-green-200 rounded">
-                <p class="text-sm text-green-700">
-                  <i class="fas fa-check-circle mr-1"></i>
-                  ${instance.scheduled_date} 지불 완료
-                </p>
-              </div>
-            ` : `
-              <div class="mb-3 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded">
-                <p class="text-sm text-yellow-700">
-                  <i class="fas fa-clock mr-1"></i>
-                  예정일: ${instance.scheduled_date}
-                </p>
-              </div>
-            `}
-            
-            <div class="flex flex-wrap gap-1 mb-3">
-              <span class="px-2 py-1 text-xs rounded-full ${instance.frequency === 'monthly' ? 'bg-blue-500' : instance.frequency === 'monthly_day' ? 'bg-indigo-500' : 'bg-green-500'} text-white">
-                ${instance.frequency === 'monthly' ? '월별' : instance.frequency === 'monthly_day' ? '매월' : '주별'}
+            <div class="flex items-center gap-2 text-sm text-gray-600 mb-2">
+              <i class="fas fa-calendar-alt"></i>
+              <span>${instance.scheduled_date}</span>
+              <span class="text-xs px-2 py-0.5 rounded-full ${instance.frequency === 'monthly_day' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}">
+                ${instance.frequency === 'monthly_day' ? `매월 ${instance.payment_day}일` : `매주 ${getDayName(instance.day_of_week)}요일`}
               </span>
-              ${instance.frequency === 'monthly' ? `
-                <span class="px-2 py-1 text-xs rounded-full bg-orange-500 text-white">
-                  ${getWeekName(instance.week_of_month)}주
-                </span>
-                <span class="px-2 py-1 text-xs rounded-full bg-purple-500 text-white">
-                  ${getDayName(instance.day_of_week)}요일
-                </span>
-              ` : instance.frequency === 'monthly_day' ? `
-                <span class="px-2 py-1 text-xs rounded-full bg-purple-500 text-white">
-                  ${instance.payment_day}일
-                </span>
-              ` : `
-                <span class="px-2 py-1 text-xs rounded-full bg-purple-500 text-white">
-                  ${getDayName(instance.day_of_week)}요일
-                </span>
-              `}
             </div>
-            <p class="text-sm text-gray-600">카테고리: ${instance.category}</p>
+            
+            <div class="flex items-center gap-2 text-sm text-gray-500">
+              <i class="fas fa-tag"></i>
+              <span>${instance.category}</span>
+            </div>
           </div>
         `;
         }).join('')}
@@ -929,56 +1164,23 @@ async function renderFixedExpensesView() {
   `;
 }
 
-// 고정지출 체크박스 핸들러
+// 고정지출 체크박스 핸들러 - 단순 확인용
 async function handleFixedExpenseCheck(checkboxId, expenseId, date, isChecked) {
-  if (isChecked) {
-    // 체크 시: 지불 처리
-    if (!confirm(`이 고정지출을 ${date}에 지불하시겠습니까?`)) {
-      // 취소 시 체크박스 원상복구
-      document.getElementById(checkboxId).checked = false;
-      return;
+  // 체크박스 상태만 저장 (거래내역에 추가하지 않음)
+  try {
+    if (isChecked) {
+      // 체크 시: 지불 표시만 저장
+      await axios.post(`/api/fixed-expenses/${expenseId}/mark-paid`, { date });
+      renderFixedExpensesView();
+    } else {
+      // 체크 해제 시: 지불 표시 제거
+      await axios.delete(`/api/fixed-expenses/${expenseId}/mark-paid/${date}`);
+      renderFixedExpensesView();
     }
-    
-    try {
-      const response = await axios.post(`/api/fixed-expenses/${expenseId}/pay`, { date });
-      if (response.data.success) {
-        alert('지불이 완료되었습니다. 거래 내역에 자동으로 추가되었습니다.');
-        renderFixedExpensesView();
-      }
-    } catch (error) {
-      alert(error.response?.data?.error || '지불 처리 중 오류가 발생했습니다.');
-      document.getElementById(checkboxId).checked = false;
-    }
-  } else {
-    // 체크 해제 시: 삭제 여부 확인
-    if (!confirm('이 지불 내역을 취소하시겠습니까? 거래 내역도 함께 삭제됩니다.')) {
-      document.getElementById(checkboxId).checked = true;
-      return;
-    }
-    
-    try {
-      const yearMonth = getYearMonth(new Date(date));
-      const paymentsResponse = await axios.get(`/api/fixed-expenses/${expenseId}/payments/${yearMonth}`);
-      
-      if (paymentsResponse.data.success && paymentsResponse.data.data && paymentsResponse.data.data.length > 0) {
-        // 특정 날짜의 지불 내역 찾기
-        const payment = paymentsResponse.data.data.find(p => p.payment_date === date);
-        if (payment) {
-          await axios.delete(`/api/transactions/${payment.transaction_id}`);
-          alert('지불 내역이 취소되었습니다.');
-          renderFixedExpensesView();
-        } else {
-          alert('해당 날짜의 지불 내역을 찾을 수 없습니다.');
-          document.getElementById(checkboxId).checked = false;
-        }
-      } else {
-        alert('지불 내역이 없습니다.');
-        document.getElementById(checkboxId).checked = false;
-      }
-    } catch (error) {
-      alert('지불 취소 중 오류가 발생했습니다.');
-      document.getElementById(checkboxId).checked = true;
-    }
+  } catch (error) {
+    console.error('체크박스 상태 저장 오류:', error);
+    const checkbox = document.getElementById(checkboxId);
+    if (checkbox) checkbox.checked = !isChecked;
   }
 }
 
@@ -1024,9 +1226,7 @@ async function renderBudgetsView() {
   `;
 }
 
-// =============================================================================
 // 투자 관리 뷰 렌더링
-// =============================================================================
 
 async function renderInvestmentsView() {
   await fetchInvestments();
@@ -1323,13 +1523,54 @@ async function handleInvestmentSubmit(event, investmentId = null) {
   event.preventDefault();
   
   const formData = new FormData(event.target);
+  
+  // 종목 심볼 검증
+  const symbolValue = formData.get('symbol');
+  const symbolValidation = validateString(symbolValue, 1, 20, '종목 심볼');
+  if (!symbolValidation.valid) {
+    showValidationError(symbolValidation.error);
+    return;
+  }
+  
+  // 종목 이름 검증
+  const nameValue = formData.get('name');
+  const nameValidation = validateString(nameValue, 1, 100, '종목 이름');
+  if (!nameValidation.valid) {
+    showValidationError(nameValidation.error);
+    return;
+  }
+  
+  // 수량 검증
+  const quantityValue = formData.get('quantity');
+  const quantityValidation = validateInvestmentQuantity(quantityValue);
+  if (!quantityValidation.valid) {
+    showValidationError(quantityValidation.error);
+    return;
+  }
+  
+  // 매수 가격 검증
+  const priceValue = formData.get('purchase_price');
+  const priceValidation = validateInvestmentPrice(priceValue);
+  if (!priceValidation.valid) {
+    showValidationError(priceValidation.error);
+    return;
+  }
+  
+  // 매수일 검증
+  const dateValue = formData.get('purchase_date');
+  const dateValidation = validateDate(dateValue, '매수일');
+  if (!dateValidation.valid) {
+    showValidationError(dateValidation.error);
+    return;
+  }
+  
   const data = {
-    symbol: formData.get('symbol').toUpperCase().trim(),
-    name: formData.get('name').trim(),
-    quantity: parseInt(formData.get('quantity')),
-    purchase_price: parseFloat(formData.get('purchase_price')),
-    purchase_date: formData.get('purchase_date'),
-    notes: formData.get('notes')?.trim() || null
+    symbol: symbolValidation.value.toUpperCase(),
+    name: nameValidation.value,
+    quantity: quantityValidation.value,
+    purchase_price: priceValidation.value,
+    purchase_date: dateValidation.value,
+    notes: sanitizeString(formData.get('notes'))
   };
   
   try {
@@ -1357,7 +1598,6 @@ async function handleInvestmentSubmit(event, investmentId = null) {
 }
 
 async function editInvestment(id) {
-  console.log('Edit investment:', id);
   try {
     // 투자 목록 다시 로드 (최신 데이터 확보)
     await fetchInvestments();
@@ -1369,7 +1609,6 @@ async function editInvestment(id) {
 }
 
 async function deleteInvestment(id) {
-  console.log('Delete investment:', id);
   
   const investment = state.investments.find(inv => inv.id === id);
   const confirmMessage = investment 
@@ -1393,9 +1632,7 @@ async function deleteInvestment(id) {
   }
 }
 
-// =============================================================================
 // 거래 내역 수정 기능
-// =============================================================================
 
 async function openEditTransactionModal(transactionId) {
   // 거래 정보 가져오기
@@ -1480,6 +1717,14 @@ async function openEditTransactionModal(transactionId) {
                    class="w-full px-4 py-2 border rounded">
           </div>
           
+          <div>
+            <label class="block text-sm font-medium mb-2">결제 수단</label>
+            <select name="payment_method" class="w-full px-4 py-2 border rounded" required>
+              <option value="card" ${(transaction.payment_method || 'card') === 'card' ? 'selected' : ''}>카드</option>
+              <option value="cash" ${transaction.payment_method === 'cash' ? 'selected' : ''}>현금</option>
+            </select>
+          </div>
+          
           <div class="flex gap-2 pt-4">
             <button type="submit" class="flex-1 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
               수정
@@ -1526,12 +1771,51 @@ async function handleEditTransactionSubmit(event, transactionId) {
   event.preventDefault();
   
   const formData = new FormData(event.target);
+  
+  // 입력 검증
+  const typeValue = formData.get('type');
+  const amountValue = formData.get('amount');
+  const dateValue = formData.get('date');
+  const categoryValue = formData.get('category');
+  const descriptionValue = formData.get('description');
+  
+  // 금액 검증
+  const amountValidation = validateTransactionAmount(amountValue);
+  if (!amountValidation.valid) {
+    showValidationError(amountValidation.error);
+    return;
+  }
+  
+  // 날짜 검증
+  const dateValidation = validateDate(dateValue, '거래 날짜');
+  if (!dateValidation.valid) {
+    showValidationError(dateValidation.error);
+    return;
+  }
+  
+  // 카테고리 검증
+  const categoryValidation = validateRequired(categoryValue, '카테고리');
+  if (!categoryValidation.valid) {
+    showValidationError(categoryValidation.error);
+    return;
+  }
+  
+  // 저축 유형일 경우 저축 통장 선택 검증
+  if (typeValue === 'savings') {
+    const savingsAccountId = formData.get('savings_account_id');
+    if (!savingsAccountId) {
+      showValidationError('저축 통장을 선택해주세요.');
+      return;
+    }
+  }
+  
   const data = {
-    type: formData.get('type'),
-    category: formData.get('category'),
-    amount: parseFloat(formData.get('amount')),
-    date: formData.get('date'),
-    description: formData.get('description') || null,
+    type: typeValue,
+    category: categoryValue,
+    amount: Math.round(amountValidation.value),
+    date: dateValidation.value,
+    description: sanitizeString(descriptionValue),
+    payment_method: formData.get('payment_method') || 'card',
     savings_account_id: formData.get('savings_account_id') || null
   };
   
@@ -1552,13 +1836,10 @@ async function handleEditTransactionSubmit(event, transactionId) {
     }
   } catch (error) {
     alert('거래 수정 중 오류가 발생했습니다.');
-    console.error(error);
   }
 }
 
-// =============================================================================
-// 연간 지출 리포트 뷰 (3단계 드릴다운)
-// =============================================================================
+// 연간 지출 리포트 뷰
 
 async function renderReportsView() {
   const contentArea = document.getElementById('content-area');
@@ -1630,9 +1911,10 @@ function changeReportYear(delta) {
 
 // 1단계: 연간 월별 지출 현황 (바 그래프)
 async function loadYearlyReport() {
-  reportState.selectedMonth = null;
-  reportState.selectedCategory = null;
-  reportState.year = parseInt(document.getElementById('report-year').value);
+  try {
+    reportState.selectedMonth = null;
+    reportState.selectedCategory = null;
+    reportState.year = parseInt(document.getElementById('report-year').value);
   
   const detailsDiv = document.getElementById('report-details');
   detailsDiv.innerHTML = '<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>';
@@ -1735,7 +2017,20 @@ async function loadYearlyReport() {
 </div>
   `;
   
-  detailsDiv.innerHTML = tableHTML;
+    detailsDiv.innerHTML = tableHTML;
+  } catch (error) {
+    const detailsDiv = document.getElementById('report-details');
+    if (detailsDiv) {
+      detailsDiv.innerHTML = `
+        <div class="bg-red-50 p-6 rounded-lg">
+          <p class="text-red-800 mb-2"><i class="fas fa-exclamation-circle mr-2"></i>연간 리포트를 불러오는 중 오류가 발생했습니다.</p>
+          <button onclick="loadYearlyReport()" class="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+            <i class="fas fa-redo mr-2"></i>다시 시도
+          </button>
+        </div>
+      `;
+    }
+  }
 }
 
 // 전년 동월 비교 데이터 가져오기
@@ -1763,8 +2058,9 @@ async function getPreviousYearComparison(currentYear) {
 
 // 2단계: 특정 월의 카테고리별 지출 (바 그래프)
 async function loadMonthCategoryReport(month) {
-  reportState.selectedMonth = month;
-  reportState.selectedCategory = null;
+  try {
+    reportState.selectedMonth = month;
+    reportState.selectedCategory = null;
   
   const monthStr = `${reportState.year}-${String(month).padStart(2, '0')}`;
   const monthLabel = ['', '1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'][month];
@@ -1884,7 +2180,20 @@ async function loadMonthCategoryReport(month) {
 </div>
   `;
   
-  detailsDiv.innerHTML = tableHTML;
+    detailsDiv.innerHTML = tableHTML;
+  } catch (error) {
+    const detailsDiv = document.getElementById('report-details');
+    if (detailsDiv) {
+      detailsDiv.innerHTML = `
+        <div class="bg-red-50 p-6 rounded-lg">
+          <p class="text-red-800 mb-2"><i class="fas fa-exclamation-circle mr-2"></i>월별 카테고리 리포트를 불러오는 중 오류가 발생했습니다.</p>
+          <button onclick="loadMonthCategoryReport(${month})" class="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+            <i class="fas fa-redo mr-2"></i>다시 시도
+          </button>
+        </div>
+      `;
+    }
+  }
 }
 
 // 카테고리별 색상 (Chart.js 기본 팔레트)
@@ -1907,18 +2216,19 @@ function getCategoryColor(category) {
 
 // 3단계: 특정 카테고리의 거래 내역 리스트
 async function loadCategoryTransactions(category) {
-  reportState.selectedCategory = category;
-  
-  const month = reportState.selectedMonth;
-  const monthStr = `${reportState.year}-${String(month).padStart(2, '0')}`;
-  const monthLabel = ['', '1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'][month];
-  
-  const detailsDiv = document.getElementById('report-details');
-  detailsDiv.innerHTML = '<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>';
-  
-  // 제목 업데이트
-  document.getElementById('report-title').textContent = `${reportState.year}년 ${monthLabel} - ${category}`;
-  document.getElementById('report-subtitle').textContent = '해당 카테고리의 모든 거래 내역입니다.';
+  try {
+    reportState.selectedCategory = category;
+    
+    const month = reportState.selectedMonth;
+    const monthStr = `${reportState.year}-${String(month).padStart(2, '0')}`;
+    const monthLabel = ['', '1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'][month];
+    
+    const detailsDiv = document.getElementById('report-details');
+    detailsDiv.innerHTML = '<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>';
+    
+    // 제목 업데이트
+    document.getElementById('report-title').textContent = `${reportState.year}년 ${monthLabel} - ${category}`;
+    document.getElementById('report-subtitle').textContent = '해당 카테고리의 모든 거래 내역입니다.';
   
   // Breadcrumb 업데이트
   document.getElementById('report-breadcrumb').innerHTML = `
@@ -2022,7 +2332,20 @@ async function loadCategoryTransactions(category) {
 </div>
   `;
   
-  detailsDiv.innerHTML = tableHTML;
+    detailsDiv.innerHTML = tableHTML;
+  } catch (error) {
+    const detailsDiv = document.getElementById('report-details');
+    if (detailsDiv) {
+      detailsDiv.innerHTML = `
+        <div class="bg-red-50 p-6 rounded-lg">
+          <p class="text-red-800 mb-2"><i class="fas fa-exclamation-circle mr-2"></i>거래 내역을 불러오는 중 오류가 발생했습니다.</p>
+          <button onclick="loadCategoryTransactions('${category}')" class="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+            <i class="fas fa-redo mr-2"></i>다시 시도
+          </button>
+        </div>
+      `;
+    }
+  }
 }
 
 // 바 차트 그리기 함수들
@@ -2186,15 +2509,55 @@ async function renderSettingsView() {
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">초기 잔액</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">💰 초기 총 잔액 (카드 + 현금)</label>
           <input type="number" id="initial-balance" value="${state.settings.initial_balance}" 
                  class="w-full px-4 py-2 border rounded" placeholder="0">
+          <p class="text-xs text-gray-500 mt-1">
+            <i class="fas fa-info-circle mr-1"></i>가계부 시작 시점의 전체 자산 (카드 잔액 + 현금 + 저축 포함)
+          </p>
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">초기 저축액</label>
-          <input type="number" id="initial-savings" value="${state.settings.initial_savings}" 
+          <label class="block text-sm font-medium text-gray-700 mb-2">💵 초기 현금 보유액</label>
+          <input type="number" id="cash-on-hand" value="${state.settings.cash_on_hand || 0}" 
                  class="w-full px-4 py-2 border rounded" placeholder="0">
+          <p class="text-xs text-gray-500 mt-1">
+            <i class="fas fa-info-circle mr-1"></i>가계부 시작 시점에 현금으로 보유한 금액
+          </p>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">🌙 다크모드</label>
+          <div class="flex items-center gap-3">
+            <button onclick="toggleDarkMode()" 
+                    class="px-4 py-2 rounded ${state.darkMode ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}">
+              <i class="fas fa-${state.darkMode ? 'moon' : 'sun'} mr-2"></i>
+              ${state.darkMode ? '다크모드 켜짐' : '라이트모드'}
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">
+            <i class="fas fa-info-circle mr-1"></i>어두운 화면에서 눈의 피로를 줄입니다
+          </p>
+        </div>
+        
+        <hr class="my-6">
+        
+        <div>
+          <h3 class="text-lg font-bold mb-3">데이터 백업/복원</h3>
+          <p class="text-sm text-gray-600 mb-4">
+            <i class="fas fa-info-circle mr-1"></i>
+            모든 데이터를 JSON 파일로 내보내거나 백업 파일에서 복원할 수 있습니다.
+          </p>
+          <div class="grid grid-cols-2 gap-3">
+            <button onclick="exportData()" 
+                    class="px-4 py-3 bg-green-500 text-white rounded hover:bg-green-600 font-medium">
+              <i class="fas fa-download mr-2"></i>내보내기
+            </button>
+            <button onclick="openImportDataModal()" 
+                    class="px-4 py-3 bg-orange-500 text-white rounded hover:bg-orange-600 font-medium">
+              <i class="fas fa-upload mr-2"></i>불러오기
+            </button>
+          </div>
         </div>
         
         <button onclick="saveSettings()" class="w-full px-4 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
@@ -2205,9 +2568,9 @@ async function renderSettingsView() {
   `;
 }
 
-// =============================================================================
+// ---
 // 이벤트 핸들러 함수들
-// =============================================================================
+// ---
 
 function changeMonth(delta) {
   state.currentMonth.setMonth(state.currentMonth.getMonth() + delta);
@@ -2291,6 +2654,14 @@ async function openTransactionModal(date) {
             <input type="text" name="description" class="w-full px-4 py-2 border rounded" placeholder="메모를 입력하세요">
           </div>
           
+          <div>
+            <label class="block text-sm font-medium mb-2">결제 수단</label>
+            <select name="payment_method" class="w-full px-4 py-2 border rounded" required>
+              <option value="card">카드</option>
+              <option value="cash">현금</option>
+            </select>
+          </div>
+          
           <button type="submit" class="w-full py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
             추가
           </button>
@@ -2309,12 +2680,49 @@ async function handleTransactionSubmit(event) {
   event.preventDefault();
   const formData = new FormData(event.target);
   
+  // 입력 검증
+  const amountValue = formData.get('amount');
+  const dateValue = formData.get('date');
+  const categoryValue = formData.get('category');
+  const descriptionValue = formData.get('description');
+  
+  // 금액 검증
+  const amountValidation = validateTransactionAmount(amountValue);
+  if (!amountValidation.valid) {
+    showValidationError(amountValidation.error);
+    return;
+  }
+  
+  // 날짜 검증
+  const dateValidation = validateDate(dateValue, '거래 날짜');
+  if (!dateValidation.valid) {
+    showValidationError(dateValidation.error);
+    return;
+  }
+  
+  // 카테고리 검증
+  const categoryValidation = validateRequired(categoryValue, '카테고리');
+  if (!categoryValidation.valid) {
+    showValidationError(categoryValidation.error);
+    return;
+  }
+  
+  // 저축 유형일 경우 저축 통장 선택 검증
+  if (state.currentTransactionType === 'savings') {
+    const savingsAccountId = formData.get('savings_account_id');
+    if (!savingsAccountId) {
+      showValidationError('저축 통장을 선택해주세요.');
+      return;
+    }
+  }
+  
   const data = {
     type: state.currentTransactionType,
-    category: formData.get('category'),
-    amount: parseInt(formData.get('amount')),
-    description: formData.get('description'),
-    date: formData.get('date'),
+    category: categoryValue,
+    amount: Math.round(amountValidation.value),
+    description: sanitizeString(descriptionValue),
+    date: dateValidation.value,
+    payment_method: formData.get('payment_method') || 'card',
     savings_account_id: formData.get('savings_account_id') || null
   };
   
@@ -2366,9 +2774,17 @@ async function handleSavingsAccountSubmit(event) {
   event.preventDefault();
   const formData = new FormData(event.target);
   
+  // 통장 이름 검증
+  const nameValue = formData.get('name');
+  const nameValidation = validateString(nameValue, 1, 50, '통장 이름');
+  if (!nameValidation.valid) {
+    showValidationError(nameValidation.error);
+    return;
+  }
+  
   try {
     const response = await axios.post('/api/savings-accounts', {
-      name: formData.get('name')
+      name: nameValidation.value
     });
     if (response.data.success) {
       closeModal();
@@ -2389,6 +2805,76 @@ async function deleteSavingsAccount(id) {
     }
   } catch (error) {
     alert('통장 삭제 중 오류가 발생했습니다.');
+  }
+}
+
+function openSavingsGoalModal(accountId, currentGoal) {
+  const modalContainer = document.getElementById('modal-container');
+  const account = state.savingsAccounts.find(a => a.id === accountId);
+  
+  if (!account) {
+    alert('저축 통장을 찾을 수 없습니다.');
+    return;
+  }
+  
+  modalContainer.innerHTML = `
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
+      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
+        <h3 class="text-xl font-bold mb-4">${account.name} - 저축 목표 설정</h3>
+        <form onsubmit="handleSavingsGoalSubmit(event, ${accountId})" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-2">목표 금액</label>
+            <input type="number" name="savings_goal" value="${currentGoal}" 
+                   class="w-full px-4 py-2 border rounded" required min="0" placeholder="0">
+            <p class="text-xs text-gray-500 mt-1">
+              <i class="fas fa-info-circle mr-1"></i>0을 입력하면 목표가 제거됩니다
+            </p>
+          </div>
+          <div class="bg-blue-50 p-3 rounded">
+            <p class="text-sm text-blue-800">
+              <i class="fas fa-info-circle mr-2"></i>
+              현재 저축액: <strong>${formatCurrency(account.total_savings || 0)}</strong>
+            </p>
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="flex-1 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
+              저장
+            </button>
+            <button type="button" onclick="closeModal()" 
+                    class="flex-1 py-3 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 font-medium">
+              취소
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+async function handleSavingsGoalSubmit(event, accountId) {
+  event.preventDefault();
+  const formData = new FormData(event.target);
+  
+  // 저축 목표 금액 검증
+  const goalValue = formData.get('savings_goal');
+  const goalValidation = validateSavingsGoal(goalValue);
+  if (!goalValidation.valid) {
+    showValidationError(goalValidation.error);
+    return;
+  }
+  
+  try {
+    const response = await axios.put(`/api/savings-accounts/${accountId}/goal`, {
+      savings_goal: Math.round(goalValidation.value)
+    });
+    
+    if (response.data.success) {
+      closeModal();
+      alert('저축 목표가 설정되었습니다.');
+      renderSavingsView();
+    }
+  } catch (error) {
+    alert('목표 설정 중 오류가 발생했습니다.');
   }
 }
 
@@ -2416,21 +2902,11 @@ function openFixedExpenseModal() {
           <div>
             <label class="block text-sm font-medium mb-2">주기</label>
             <select name="frequency" class="w-full px-4 py-2 border rounded" required onchange="toggleFixedExpenseFields(this.value)">
-              <option value="monthly">월별 (특정 주/요일)</option>
-              <option value="monthly_day">매월 (특정 일자)</option>
-              <option value="weekly">주별</option>
+              <option value="monthly_day">매월</option>
+              <option value="weekly">매주</option>
             </select>
           </div>
-          <div id="week-of-month-container">
-            <label class="block text-sm font-medium mb-2">주차</label>
-            <select name="week_of_month" class="w-full px-4 py-2 border rounded">
-              <option value="1">첫째 주</option>
-              <option value="2">둘째 주</option>
-              <option value="3">셋째 주</option>
-              <option value="4">넷째 주</option>
-            </select>
-          </div>
-          <div id="day-of-week-container">
+          <div id="day-of-week-container" style="display: none;">
             <label class="block text-sm font-medium mb-2">요일</label>
             <select name="day_of_week" class="w-full px-4 py-2 border rounded">
               <option value="0">일요일</option>
@@ -2460,18 +2936,13 @@ function toggleFixedExpenseFields(frequency) {
   const dayOfWeekContainer = document.getElementById('day-of-week-container');
   const paymentDayContainer = document.getElementById('payment-day-container');
   
-  if (frequency === 'monthly') {
-    // 월별 (특정 주/요일)
-    weekOfMonthContainer.style.display = 'block';
-    dayOfWeekContainer.style.display = 'block';
-    paymentDayContainer.style.display = 'none';
-  } else if (frequency === 'monthly_day') {
+  if (frequency === 'monthly_day') {
     // 매월 (특정 일자)
     weekOfMonthContainer.style.display = 'none';
     dayOfWeekContainer.style.display = 'none';
     paymentDayContainer.style.display = 'block';
   } else if (frequency === 'weekly') {
-    // 주별
+    // 매주 (특정 요일)
     weekOfMonthContainer.style.display = 'none';
     dayOfWeekContainer.style.display = 'block';
     paymentDayContainer.style.display = 'none';
@@ -2483,20 +2954,53 @@ async function handleFixedExpenseSubmit(event) {
   const formData = new FormData(event.target);
   const frequency = formData.get('frequency');
   
+  // 이름 검증
+  const nameValue = formData.get('name');
+  const nameValidation = validateString(nameValue, 1, 100, '고정지출 이름');
+  if (!nameValidation.valid) {
+    showValidationError(nameValidation.error);
+    return;
+  }
+  
+  // 카테고리 검증
+  const categoryValue = formData.get('category');
+  const categoryValidation = validateRequired(categoryValue, '카테고리');
+  if (!categoryValidation.valid) {
+    showValidationError(categoryValidation.error);
+    return;
+  }
+  
+  // 금액 검증
+  const amountValue = formData.get('amount');
+  const amountValidation = validateTransactionAmount(amountValue);
+  if (!amountValidation.valid) {
+    showValidationError(amountValidation.error);
+    return;
+  }
+  
   const data = {
-    name: formData.get('name'),
-    category: formData.get('category'),
-    amount: parseInt(formData.get('amount')),
+    name: nameValidation.value,
+    category: categoryValue,
+    amount: Math.round(amountValidation.value),
     frequency: frequency
   };
   
-  if (frequency === 'monthly') {
-    data.week_of_month = parseInt(formData.get('week_of_month'));
-    data.day_of_week = parseInt(formData.get('day_of_week'));
-  } else if (frequency === 'monthly_day') {
-    data.payment_day = parseInt(formData.get('payment_day'));
+  if (frequency === 'monthly_day') {
+    const paymentDay = formData.get('payment_day');
+    const paymentDayValidation = validateInteger(paymentDay, 1, 31, '결제일');
+    if (!paymentDayValidation.valid) {
+      showValidationError(paymentDayValidation.error);
+      return;
+    }
+    data.payment_day = paymentDayValidation.value;
   } else if (frequency === 'weekly') {
-    data.day_of_week = parseInt(formData.get('day_of_week'));
+    const dayOfWeek = formData.get('day_of_week');
+    const dayValidation = validateInteger(dayOfWeek, 0, 6, '요일');
+    if (!dayValidation.valid) {
+      showValidationError(dayValidation.error);
+      return;
+    }
+    data.day_of_week = dayValidation.value;
   }
   
   try {
@@ -2524,7 +3028,14 @@ async function deleteFixedExpense(id) {
 }
 
 async function handleBudgetChange(category, value) {
-  const amount = parseInt(value) || 0;
+  // 예산 금액 검증
+  const budgetValidation = validateBudgetAmount(value);
+  if (!budgetValidation.valid) {
+    showValidationError(budgetValidation.error);
+    return;
+  }
+  
+  const amount = Math.round(budgetValidation.value);
   
   try {
     if (amount === 0) {
@@ -2544,14 +3055,37 @@ async function handleBudgetChange(category, value) {
 
 async function saveSettings() {
   const currency = document.getElementById('currency-select').value;
-  const initialBalance = parseInt(document.getElementById('initial-balance').value) || 0;
-  const initialSavings = parseInt(document.getElementById('initial-savings').value) || 0;
+  const initialBalanceValue = document.getElementById('initial-balance').value;
+  const cashOnHandValue = document.getElementById('cash-on-hand').value;
+  
+  // 초기 잔액 검증
+  const balanceValidation = validateNumber(initialBalanceValue, 0, 1000000000000, '초기 잔액');
+  if (!balanceValidation.valid) {
+    showValidationError(balanceValidation.error);
+    return;
+  }
+  
+  // 현금 보유액 검증
+  const cashValidation = validateNumber(cashOnHandValue, 0, 1000000000000, '현금 보유액');
+  if (!cashValidation.valid) {
+    showValidationError(cashValidation.error);
+    return;
+  }
+  
+  // 현금이 총 잔액보다 많으면 안됨
+  if (cashValidation.value > balanceValidation.value) {
+    showValidationError('현금 보유액은 초기 총 잔액보다 클 수 없습니다.');
+    return;
+  }
+  
+  const initialBalance = Math.round(balanceValidation.value);
+  const cashOnHand = Math.round(cashValidation.value);
   
   try {
     const response = await axios.put('/api/settings', {
       currency,
       initial_balance: initialBalance,
-      initial_savings: initialSavings,
+      cash_on_hand: cashOnHand,
       category_colors: state.settings.category_colors
     });
     
@@ -2599,457 +3133,472 @@ function closeModal(event) {
   document.getElementById('modal-container').innerHTML = '';
 }
 
-// =============================================================================
-// 영수증 관리
-// =============================================================================
+// 다크모드
 
-async function renderReceiptsView() {
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
+function toggleDarkMode() {
+  state.darkMode = !state.darkMode;
+  localStorage.setItem('darkMode', state.darkMode);
+  applyDarkMode();
+}
+
+function applyDarkMode() {
+  if (state.darkMode) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+}
+
+// 데이터 내보내기/불러오기
+
+// LocalStorage에서 백업 목록 가져오기
+function getBackupList() {
+  try {
+    const backupKeys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('backup_')) {
+        backupKeys.push(key);
+      }
+    }
+    
+    // 타임스탬프 기준으로 정렬 (최신순)
+    backupKeys.sort((a, b) => {
+      const timeA = parseInt(a.split('_')[1]);
+      const timeB = parseInt(b.split('_')[1]);
+      return timeB - timeA;
+    });
+    
+    return backupKeys;
+  } catch (error) {
+    console.error('백업 목록 조회 오류:', error);
+    return [];
+  }
+}
+
+// 오래된 백업 정리 (최대 3개 유지)
+function cleanOldBackups() {
+  try {
+    const backupKeys = getBackupList();
+    
+    // 3개 초과시 오래된 것 삭제
+    if (backupKeys.length > 3) {
+      for (let i = 3; i < backupKeys.length; i++) {
+        localStorage.removeItem(backupKeys[i]);
+      }
+    }
+  } catch (error) {
+    console.error('백업 정리 오류:', error);
+  }
+}
+
+// 백업 메타데이터 생성
+function createBackupMetadata(exportData) {
+  return {
+    exportDate: exportData.exportDate,
+    transactionCount: exportData.transactions?.length || 0,
+    savingsAccountCount: exportData.savingsAccounts?.length || 0,
+    fixedExpenseCount: exportData.fixedExpenses?.length || 0,
+    budgetCount: exportData.budgets?.length || 0,
+    investmentCount: exportData.investments?.length || 0
+  };
+}
+
+async function exportData() {
+  try {
+    // 모든 데이터 수집
+    const exportData = {
+      version: '1.0',
+      exportDate: new Date().toISOString(),
+      settings: state.settings,
+      transactions: state.transactions,
+      savingsAccounts: state.savingsAccounts,
+      fixedExpenses: state.fixedExpenses,
+      budgets: state.budgets,
+      investments: state.investments
+    };
+    
+    const timestamp = Date.now();
+    const fileName = `가계부_백업_${getYearMonth(new Date())}_${timestamp}.json`;
+    
+    // 1. LocalStorage에 백업 저장
+    try {
+      const backupKey = `backup_${timestamp}`;
+      const backupData = {
+        data: exportData,
+        metadata: createBackupMetadata(exportData)
+      };
+      
+      localStorage.setItem(backupKey, JSON.stringify(backupData));
+      
+      // 오래된 백업 정리
+      cleanOldBackups();
+      
+      const backupList = getBackupList();
+      const backupPosition = backupList.indexOf(backupKey) + 1;
+      
+      console.log('✅ 브라우저에 백업 저장 완료:', backupKey);
+    } catch (storageError) {
+      console.warn('LocalStorage 저장 실패:', storageError);
+      // LocalStorage 실패해도 파일 다운로드는 계속 진행
+    }
+    
+    // 2. 파일 다운로드
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    const backupCount = getBackupList().length;
+    
+    // 성공 메시지
+    alert(
+      `✅ 데이터 백업이 완료되었습니다!\n\n` +
+      `📱 브라우저에 저장됨 (${backupCount}/3개)\n` +
+      `💾 파일 다운로드: ${fileName}\n\n` +
+      `다운로드된 파일은 브라우저의 다운로드 폴더에 저장되었습니다.\n` +
+      `(Chrome: Ctrl+J, Safari: Cmd+Shift+L로 확인)`
+    );
+  } catch (error) {
+    console.error('데이터 내보내기 오류:', error);
+    alert('데이터 내보내기 중 오류가 발생했습니다.');
+  }
+}
+
+function openImportDataModal() {
+  const modalContainer = document.getElementById('modal-container');
   
-  const html = `
-    <div class="mb-6">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-2xl font-bold text-gray-800">
-          <i class="fas fa-receipt mr-2 text-blue-600"></i>영수증 관리
-        </h2>
-        <button onclick="openReceiptModal()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
-          <i class="fas fa-plus mr-2"></i>영수증 추가
+  // LocalStorage에서 백업 목록 가져오기
+  const backupKeys = getBackupList();
+  const recentBackups = backupKeys.slice(0, 3); // 최신 3개만
+  
+  let backupListHTML = '';
+  
+  if (recentBackups.length > 0) {
+    backupListHTML = `
+      <div class="mb-6">
+        <h4 class="text-sm font-semibold mb-3 text-gray-700">
+          <i class="fas fa-clock mr-2"></i>최근 백업 (${recentBackups.length}개)
+        </h4>
+        <div class="space-y-2">
+    `;
+    
+    recentBackups.forEach((backupKey, index) => {
+      try {
+        const backupData = JSON.parse(localStorage.getItem(backupKey));
+        const metadata = backupData.metadata;
+        const exportDate = new Date(metadata.exportDate);
+        const dateStr = exportDate.toLocaleString('ko-KR', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        backupListHTML += `
+          <label class="flex items-start p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                 onclick="selectBackup('${backupKey}')">
+            <input type="radio" name="backup" value="${backupKey}" 
+                   class="mt-1 mr-3" id="backup_radio_${index}">
+            <div class="flex-1">
+              <div class="font-medium text-gray-900 mb-1">
+                <i class="fas fa-calendar-alt mr-2 text-blue-500"></i>${dateStr}
+              </div>
+              <div class="text-sm text-gray-600 space-y-1">
+                <div>
+                  <i class="fas fa-exchange-alt mr-2 w-4 text-gray-400"></i>거래 ${metadata.transactionCount}건
+                </div>
+                <div class="flex gap-4 flex-wrap">
+                  <span><i class="fas fa-piggy-bank mr-1 text-gray-400"></i>저축 ${metadata.savingsAccountCount}</span>
+                  <span><i class="fas fa-receipt mr-1 text-gray-400"></i>고정지출 ${metadata.fixedExpenseCount}</span>
+                  <span><i class="fas fa-chart-pie mr-1 text-gray-400"></i>예산 ${metadata.budgetCount}</span>
+                  <span><i class="fas fa-chart-line mr-1 text-gray-400"></i>투자 ${metadata.investmentCount}</span>
+                </div>
+              </div>
+            </div>
+          </label>
+        `;
+      } catch (error) {
+        console.error('백업 파싱 오류:', backupKey, error);
+      }
+    });
+    
+    backupListHTML += `
+        </div>
+        <button type="button" onclick="restoreFromLocalStorage()" 
+                class="w-full mt-3 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium">
+          <i class="fas fa-download mr-2"></i>선택한 백업 불러오기
         </button>
       </div>
       
-      <!-- 필터 -->
-      <div class="bg-gray-50 p-4 rounded-lg mb-4">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label class="block text-sm font-medium mb-2">시작 날짜</label>
-            <input type="date" id="receipt-start-date" class="w-full px-3 py-2 border rounded-lg" onchange="loadReceipts()">
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-2">종료 날짜</label>
-            <input type="date" id="receipt-end-date" class="w-full px-3 py-2 border rounded-lg" onchange="loadReceipts()">
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-2">카테고리</label>
-            <select id="receipt-category-filter" class="w-full px-3 py-2 border rounded-lg" onchange="loadReceipts()">
-              <option value="">전체</option>
-              ${categories.expense.map(cat => `<option value="${cat}">${cat}</option>`).join('')}
-            </select>
-          </div>
+      <div class="relative my-6">
+        <div class="absolute inset-0 flex items-center">
+          <div class="w-full border-t border-gray-300"></div>
+        </div>
+        <div class="relative flex justify-center text-sm">
+          <span class="px-3 bg-white text-gray-500">또는</span>
         </div>
       </div>
-      
-      <!-- 영수증 목록 -->
-      <div id="receipt-list" class="bg-white rounded-lg p-4">
-        <div class="text-center py-8 text-gray-500">
-          <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
-          <p>로딩 중...</p>
+    `;
+  } else {
+    backupListHTML = `
+      <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <p class="text-sm text-blue-800">
+          <i class="fas fa-info-circle mr-2"></i>
+          저장된 백업이 없습니다. 파일에서 백업을 불러오세요.
+        </p>
+      </div>
+    `;
+  }
+  
+  modalContainer.innerHTML = `
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
+      <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+        <h3 class="text-xl font-bold mb-4">
+          <i class="fas fa-upload mr-2"></i>데이터 불러오기
+        </h3>
+        
+        <div class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p class="text-sm text-yellow-800">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <strong>주의:</strong> 데이터를 불러오면 현재 데이터가 모두 덮어씌워집니다.
+          </p>
         </div>
+        
+        ${backupListHTML}
+        
+        <form onsubmit="handleImportData(event)" class="space-y-4">
+          <div>
+            <label class="block text-sm font-semibold mb-2 text-gray-700">
+              <i class="fas fa-file-upload mr-2"></i>파일에서 불러오기
+            </label>
+            <input type="file" name="importFile" accept=".json" 
+                   class="w-full px-4 py-2 border-2 border-dashed rounded-lg hover:border-blue-400 transition-colors">
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="flex-1 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium">
+              <i class="fas fa-file-import mr-2"></i>파일에서 불러오기
+            </button>
+            <button type="button" onclick="closeModal()" 
+                    class="flex-1 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium">
+              <i class="fas fa-times mr-2"></i>취소
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   `;
-  
-  contentArea.innerHTML = html;
-  
-  // 기본 날짜 설정 (이번 달)
-  const startDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
-  const lastDay = new Date(currentYear, currentMonth, 0).getDate();
-  const endDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${lastDay}`;
-  document.getElementById('receipt-start-date').value = startDate;
-  document.getElementById('receipt-end-date').value = endDate;
-  
-  await loadReceipts();
 }
 
-async function loadReceipts() {
+// 백업 선택 처리
+function selectBackup(backupKey) {
+  // 모든 라디오 버튼 해제
+  document.querySelectorAll('input[name="backup"]').forEach(radio => {
+    radio.checked = false;
+  });
+  
+  // 선택한 백업의 라디오 버튼 체크
+  const radio = document.querySelector(`input[value="${backupKey}"]`);
+  if (radio) {
+    radio.checked = true;
+  }
+}
+
+// LocalStorage에서 백업 복원
+async function restoreFromLocalStorage() {
   try {
-    const startDate = document.getElementById('receipt-start-date')?.value || '';
-    const endDate = document.getElementById('receipt-end-date')?.value || '';
-    const category = document.getElementById('receipt-category-filter')?.value || '';
+    const selectedRadio = document.querySelector('input[name="backup"]:checked');
     
-    let url = '/api/receipts?';
-    if (startDate && endDate) url += `start_date=${startDate}&end_date=${endDate}&`;
-    if (category) url += `category=${category}&`;
-    
-    const response = await axios.get(url);
-    const receipts = response.data.data || [];
-    
-    const listDiv = document.getElementById('receipt-list');
-    
-    if (receipts.length === 0) {
-      listDiv.innerHTML = `
-        <div class="text-center py-8 text-gray-500">
-          <i class="fas fa-receipt text-4xl mb-4 opacity-50"></i>
-          <p>영수증이 없습니다.</p>
-        </div>
-      `;
+    if (!selectedRadio) {
+      alert('복원할 백업을 선택해주세요.');
       return;
     }
     
-    // 통계 계산
-    const totalAmount = receipts.reduce((sum, r) => sum + r.amount, 0);
-    const cashAmount = receipts.filter(r => r.payment_method === 'cash').reduce((sum, r) => sum + r.amount, 0);
+    const backupKey = selectedRadio.value;
+    const backupData = JSON.parse(localStorage.getItem(backupKey));
     
-    let html = `
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div class="bg-blue-50 p-4 rounded-lg">
-          <div class="text-sm text-gray-600 mb-1">총 영수증</div>
-          <div class="text-2xl font-bold text-blue-600">${receipts.length}건</div>
-        </div>
-        <div class="bg-red-50 p-4 rounded-lg">
-          <div class="text-sm text-gray-600 mb-1">총 지출액</div>
-          <div class="text-2xl font-bold text-red-600">${formatCurrency(totalAmount)}</div>
-        </div>
-        <div class="bg-green-50 p-4 rounded-lg">
-          <div class="text-sm text-gray-600 mb-1">현금 지출</div>
-          <div class="text-2xl font-bold text-green-600">${formatCurrency(cashAmount)}</div>
-        </div>
-      </div>
-      
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    `;
-    
-    receipts.forEach(receipt => {
-      const paymentIcon = receipt.payment_method === 'cash' 
-        ? '<i class="fas fa-money-bill-wave text-green-600"></i>'
-        : '<i class="fas fa-credit-card text-blue-600"></i>';
-      
-      html += `
-        <div class="border rounded-lg p-4 hover:shadow-md transition cursor-pointer" onclick="viewReceipt(${receipt.id})">
-          <div class="flex justify-between items-start mb-2">
-            <div class="flex-1">
-              <div class="font-bold text-lg">${receipt.store_name}</div>
-              <div class="text-sm text-gray-500">${receipt.purchase_date}</div>
-            </div>
-            ${paymentIcon}
-          </div>
-          <div class="text-xl font-bold text-red-600 mb-2">${formatCurrency(receipt.amount)}</div>
-          <div class="flex gap-2 items-center mb-2">
-            <span class="text-xs px-2 py-1 bg-gray-100 rounded">${receipt.category}</span>
-          </div>
-          ${receipt.description ? `<div class="text-sm text-gray-600 truncate">${receipt.description}</div>` : ''}
-          <div class="flex gap-2 mt-3">
-            <button onclick="event.stopPropagation(); editReceipt(${receipt.id})" class="text-blue-600 hover:text-blue-800 text-sm">
-              <i class="fas fa-edit"></i> 수정
-            </button>
-            <button onclick="event.stopPropagation(); deleteReceipt(${receipt.id})" class="text-red-600 hover:text-red-800 text-sm">
-              <i class="fas fa-trash"></i> 삭제
-            </button>
-          </div>
-        </div>
-      `;
-    });
-    
-    html += '</div>';
-    listDiv.innerHTML = html;
-    
-  } catch (error) {
-    console.error('영수증 로딩 오류:', error);
-    document.getElementById('receipt-list').innerHTML = `
-      <div class="text-center py-8 text-red-500">
-        <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
-        <p>영수증을 불러올 수 없습니다.</p>
-      </div>
-    `;
-  }
-}
-
-function openReceiptModal(receiptId = null) {
-  const isEdit = receiptId !== null;
-  
-  const modalHTML = `
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onclick="closeModal(event)">
-      <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
-        <div class="p-6">
-          <h3 class="text-xl font-bold mb-4">${isEdit ? '영수증 수정' : '영수증 추가'}</h3>
-          <form id="receipt-form" onsubmit="handleReceiptSubmit(event, ${receiptId})">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium mb-2">구매처 *</label>
-                <input type="text" id="receipt-store" required class="w-full px-3 py-2 border rounded-lg">
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-2">구매 날짜 *</label>
-                <input type="date" id="receipt-date" required class="w-full px-3 py-2 border rounded-lg">
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-2">금액 *</label>
-                <input type="number" id="receipt-amount" required class="w-full px-3 py-2 border rounded-lg">
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-2">카테고리 *</label>
-                <select id="receipt-category" required class="w-full px-3 py-2 border rounded-lg">
-                  ${categories.expense.map(cat => `<option value="${cat}">${cat}</option>`).join('')}
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-2">결제 수단 *</label>
-                <select id="receipt-payment" required class="w-full px-3 py-2 border rounded-lg">
-                  <option value="card">카드</option>
-                  <option value="cash">현금</option>
-                </select>
-              </div>
-            </div>
-            <div class="mt-4">
-              <label class="block text-sm font-medium mb-2">설명</label>
-              <input type="text" id="receipt-description" class="w-full px-3 py-2 border rounded-lg" placeholder="구매 내역 설명">
-            </div>
-            <div class="mt-4">
-              <label class="block text-sm font-medium mb-2">메모</label>
-              <textarea id="receipt-notes" rows="2" class="w-full px-3 py-2 border rounded-lg"></textarea>
-            </div>
-            <div class="mt-4">
-              <label class="block text-sm font-medium mb-2">영수증 사진 ${isEdit ? '' : '*'}</label>
-              <input type="file" id="receipt-image" accept="image/*" ${isEdit ? '' : 'required'} class="w-full px-3 py-2 border rounded-lg" onchange="previewImage(event)">
-              <div id="image-preview" class="mt-2"></div>
-            </div>
-            <div class="flex gap-2 mt-6">
-              <button type="submit" class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
-                ${isEdit ? '수정' : '추가'}
-              </button>
-              <button type="button" onclick="closeModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
-                취소
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  document.getElementById('modal-container').innerHTML = modalHTML;
-  document.getElementById('receipt-date').value = new Date().toISOString().split('T')[0];
-  
-  if (isEdit) {
-    loadReceiptData(receiptId);
-  }
-}
-
-async function loadReceiptData(receiptId) {
-  try {
-    const response = await axios.get(`/api/receipts/${receiptId}`);
-    const receipt = response.data.data;
-    
-    document.getElementById('receipt-store').value = receipt.store_name;
-    document.getElementById('receipt-date').value = receipt.purchase_date;
-    document.getElementById('receipt-amount').value = receipt.amount;
-    document.getElementById('receipt-category').value = receipt.category;
-    document.getElementById('receipt-payment').value = receipt.payment_method;
-    document.getElementById('receipt-description').value = receipt.description || '';
-    document.getElementById('receipt-notes').value = receipt.notes || '';
-    
-    if (receipt.image_data) {
-      document.getElementById('image-preview').innerHTML = `
-        <img src="${receipt.image_data}" class="max-w-full h-32 object-contain rounded">
-      `;
+    if (!backupData || !backupData.data) {
+      alert('백업 데이터를 불러올 수 없습니다.');
+      return;
     }
+    
+    const importData = backupData.data;
+    const metadata = backupData.metadata;
+    const exportDate = new Date(metadata.exportDate);
+    const dateStr = exportDate.toLocaleString('ko-KR');
+    
+    // 확인 메시지
+    if (!confirm(
+      `📅 ${dateStr} 백업을 복원하시겠습니까?\n\n` +
+      `📊 포함된 데이터:\n` +
+      `  • 거래 내역: ${metadata.transactionCount}건\n` +
+      `  • 저축 계좌: ${metadata.savingsAccountCount}개\n` +
+      `  • 고정 지출: ${metadata.fixedExpenseCount}개\n` +
+      `  • 예산: ${metadata.budgetCount}개\n` +
+      `  • 투자: ${metadata.investmentCount}개\n\n` +
+      `⚠️ 현재 데이터가 모두 삭제됩니다.`
+    )) {
+      return;
+    }
+    
+    // 데이터 복원 수행
+    await performDataRestore(importData);
+    
   } catch (error) {
-    console.error('영수증 로딩 오류:', error);
-    alert('영수증을 불러올 수 없습니다.');
+    console.error('백업 복원 오류:', error);
+    alert('백업 복원 중 오류가 발생했습니다.');
   }
 }
 
-function previewImage(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    document.getElementById('image-preview').innerHTML = `
-      <img src="${e.target.result}" class="max-w-full h-32 object-contain rounded">
-    `;
-  };
-  reader.readAsDataURL(file);
-}
-
-async function handleReceiptSubmit(event, receiptId) {
+async function handleImportData(event) {
   event.preventDefault();
   
-  const store_name = document.getElementById('receipt-store').value;
-  const purchase_date = document.getElementById('receipt-date').value;
-  const amount = parseFloat(document.getElementById('receipt-amount').value);
-  const category = document.getElementById('receipt-category').value;
-  const payment_method = document.getElementById('receipt-payment').value;
-  const description = document.getElementById('receipt-description').value;
-  const notes = document.getElementById('receipt-notes').value;
-  
-  const imageFile = document.getElementById('receipt-image').files[0];
-  
-  try {
-    let image_data = null;
-    
-    if (imageFile) {
-      // 이미지 압축
-      image_data = await compressImage(imageFile);
-    }
-    
-    const data = {
-      store_name,
-      purchase_date,
-      amount,
-      category,
-      payment_method,
-      description,
-      notes,
-      image_data
-    };
-    
-    if (receiptId) {
-      await axios.put(`/api/receipts/${receiptId}`, data);
-      alert('영수증이 수정되었습니다.');
-    } else {
-      await axios.post('/api/receipts', data);
-      alert('영수증이 추가되었습니다.');
-    }
-    
-    closeModal();
-    await loadReceipts();
-  } catch (error) {
-    console.error('영수증 저장 오류:', error);
-    alert('영수증을 저장할 수 없습니다.');
-  }
-}
-
-// 이미지 압축 함수
-async function compressImage(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const img = new Image();
-      img.onload = function() {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        
-        // 최대 크기 800px
-        const maxSize = 800;
-        if (width > height && width > maxSize) {
-          height = (height * maxSize) / width;
-          width = maxSize;
-        } else if (height > maxSize) {
-          width = (width * maxSize) / height;
-          height = maxSize;
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        // JPEG로 변환, 품질 0.7
-        const compressed = canvas.toDataURL('image/jpeg', 0.7);
-        resolve(compressed);
-      };
-      img.onerror = reject;
-      img.src = e.target.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-async function viewReceipt(receiptId) {
-  try {
-    const response = await axios.get(`/api/receipts/${receiptId}`);
-    const receipt = response.data.data;
-    
-    const modalHTML = `
-      <div class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onclick="closeModal(event)">
-        <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
-          <div class="p-6">
-            <div class="flex justify-between items-start mb-4">
-              <div>
-                <h3 class="text-2xl font-bold">${receipt.store_name}</h3>
-                <div class="text-gray-500">${receipt.purchase_date}</div>
-              </div>
-              <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
-                <i class="fas fa-times text-2xl"></i>
-              </button>
-            </div>
-            
-            ${receipt.image_data ? `
-              <div class="mb-4">
-                <img src="${receipt.image_data}" class="w-full max-h-96 object-contain rounded-lg border">
-              </div>
-            ` : ''}
-            
-            <div class="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <div class="text-sm text-gray-600">금액</div>
-                <div class="text-2xl font-bold text-red-600">${formatCurrency(receipt.amount)}</div>
-              </div>
-              <div>
-                <div class="text-sm text-gray-600">결제 수단</div>
-                <div class="text-lg font-semibold">${receipt.payment_method === 'cash' ? '현금' : '카드'}</div>
-              </div>
-              <div>
-                <div class="text-sm text-gray-600">카테고리</div>
-                <div class="text-lg">${receipt.category}</div>
-              </div>
-            </div>
-            
-            ${receipt.description ? `
-              <div class="mb-4">
-                <div class="text-sm text-gray-600 mb-1">설명</div>
-                <div class="text-gray-800">${receipt.description}</div>
-              </div>
-            ` : ''}
-            
-            ${receipt.notes ? `
-              <div class="mb-4">
-                <div class="text-sm text-gray-600 mb-1">메모</div>
-                <div class="text-gray-600">${receipt.notes}</div>
-              </div>
-            ` : ''}
-            
-            <div class="flex gap-2 mt-6">
-              <button onclick="editReceipt(${receipt.id})" class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
-                <i class="fas fa-edit mr-2"></i>수정
-              </button>
-              <button onclick="deleteReceipt(${receipt.id})" class="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700">
-                <i class="fas fa-trash mr-2"></i>삭제
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-    
-    document.getElementById('modal-container').innerHTML = modalHTML;
-  } catch (error) {
-    console.error('영수증 조회 오류:', error);
-    alert('영수증을 불러올 수 없습니다.');
-  }
-}
-
-async function editReceipt(receiptId) {
-  closeModal();
-  setTimeout(() => openReceiptModal(receiptId), 100);
-}
-
-async function deleteReceipt(receiptId) {
-  if (!confirm('영수증과 연결된 거래 내역도 함께 삭제됩니다. 계속하시겠습니까?')) {
+  const fileInput = event.target.importFile;
+  if (!fileInput.files.length) {
+    alert('파일을 선택해주세요.');
     return;
   }
   
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+  
+  reader.onload = async (e) => {
+    try {
+      const importData = JSON.parse(e.target.result);
+      
+      // 데이터 유효성 검사
+      if (!importData.version || !importData.exportDate) {
+        alert('올바른 백업 파일이 아닙니다.');
+        return;
+      }
+      
+      // 확인 메시지
+      const exportDate = new Date(importData.exportDate);
+      const dateStr = exportDate.toLocaleString('ko-KR');
+      
+      if (!confirm(`📅 ${dateStr} 백업 데이터를 불러오시겠습니까?\n\n⚠️ 현재 데이터가 모두 삭제됩니다.`)) {
+        return;
+      }
+      
+      // 데이터 복원 수행
+      await performDataRestore(importData);
+      
+    } catch (error) {
+      console.error('파일 불러오기 오류:', error);
+      alert('데이터 불러오기 중 오류가 발생했습니다. 파일 형식을 확인해주세요.');
+    }
+  };
+  
+  reader.onerror = () => {
+    alert('파일 읽기 중 오류가 발생했습니다.');
+  };
+  
+  reader.readAsText(file);
+}
+
+// 데이터 복원 공통 로직 (LocalStorage 백업과 파일 백업 모두 사용)
+async function performDataRestore(importData) {
   try {
-    await axios.delete(`/api/receipts/${receiptId}`);
-    alert('영수증이 삭제되었습니다.');
+    // 데이터 복원
+    if (importData.settings) {
+      await axios.put('/api/settings', importData.settings);
+    }
+    
+    if (importData.transactions && importData.transactions.length > 0) {
+      for (const t of importData.transactions) {
+        try {
+          await axios.post('/api/transactions', {
+            type: t.type,
+            category: t.category,
+            amount: t.amount,
+            description: t.description,
+            date: t.date,
+            payment_method: t.payment_method || 'card',
+            savings_account_id: t.savings_account_id
+          });
+        } catch (error) {
+          console.error('거래 복원 오류:', error);
+        }
+      }
+    }
+    
+    if (importData.savingsAccounts && importData.savingsAccounts.length > 0) {
+      for (const sa of importData.savingsAccounts) {
+        try {
+          await axios.post('/api/savings-accounts', { name: sa.name });
+        } catch (error) {
+          console.error('저축 계좌 복원 오류:', error);
+        }
+      }
+    }
+    
+    if (importData.fixedExpenses && importData.fixedExpenses.length > 0) {
+      for (const fe of importData.fixedExpenses) {
+        try {
+          await axios.post('/api/fixed-expenses', {
+            name: fe.name,
+            category: fe.category,
+            amount: fe.amount,
+            frequency: fe.frequency,
+            week_of_month: fe.week_of_month,
+            day_of_week: fe.day_of_week,
+            payment_day: fe.payment_day
+          });
+        } catch (error) {
+          console.error('고정지출 복원 오류:', error);
+        }
+      }
+    }
+    
+    if (importData.budgets && importData.budgets.length > 0) {
+      for (const b of importData.budgets) {
+        try {
+          await axios.put(`/api/budgets/${b.category}`, {
+            monthly_budget: b.monthly_budget
+          });
+        } catch (error) {
+          console.error('예산 복원 오류:', error);
+        }
+      }
+    }
+    
+    if (importData.investments && importData.investments.length > 0) {
+      for (const inv of importData.investments) {
+        try {
+          await axios.post('/api/investments', {
+            symbol: inv.symbol,
+            name: inv.name,
+            quantity: inv.quantity,
+            purchase_price: inv.purchase_price,
+            purchase_date: inv.purchase_date,
+            notes: inv.notes
+          });
+        } catch (error) {
+          console.error('투자 복원 오류:', error);
+        }
+      }
+    }
+    
     closeModal();
-    await loadReceipts();
+    alert('✅ 데이터가 성공적으로 복원되었습니다!');
+    location.reload();
+    
   } catch (error) {
-    console.error('영수증 삭제 오류:', error);
-    alert('영수증을 삭제할 수 없습니다.');
+    console.error('데이터 복원 오류:', error);
+    throw error;
   }
 }
 
-
-// =============================================================================
 // 초기화
-// =============================================================================
 
 async function init() {
+  applyDarkMode();
   await fetchSettings();
   await switchView('month');
   
@@ -3060,7 +3609,6 @@ async function init() {
   document.getElementById('tab-fixed-expenses').onclick = () => switchView('fixed-expenses');
   document.getElementById('tab-budgets').onclick = () => switchView('budgets');
   document.getElementById('tab-investments').onclick = () => switchView('investments');
-  document.getElementById('tab-receipts').onclick = () => switchView('receipts');
   document.getElementById('tab-reports').onclick = () => switchView('reports');
   document.getElementById('tab-settings').onclick = () => switchView('settings');
 }
