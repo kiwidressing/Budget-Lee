@@ -473,7 +473,7 @@ function renderCalendar(calendarData) {
     if (dayOfWeek === 0) dayColor = 'text-red-500';
     else if (dayOfWeek === 6) dayColor = 'text-blue-500';
     
-    // 거래 점 생성
+    // 거래 점 생성 (입력 순서대로 배치)
     let dots = '';
     const hasIncome = dayData.income && dayData.income > 0;
     const hasExpense = dayData.expense && dayData.expense > 0;
@@ -484,9 +484,9 @@ function renderCalendar(calendarData) {
     if (hasSavings) dots += '<span class="calendar-dot savings"></span>';
     
     html += `
-      <div class="border p-1 md:p-2 rounded cursor-pointer hover:bg-gray-50 calendar-cell-compact" 
+      <div class="border rounded cursor-pointer hover:bg-gray-50 calendar-cell-compact" 
            onclick="openTransactionModal('${dateStr}')">
-        <div class="text-xs md:text-sm font-semibold mb-1 ${dayColor}">${day}</div>
+        <div class="calendar-day-number text-xs md:text-sm font-semibold ${dayColor}">${day}</div>
         <div class="calendar-dots-container">
           ${dots}
         </div>

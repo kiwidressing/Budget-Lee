@@ -93,11 +93,10 @@ body {
 
 /* 달력 점 스타일 */
 .calendar-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  display: inline-block;
-  margin: 0 1px;
+  display: block;
 }
 
 .calendar-dot.income {
@@ -112,22 +111,57 @@ body {
   background-color: #10B981;
 }
 
-/* 달력 셀 컴팩트 모드 */
+/* 달력 셀 컴팩트 모드 - 새로운 레이아웃 */
 .calendar-cell-compact {
-  height: 50px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  height: 60px;
+  position: relative;
   padding: 4px;
 }
 
+/* 날짜는 왼쪽 상단 */
+.calendar-day-number {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  line-height: 1;
+}
+
+/* 점 컨테이너 - 그리드 레이아웃 */
 .calendar-dots-container {
-  display: flex;
-  flex-wrap: wrap;
+  position: absolute;
+  top: 4px;
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  padding: 4px;
   gap: 2px;
-  justify-content: center;
-  max-width: 100%;
+}
+
+/* 첫 번째 점: 오른쪽 상단 (숫자 오른편) */
+.calendar-dots-container .calendar-dot:nth-child(1) {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  align-self: start;
+}
+
+/* 두 번째 점: 왼쪽 중단 */
+.calendar-dots-container .calendar-dot:nth-child(2) {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: start;
+  align-self: center;
+}
+
+/* 세 번째 점: 오른쪽 하단 */
+.calendar-dots-container .calendar-dot:nth-child(3) {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  align-self: end;
 }
 
 /* 버튼 아이콘 전용 스타일 */
