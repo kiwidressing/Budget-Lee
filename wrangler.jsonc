@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "webapp",
+  "name": "budgetlee",
   "compatibility_date": "2025-10-25",
   "pages_build_output_dir": "./dist",
   "compatibility_flags": [
@@ -10,7 +10,7 @@
     {
       "binding": "DB",
       "database_name": "webapp-production",
-      "database_id": "placeholder-for-local-dev"
+      "database_id": "a7f7bc61-3eff-420e-b5c8-70ef1db3e7a9"
     }
   ]
 }
