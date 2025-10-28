@@ -867,7 +867,6 @@ async function renderHomeView() {
             <i class="fas fa-wallet mr-2"></i>총 자산
           </p>
           <p class="text-3xl font-bold mt-2">${formatCurrency(totalAssets)}</p>
-          <p class="text-purple-200 text-xs mt-2">초기 잔액: ${formatCurrency(state.settings.initial_balance)}</p>
         </div>
         
         <div class="bg-gradient-to-br from-blue-500 to-blue-700 text-white p-5 rounded-lg shadow-lg">
