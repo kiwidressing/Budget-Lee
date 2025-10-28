@@ -4,7 +4,11 @@
 
 ## 🌐 실시간 데모
 
-**로컬 개발 서버**: https://3000-ilfxg66dle2ykyvgdbe6r-c07dda5e.sandbox.novita.ai
+**🚀 프로덕션 URL**: https://budget-lee.pages.dev  
+**📦 GitHub 리포지토리**: https://github.com/kiwidressing/Budget-Lee
+
+> 배포 상태: ✅ Active (Cloudflare Pages)  
+> 자동 배포: `main` 브랜치에 push 시 자동으로 재배포됩니다
 
 ## 🆕 최신 업데이트 (Session 8)
 
