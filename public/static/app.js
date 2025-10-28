@@ -2719,7 +2719,10 @@ async function loadReceipts() {
     if (taxDeductible) params.append('tax_deductible', taxDeductible);
     
     const response = await axios.get(`/api/receipts?${params.toString()}`);
-    const receipts = response.data.data;
+    if (!response.data.success) {
+      throw new Error(response.data.error || '영수증을 불러올 수 없습니다.');
+    }
+    const receipts = response.data.data || [];
     
     // 통계 계산
     const totalAmount = receipts.reduce((sum, r) => sum + (r.amount || 0), 0);
@@ -2822,10 +2825,32 @@ async function loadReceipts() {
     
   } catch (error) {
     console.error('영수증 로딩 오류:', error);
+    const errorMessage = error.response?.data?.error || error.message || '알 수 없는 오류';
     document.getElementById('receipt-list').innerHTML = `
-      <div class="text-center py-8 text-red-500">
-        <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
-        <p>영수증을 불러오는 중 오류가 발생했습니다.</p>
+      <div class="text-center py-8">
+        <i class="fas fa-exclamation-circle text-4xl mb-4 text-yellow-500"></i>
+        <h3 class="text-xl font-bold text-gray-800 mb-2">영수증을 불러올 수 없습니다</h3>
+        <p class="text-gray-600 mb-4">${errorMessage}</p>
+        <p class="text-sm text-gray-500">데이터베이스가 연결되지 않았거나 서버 오류가 발생했습니다.</p>
+        <button onclick="loadReceipts()" class="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+          <i class="fas fa-redo mr-2"></i>다시 시도
+        </button>
+      </div>
+    `;
+    
+    // 통계도 초기화
+    document.getElementById('receipt-stats').innerHTML = `
+      <div class="bg-gray-100 p-4 rounded-lg">
+        <div class="text-sm text-gray-600 mb-1">총 영수증 수</div>
+        <div class="text-2xl font-bold text-gray-400">0건</div>
+      </div>
+      <div class="bg-gray-100 p-4 rounded-lg">
+        <div class="text-sm text-gray-600 mb-1">총 지출액</div>
+        <div class="text-2xl font-bold text-gray-400">0원</div>
+      </div>
+      <div class="bg-gray-100 p-4 rounded-lg">
+        <div class="text-sm text-gray-600 mb-1">세금공제 대상</div>
+        <div class="text-2xl font-bold text-gray-400">0원</div>
       </div>
     `;
   }
