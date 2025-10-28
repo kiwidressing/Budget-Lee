@@ -564,7 +564,10 @@ async function renderApp() {
         <!-- 탭 네비게이션 -->
         <div class="border-b mb-6">
           <nav class="flex flex-wrap -mb-px">
-            <button id="tab-month" class="tab-button border-b-2 border-blue-600 text-blue-600 py-4 px-6 font-medium">
+            <button id="tab-home" class="tab-button border-b-2 border-blue-600 text-blue-600 py-4 px-6 font-medium">
+              <i class="fas fa-home mr-2"></i>홈
+            </button>
+            <button id="tab-month" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
               <i class="fas fa-calendar-alt mr-2"></i>월별
             </button>
             <button id="tab-week" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
@@ -613,10 +616,11 @@ async function renderApp() {
   
   // 설정 로드 및 초기 뷰 렌더링
   await fetchSettings();
-  await switchView('month');
+  await switchView('home');
 }
 
 function setupTabListeners() {
+  document.getElementById('tab-home').onclick = () => switchView('home');
   document.getElementById('tab-month').onclick = () => switchView('month');
   document.getElementById('tab-week').onclick = () => switchView('week');
   document.getElementById('tab-savings').onclick = () => switchView('savings');
@@ -753,7 +757,7 @@ async function switchView(view) {
   state.activeView = view;
   
   // 모든 탭 버튼 업데이트
-  const tabs = ['month', 'week', 'savings', 'fixed-expenses', 'budgets', 'investments', 'reports', 'settings'];
+  const tabs = ['home', 'month', 'week', 'savings', 'fixed-expenses', 'budgets', 'investments', 'reports', 'settings'];
   tabs.forEach(tabName => {
     const tab = document.getElementById(`tab-${tabName}`);
     if (tab) {
@@ -767,6 +771,9 @@ async function switchView(view) {
   
   // 해당 뷰 렌더링
   switch (view) {
+    case 'home':
+      await renderHomeView();
+      break;
     case 'month':
       await renderMonthView();
       break;
@@ -795,6 +802,285 @@ async function switchView(view) {
 }
 
 // 뷰 렌더링 함수들
+
+// 홈 대시보드 뷰 렌더링
+async function renderHomeView() {
+  const contentArea = document.getElementById('content-area');
+  const yearMonth = getYearMonth(new Date());
+  const daysInMonth = getDaysInMonth(new Date());
+  
+  // 현재 월 데이터 로드
+  await Promise.all([
+    fetchTransactions(`${yearMonth}-01`, `${yearMonth}-${String(daysInMonth).padStart(2, '0')}`),
+    fetchBudgets(),
+    fetchSettings()
+  ]);
+  
+  // 통계 계산
+  const income = state.transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const expense = state.transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  const savings = state.transactions.filter(t => t.type === 'savings').reduce((sum, t) => sum + t.amount, 0);
+  const totalAssets = state.settings.initial_balance + income - expense - savings;
+  
+  // 저축률 계산 (수입 대비 저축)
+  const savingsRate = income > 0 ? Math.round((savings / income) * 100) : 0;
+  
+  // 예산 데이터 가져오기
+  const budgetDataResponse = await fetchBudgetVsSpending(yearMonth);
+  const budgetData = budgetDataResponse.data || [];
+  
+  // 카테고리별 지출 계산
+  const expenseByCategory = {};
+  state.transactions.filter(t => t.type === 'expense').forEach(t => {
+    if (!expenseByCategory[t.category]) {
+      expenseByCategory[t.category] = 0;
+    }
+    expenseByCategory[t.category] += t.amount;
+  });
+  
+  // 카테고리별 예산 매핑
+  const categoryBudgetMap = {};
+  state.budgets.forEach(b => {
+    categoryBudgetMap[b.category] = b.monthly_budget;
+  });
+  
+  // 예산이 있는 경우와 없는 경우 데이터 준비
+  const hasBudgets = budgetData.length > 0;
+  
+  contentArea.innerHTML = `
+    <div class="space-y-6">
+      <!-- 환영 메시지 -->
+      <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-lg shadow-lg">
+        <h2 class="text-2xl md:text-3xl font-bold mb-2">
+          <i class="fas fa-smile-beam mr-2"></i>
+          안녕하세요, ${state.currentUser?.name || '사용자'}님! 👋
+        </h2>
+        <p class="text-blue-100 text-sm md:text-base">
+          ${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월의 재정 현황을 확인하세요
+        </p>
+      </div>
+      
+      <!-- 총 자산 및 요약 카드 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-gradient-to-br from-purple-500 to-purple-700 text-white p-5 rounded-lg shadow-lg">
+          <p class="text-purple-100 text-sm font-medium flex items-center">
+            <i class="fas fa-wallet mr-2"></i>총 자산
+          </p>
+          <p class="text-3xl font-bold mt-2">${formatCurrency(totalAssets)}</p>
+          <p class="text-purple-200 text-xs mt-2">초기 잔액: ${formatCurrency(state.settings.initial_balance)}</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-blue-500 to-blue-700 text-white p-5 rounded-lg shadow-lg">
+          <p class="text-blue-100 text-sm font-medium flex items-center">
+            <i class="fas fa-arrow-up mr-2"></i>수입
+          </p>
+          <p class="text-3xl font-bold mt-2">${formatCurrency(income)}</p>
+          <p class="text-blue-200 text-xs mt-2">이번 달</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-red-500 to-red-700 text-white p-5 rounded-lg shadow-lg">
+          <p class="text-red-100 text-sm font-medium flex items-center">
+            <i class="fas fa-arrow-down mr-2"></i>지출
+          </p>
+          <p class="text-3xl font-bold mt-2">${formatCurrency(expense)}</p>
+          <p class="text-red-200 text-xs mt-2">이번 달</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-green-500 to-green-700 text-white p-5 rounded-lg shadow-lg">
+          <p class="text-green-100 text-sm font-medium flex items-center">
+            <i class="fas fa-piggy-bank mr-2"></i>저축
+          </p>
+          <p class="text-3xl font-bold mt-2">${formatCurrency(savings)}</p>
+          <p class="text-green-200 text-xs mt-2">이번 달</p>
+        </div>
+      </div>
+      
+      <!-- 저축률 달성 바 -->
+      <div class="bg-white p-6 rounded-lg shadow-lg">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-lg font-bold text-gray-800">
+            <i class="fas fa-chart-line mr-2 text-green-600"></i>저축률
+          </h3>
+          <span class="text-2xl font-bold text-green-600">${savingsRate}%</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-8 overflow-hidden">
+          <div class="bg-gradient-to-r from-green-400 to-green-600 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm transition-all duration-500" 
+               style="width: ${Math.min(savingsRate, 100)}%">
+            ${savingsRate > 10 ? `${savingsRate}%` : ''}
+          </div>
+        </div>
+        <div class="flex justify-between text-xs text-gray-600 mt-2">
+          <span>수입 대비 저축 비율</span>
+          <span>${formatCurrency(savings)} / ${formatCurrency(income)}</span>
+        </div>
+      </div>
+      
+      <!-- 예산 대비 카테고리별 지출 차트 -->
+      <div class="bg-white p-6 rounded-lg shadow-lg">
+        <h3 class="text-lg font-bold mb-4 text-gray-800">
+          <i class="fas fa-chart-bar mr-2 text-blue-600"></i>
+          ${hasBudgets ? '예산 대비 카테고리별 지출' : '카테고리별 지출'}
+        </h3>
+        <div class="h-80">
+          <canvas id="home-category-chart"></canvas>
+        </div>
+      </div>
+      
+      <!-- 월별 추이 그래프 -->
+      <div class="bg-white p-6 rounded-lg shadow-lg">
+        <h3 class="text-lg font-bold mb-4 text-gray-800">
+          <i class="fas fa-chart-area mr-2 text-purple-600"></i>수입/지출/저축 비교
+        </h3>
+        <div class="h-64">
+          <canvas id="home-comparison-chart"></canvas>
+        </div>
+      </div>
+      
+      <!-- 빠른 액션 버튼 -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <button onclick="switchView('month')" 
+                class="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-lg shadow-lg transition-all">
+          <i class="fas fa-calendar-alt text-2xl mb-2"></i>
+          <p class="font-medium">월별 보기</p>
+        </button>
+        <button onclick="switchView('budgets')" 
+                class="bg-green-500 hover:bg-green-600 text-white p-4 rounded-lg shadow-lg transition-all">
+          <i class="fas fa-chart-pie text-2xl mb-2"></i>
+          <p class="font-medium">예산 관리</p>
+        </button>
+        <button onclick="switchView('savings')" 
+                class="bg-purple-500 hover:bg-purple-600 text-white p-4 rounded-lg shadow-lg transition-all">
+          <i class="fas fa-piggy-bank text-2xl mb-2"></i>
+          <p class="font-medium">저축 관리</p>
+        </button>
+        <button onclick="switchView('reports')" 
+                class="bg-orange-500 hover:bg-orange-600 text-white p-4 rounded-lg shadow-lg transition-all">
+          <i class="fas fa-chart-bar text-2xl mb-2"></i>
+          <p class="font-medium">리포트</p>
+        </button>
+      </div>
+    </div>
+  `;
+  
+  // 차트 그리기
+  setTimeout(() => {
+    drawHomeCategoryChart(expenseByCategory, categoryBudgetMap, hasBudgets);
+    drawHomeComparisonChart(income, expense, savings);
+  }, 100);
+}
+
+// 홈 화면 카테고리 차트 그리기
+function drawHomeCategoryChart(expenseByCategory, categoryBudgetMap, hasBudgets) {
+  const canvas = document.getElementById('home-category-chart');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  const categories = Object.keys(expenseByCategory).sort((a, b) => expenseByCategory[b] - expenseByCategory[a]);
+  
+  const datasets = [{
+    label: '실제 지출',
+    data: categories.map(cat => expenseByCategory[cat]),
+    backgroundColor: 'rgba(239, 68, 68, 0.7)',
+    borderColor: 'rgba(239, 68, 68, 1)',
+    borderWidth: 1
+  }];
+  
+  // 예산이 있으면 추가
+  if (hasBudgets && Object.keys(categoryBudgetMap).length > 0) {
+    datasets.push({
+      label: '예산',
+      data: categories.map(cat => categoryBudgetMap[cat] || 0),
+      backgroundColor: 'rgba(59, 130, 246, 0.7)',
+      borderColor: 'rgba(59, 130, 246, 1)',
+      borderWidth: 1
+    });
+  }
+  
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: categories,
+      datasets: datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top'
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return formatCurrencyShort(value);
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// 홈 화면 비교 차트 그리기
+function drawHomeComparisonChart(income, expense, savings) {
+  const canvas = document.getElementById('home-comparison-chart');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['수입', '지출', '저축'],
+      datasets: [{
+        data: [income, expense, savings],
+        backgroundColor: [
+          'rgba(59, 130, 246, 0.7)',
+          'rgba(239, 68, 68, 0.7)',
+          'rgba(16, 185, 129, 0.7)'
+        ],
+        borderColor: [
+          'rgba(59, 130, 246, 1)',
+          'rgba(239, 68, 68, 1)',
+          'rgba(16, 185, 129, 1)'
+        ],
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom'
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const label = context.label || '';
+              const value = formatCurrency(context.parsed);
+              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+              const percentage = total > 0 ? Math.round((context.parsed / total) * 100) : 0;
+              return label + ': ' + value + ' (' + percentage + '%)';
+            }
+          }
+        }
+      }
+    }
+  });
+}
 
 // 월별 뷰 렌더링
 async function renderMonthView() {
