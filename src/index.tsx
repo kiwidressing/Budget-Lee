@@ -540,31 +540,31 @@ app.get('/api/settings', authMiddleware, async (c) => {
 app.put('/api/settings', authMiddleware, async (c) => {
   const { DB } = c.env
   const userId = c.get('userId')
-  const { currency, initial_balance, initial_savings, category_colors } = await c.req.json()
+  const { currency, initial_balance, cash_on_hand, category_colors } = await c.req.json()
   
   // 설정이 없으면 생성
   const existing = await DB.prepare(`SELECT id FROM settings WHERE user_id = ?`).bind(userId?.toString()).first()
   
   if (!existing) {
     await DB.prepare(`
-      INSERT INTO settings (currency, initial_balance, initial_savings, category_colors, user_id)
+      INSERT INTO settings (currency, initial_balance, cash_on_hand, category_colors, user_id)
       VALUES (?, ?, ?, ?, ?)
     `).bind(
       currency, 
-      initial_balance, 
-      initial_savings, 
+      initial_balance || 0, 
+      cash_on_hand || 0, 
       category_colors ? JSON.stringify(category_colors) : null,
       userId?.toString()
     ).run()
   } else {
     await DB.prepare(`
       UPDATE settings 
-      SET currency = ?, initial_balance = ?, initial_savings = ?, category_colors = ?
+      SET currency = ?, initial_balance = ?, cash_on_hand = ?, category_colors = ?
       WHERE user_id = ?
     `).bind(
       currency, 
-      initial_balance, 
-      initial_savings, 
+      initial_balance || 0, 
+      cash_on_hand || 0, 
       category_colors ? JSON.stringify(category_colors) : null,
       userId?.toString()
     ).run()
