@@ -1174,12 +1174,36 @@ app.get('/', (c) => {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/static/app.js"></script>
     <script>
-      // PWA Service Worker 등록
+      // PWA Service Worker 등록 (오프라인 지원)
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('Service Worker registered'))
-            .catch(err => console.log('Service Worker registration failed:', err));
+            .then((registration) => {
+              console.log('[PWA] Service Worker registered successfully');
+              
+              // 업데이트 확인
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // 새 버전 감지 - 사용자에게 알림
+                    if (confirm('새로운 버전이 있습니다. 지금 업데이트 하시겠습니까?')) {
+                      newWorker.postMessage({ type: 'SKIP_WAITING' });
+                      window.location.reload();
+                    }
+                  }
+                });
+              });
+            })
+            .catch((err) => {
+              console.warn('[PWA] Service Worker registration failed:', err);
+            });
+          
+          // 컨트롤러 변경 시 자동 새로고침
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            window.location.reload();
+          });
         });
       }
     </script>
