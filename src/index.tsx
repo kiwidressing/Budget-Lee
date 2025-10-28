@@ -6,21 +6,10 @@ type Bindings = {
   DB: D1Database;
 }
 
-type Variables = {
-  userId: string;
-}
-
-const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+const app = new Hono<{ Bindings: Bindings }>()
 
 // CORS 활성화
 app.use('/api/*', cors())
-
-// 인증 미들웨어 - X-User-Id 헤더에서 사용자 ID 추출
-app.use('/api/*', async (c, next) => {
-  const userId = c.req.header('X-User-Id') || 'anonymous'
-  c.set('userId', userId)
-  await next()
-})
 
 // 에러 핸들링 미들웨어
 app.use('/api/*', async (c, next) => {
@@ -31,7 +20,7 @@ app.use('/api/*', async (c, next) => {
     return c.json({ 
       success: false, 
       error: error.message || 'Internal server error',
-      message: 'Database connection required. Please configure D1 database.'
+      message: 'Database not configured or connection failed.'
     }, 500)
   }
 })
@@ -50,7 +39,6 @@ app.use('/static/*', serveStatic({ root: './public' }))
 // 1.1 저축 통장 목록 조회
 app.get('/api/savings-accounts', async (c) => {
   const { DB } = c.env
-  const userId = c.get('userId')
   
   if (!DB) {
     return c.json({ success: true, data: [] })
@@ -59,13 +47,12 @@ app.get('/api/savings-accounts', async (c) => {
   const result = await DB.prepare(`
     SELECT 
       sa.*,
-      COALESCE(SUM(CASE WHEN t.type = 'savings' AND t.user_id = ? THEN t.amount ELSE 0 END), 0) as total_savings
+      COALESCE(SUM(CASE WHEN t.type = 'savings' THEN t.amount ELSE 0 END), 0) as total_savings
     FROM savings_accounts sa
     LEFT JOIN transactions t ON t.savings_account_id = sa.id
-    WHERE sa.user_id = ?
     GROUP BY sa.id
     ORDER BY sa.created_at ASC
-  `).bind(userId, userId).all()
+  `).all()
   
   return c.json({ success: true, data: result.results })
 })
@@ -73,7 +60,6 @@ app.get('/api/savings-accounts', async (c) => {
 // 1.2 저축 통장 생성
 app.post('/api/savings-accounts', async (c) => {
   const { DB } = c.env
-  const userId = c.get('userId')
   const { name } = await c.req.json()
   
   if (!name) {
@@ -1072,25 +1058,9 @@ app.get('/', (c) => {
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <link href="/static/style.css" rel="stylesheet">
     
-    <!-- Clerk Authentication (Temporarily Disabled) -->
-    <!-- <script async crossorigin="anonymous" data-clerk-publishable-key="YOUR_CLERK_PUBLISHABLE_KEY" src="https://accounts.clerk.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"></script> -->
 </head>
 <body class="bg-gray-100">
-    <!-- 로그인/로그아웃 UI -->
-    <div id="auth-container" class="fixed top-4 right-4 z-50">
-        <div id="user-info" class="hidden bg-white rounded-lg shadow-lg p-4 flex items-center gap-3">
-            <img id="user-avatar" class="w-10 h-10 rounded-full" />
-            <div>
-                <div id="user-name" class="font-medium text-gray-800"></div>
-                <button id="sign-out-btn" class="text-sm text-red-600 hover:text-red-800">로그아웃</button>
-            </div>
-        </div>
-        <button id="sign-in-btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 shadow-lg">
-            <i class="fas fa-sign-in-alt mr-2"></i>로그인
-        </button>
-    </div>
-    
-    <div id="app" class="container mx-auto max-w-7xl p-4 pt-20">
+    <div id="app" class="container mx-auto max-w-7xl p-4">
         <div class="bg-white rounded-lg shadow-lg p-6">
             <h1 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
                 <i class="fas fa-wallet mr-3 text-blue-600"></i>
@@ -1145,21 +1115,6 @@ app.get('/', (c) => {
 
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- Clerk Authentication Script (Temporarily Disabled) -->
-    <script>
-      // Clerk 기능 임시 비활성화 - 앱이 정상 작동하도록 함
-      console.log('✅ 앱 초기화 시작 (Clerk 비활성화)');
-      
-      // 로그인 UI 숨기기
-      window.addEventListener('load', () => {
-        const authContainer = document.getElementById('auth-container');
-        if (authContainer) {
-          authContainer.style.display = 'none';
-        }
-      });
-    </script>
-    
     <script src="/static/app.js"></script>
     <script>
       // PWA Service Worker 등록
