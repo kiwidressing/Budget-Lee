@@ -932,27 +932,6 @@ async function renderFixedExpensesView() {
   `;
 }
 
-// 고정지출 날짜 계산 헬퍼 함수 (getNthDayOfMonth는 이미 백엔드에 있지만 프론트엔드에서도 필요)
-function getNthDayOfMonth(year, month, weekOfMonth, dayOfWeek) {
-  const firstDay = new Date(year, month, 1);
-  const firstDayOfWeek = firstDay.getDay();
-  
-  // 첫 번째 해당 요일 찾기
-  let daysToAdd = (dayOfWeek - firstDayOfWeek + 7) % 7;
-  const firstOccurrence = 1 + daysToAdd;
-  
-  // n번째 해당 요일 계산
-  const targetDay = firstOccurrence + (weekOfMonth - 1) * 7;
-  
-  // 해당 월에 존재하는지 확인
-  const targetDate = new Date(year, month, targetDay);
-  if (targetDate.getMonth() !== month) {
-    return null;
-  }
-  
-  return targetDate;
-}
-
 // 고정지출 체크박스 핸들러
 async function handleFixedExpenseCheck(checkboxId, expenseId, date, isChecked) {
   if (isChecked) {
