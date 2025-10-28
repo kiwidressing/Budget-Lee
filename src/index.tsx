@@ -356,18 +356,22 @@ app.post('/api/fixed-expenses', async (c) => {
     return c.json({ success: false, error: '유효하지 않은 주기입니다.' }, 400)
   }
   
-  if (frequency === 'monthly' && !week_of_month) {
-    return c.json({ success: false, error: '주차를 선택해주세요.' }, 400)
+  // 'monthly' = 매월 특정 주/요일 (예: 매월 첫째 주 월요일)
+  if (frequency === 'monthly') {
+    if (!week_of_month) {
+      return c.json({ success: false, error: '주차를 선택해주세요.' }, 400)
+    }
+    if (day_of_week === undefined) {
+      return c.json({ success: false, error: '요일을 선택해주세요.' }, 400)
+    }
   }
   
-  if (frequency === 'monthly' && day_of_week === undefined) {
-    return c.json({ success: false, error: '요일을 선택해주세요.' }, 400)
-  }
-  
+  // 'monthly_day' = 매월 특정 일자 (예: 매월 5일)
   if (frequency === 'monthly_day' && !payment_day) {
     return c.json({ success: false, error: '일자를 선택해주세요.' }, 400)
   }
   
+  // 'weekly' = 매주 특정 요일 (예: 매주 금요일)
   if (frequency === 'weekly' && day_of_week === undefined) {
     return c.json({ success: false, error: '요일을 선택해주세요.' }, 400)
   }
