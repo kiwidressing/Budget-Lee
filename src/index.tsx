@@ -42,6 +42,44 @@ function setCache(key: string, data: any, ttlSeconds: number = 60): void {
   })
 }
 
+// 월별 통계 요약 재계산 (성능 최적화)
+async function recalcMonthlySummary(DB: D1Database, userId: number, yearMonth: string): Promise<void> {
+  const [year, month] = yearMonth.split('-').map(Number)
+  const lastDay = new Date(year, month, 0).getDate()
+  const startDate = `${yearMonth}-01`
+  const endDate = `${yearMonth}-${String(lastDay).padStart(2, '0')}`
+  
+  // 해당 월의 거래 내역 집계
+  const summary = await DB.prepare(`
+    SELECT 
+      SUM(CASE WHEN type='income' THEN amount ELSE 0 END) as income,
+      SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as expense,
+      SUM(CASE WHEN type='savings' THEN amount ELSE 0 END) as savings,
+      COUNT(*) as transaction_count
+    FROM transactions
+    WHERE user_id = ? AND date BETWEEN ? AND ?
+  `).bind(String(userId), startDate, endDate).first() as any
+  
+  const income = summary?.income || 0
+  const expense = summary?.expense || 0
+  const savings = summary?.savings || 0
+  const count = summary?.transaction_count || 0
+  
+  // UPSERT (있으면 업데이트, 없으면 삽입)
+  await DB.prepare(`
+    INSERT INTO monthly_summary (year_month, user_id, income, expense, savings, transaction_count, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(year_month, user_id) DO UPDATE SET
+      income = excluded.income,
+      expense = excluded.expense,
+      savings = excluded.savings,
+      transaction_count = excluded.transaction_count,
+      updated_at = CURRENT_TIMESTAMP
+  `).bind(yearMonth, String(userId), income, expense, savings, count).run()
+  
+  console.log(`[Cache] Monthly summary updated: ${yearMonth} for user ${userId}`)
+}
+
 // CORS 활성화
 app.use('/api/*', cors())
 
@@ -410,6 +448,10 @@ app.post('/api/transactions', authMiddleware, async (c) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(type, category, amount, description || null, date, payment_method || 'card', savings_account_id || null, userId?.toString()).run()
   
+  // 월별 통계 캐시 업데이트
+  const yearMonth = date.substring(0, 7) // 'YYYY-MM'
+  await recalcMonthlySummary(DB, userId as number, yearMonth)
+  
   return c.json({ success: true, id: result.meta.last_row_id })
 })
 
@@ -424,11 +466,27 @@ app.put('/api/transactions/:id', authMiddleware, async (c) => {
     return c.json({ success: false, error: '필수 항목을 입력해주세요.' }, 400)
   }
   
+  // 기존 거래 조회 (날짜 변경 감지용)
+  const oldTransaction = await DB.prepare(`
+    SELECT date FROM transactions WHERE id = ? AND user_id = ?
+  `).bind(id, userId?.toString()).first() as any
+  
   await DB.prepare(`
     UPDATE transactions 
     SET type = ?, category = ?, amount = ?, description = ?, date = ?, payment_method = ?, savings_account_id = ?
     WHERE id = ? AND user_id = ?
   `).bind(type, category, amount, description || null, date, payment_method || 'card', savings_account_id || null, id, userId?.toString()).run()
+  
+  // 월별 통계 캐시 업데이트 (기존 월 + 새 월)
+  const yearMonth = date.substring(0, 7)
+  await recalcMonthlySummary(DB, userId as number, yearMonth)
+  
+  if (oldTransaction?.date) {
+    const oldYearMonth = oldTransaction.date.substring(0, 7)
+    if (oldYearMonth !== yearMonth) {
+      await recalcMonthlySummary(DB, userId as number, oldYearMonth)
+    }
+  }
   
   return c.json({ success: true })
 })
@@ -439,19 +497,42 @@ app.delete('/api/transactions/:id', authMiddleware, async (c) => {
   const userId = c.get('userId')
   const id = c.req.param('id')
   
+  // 삭제 전 날짜 조회 (캐시 업데이트용)
+  const transaction = await DB.prepare(`
+    SELECT date FROM transactions WHERE id = ? AND user_id = ?
+  `).bind(id, userId?.toString()).first() as any
+  
   await DB.prepare(`DELETE FROM transactions WHERE id = ? AND user_id = ?`).bind(id, userId?.toString()).run()
+  
+  // 월별 통계 캐시 업데이트
+  if (transaction?.date) {
+    const yearMonth = transaction.date.substring(0, 7)
+    await recalcMonthlySummary(DB, userId as number, yearMonth)
+  }
   
   return c.json({ success: true })
 })
 
 // 통계 API
 
-// 3.1 월별 통계
+// 3.1 월별 통계 (캐시 최적화)
 app.get('/api/statistics/monthly/:yearMonth', authMiddleware, async (c) => {
   const { DB } = c.env
   const userId = c.get('userId')
   const yearMonth = c.req.param('yearMonth')
   
+  // 캐시된 월별 요약 확인
+  const cachedSummary = await DB.prepare(`
+    SELECT * FROM monthly_summary 
+    WHERE year_month = ? AND user_id = ?
+  `).bind(yearMonth, userId?.toString()).first() as any
+  
+  // 캐시가 없으면 생성
+  if (!cachedSummary) {
+    await recalcMonthlySummary(DB, userId as number, yearMonth)
+  }
+  
+  // 기존 방식으로 요약 반환 (API 응답 구조 유지)
   const summary = await DB.prepare(`
     SELECT 
       type,
@@ -475,7 +556,8 @@ app.get('/api/statistics/monthly/:yearMonth', authMiddleware, async (c) => {
   return c.json({ 
     success: true, 
     summary: summary.results,
-    expenseByCategory: expenseByCategory.results
+    expenseByCategory: expenseByCategory.results,
+    cached: !!cachedSummary
   })
 })
 
