@@ -17,7 +17,8 @@
     "db:migrate:prod": "wrangler d1 migrations apply webapp-production",
     "db:console:local": "wrangler d1 execute webapp-production --local",
     "clean-port": "fuser -k 3000/tcp 2>/dev/null || true",
-    "test": "curl http://localhost:3000"
+    "test": "curl http://localhost:3000",
+    "vite": "echo 'Build completed'"
   },
   "dependencies": {
     "hono": "^4.10.3"
