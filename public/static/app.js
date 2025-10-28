@@ -303,6 +303,71 @@ async function checkAuth() {
   return false;
 }
 
+// axios 인터셉터 설정 (에러 처리 개선)
+axios.interceptors.response.use(
+  // 성공 응답은 그대로 반환
+  (response) => response,
+  
+  // 에러 응답 처리
+  (error) => {
+    const status = error?.response?.status;
+    const errorMessage = error?.response?.data?.error || error.message;
+    
+    // 401 인증 오류 - 자동 로그아웃
+    if (status === 401) {
+      console.warn('[Auth] 401 Unauthorized - 로그아웃 처리');
+      clearAuthToken();
+      
+      // 로그인 화면으로 이동 (현재 화면이 로그인이 아닌 경우)
+      if (state.isAuthenticated) {
+        alert('세션이 만료되었습니다. 다시 로그인해주세요.');
+        renderLoginScreen();
+      }
+      
+      return Promise.reject(error);
+    }
+    
+    // 403 권한 오류
+    if (status === 403) {
+      console.warn('[Auth] 403 Forbidden - 권한 없음');
+      alert('이 작업을 수행할 권한이 없습니다.');
+      return Promise.reject(error);
+    }
+    
+    // 404 Not Found
+    if (status === 404) {
+      console.warn('[API] 404 Not Found:', error.config?.url);
+      // 404는 조용히 처리 (사용자에게 알림 안 함)
+      return Promise.reject(error);
+    }
+    
+    // 500 서버 오류
+    if (status === 500) {
+      console.error('[API] 500 Server Error:', errorMessage);
+      alert('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      return Promise.reject(error);
+    }
+    
+    // 503 Service Unavailable (오프라인)
+    if (status === 503) {
+      console.warn('[Network] 503 Service Unavailable - 오프라인 상태');
+      alert('오프라인 상태입니다. 인터넷 연결을 확인해주세요.');
+      return Promise.reject(error);
+    }
+    
+    // 네트워크 오류 (인터넷 연결 끊김)
+    if (!error.response) {
+      console.error('[Network] Network error:', error.message);
+      alert('네트워크 연결을 확인해주세요.');
+      return Promise.reject(error);
+    }
+    
+    // 기타 오류
+    console.error('[API] Error:', status, errorMessage);
+    return Promise.reject(error);
+  }
+);
+
 async function handleLogin(event) {
   event.preventDefault();
   
