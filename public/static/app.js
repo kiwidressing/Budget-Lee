@@ -2577,9 +2577,6 @@ async function saveSettings() {
           case 'budgets':
             await renderBudgetsView();
             break;
-          case 'receipts':
-            await renderReceiptsView();
-            break;
           case 'settings':
             await renderSettingsView();
             break;
