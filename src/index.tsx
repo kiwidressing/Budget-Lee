@@ -102,8 +102,10 @@ app.use('/static/*', serveStatic({ root: './public' }))
 
 // ========== 인증 유틸리티 함수 ==========
 
-// 비밀번호 해싱 (SHA-256)
-async function hashPassword(password: string): Promise<string> {
+// ========== 비밀번호 해싱 ==========
+
+// 레거시 SHA-256 해싱 (기존 사용자 지원용)
+async function hashPasswordSHA256(password: string): Promise<string> {
   const encoder = new TextEncoder()
   const data = encoder.encode(password)
   const hashBuffer = await crypto.subtle.digest('SHA-256', data)
@@ -111,9 +113,58 @@ async function hashPassword(password: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-// 비밀번호 검증
-async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  const passwordHash = await hashPassword(password)
+// PBKDF2 해싱 (새로운 보안 표준 - 150,000 iterations)
+async function hashPasswordPBKDF2(password: string, salt: string, iterations: number = 150000): Promise<string> {
+  const encoder = new TextEncoder()
+  const passwordData = encoder.encode(password)
+  const saltData = encoder.encode(salt)
+  
+  // PBKDF2 키 생성
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    passwordData,
+    { name: 'PBKDF2' },
+    false,
+    ['deriveBits']
+  )
+  
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: saltData,
+      iterations: iterations,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    256 // 256 bits = 32 bytes
+  )
+  
+  const hashArray = Array.from(new Uint8Array(derivedBits))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+// 랜덤 salt 생성 (16 bytes = 32 hex chars)
+function generateSalt(): string {
+  const array = new Uint8Array(16)
+  crypto.getRandomValues(array)
+  return Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+// 비밀번호 검증 (SHA-256과 PBKDF2 모두 지원)
+async function verifyPassword(
+  password: string, 
+  hash: string, 
+  salt?: string | null, 
+  iterations?: number | null
+): Promise<boolean> {
+  // PBKDF2 검증 (salt와 iterations가 있는 경우)
+  if (salt && iterations) {
+    const passwordHash = await hashPasswordPBKDF2(password, salt, iterations)
+    return passwordHash === hash
+  }
+  
+  // 레거시 SHA-256 검증 (salt가 없는 기존 사용자)
+  const passwordHash = await hashPasswordSHA256(password)
   return passwordHash === hash
 }
 
@@ -179,14 +230,16 @@ app.post('/api/auth/register', async (c) => {
     return c.json({ success: false, error: '이미 사용 중인 아이디입니다.' }, 400)
   }
   
-  // 비밀번호 해싱
-  const passwordHash = await hashPassword(password)
+  // PBKDF2 비밀번호 해싱 (새로운 표준)
+  const salt = generateSalt()
+  const iterations = 150000
+  const passwordHash = await hashPasswordPBKDF2(password, salt, iterations)
   
   // 사용자 생성
   const result = await DB.prepare(`
-    INSERT INTO users (username, password_hash, name)
-    VALUES (?, ?, ?)
-  `).bind(username, passwordHash, name).run()
+    INSERT INTO users (username, password_hash, name, salt, iterations)
+    VALUES (?, ?, ?, ?, ?)
+  `).bind(username, passwordHash, name, salt, iterations).run()
   
   const userId = result.meta.last_row_id as number
   const secret = c.env.JWT_SECRET || 'default-secret-key-change-in-production'
@@ -213,20 +266,35 @@ app.post('/api/auth/login', async (c) => {
     return c.json({ success: false, error: '아이디와 비밀번호를 입력해주세요.' }, 400)
   }
   
-  // 사용자 조회
+  // 사용자 조회 (salt, iterations 포함)
   const user = await DB.prepare(`
-    SELECT id, username, password_hash, name FROM users WHERE username = ?
+    SELECT id, username, password_hash, name, salt, iterations FROM users WHERE username = ?
   `).bind(username).first() as any
   
   if (!user) {
     return c.json({ success: false, error: '아이디 또는 비밀번호가 올바르지 않습니다.' }, 401)
   }
   
-  // 비밀번호 검증
-  const isValid = await verifyPassword(password, user.password_hash)
+  // 비밀번호 검증 (PBKDF2 또는 레거시 SHA-256)
+  const isValid = await verifyPassword(password, user.password_hash, user.salt, user.iterations)
   
   if (!isValid) {
     return c.json({ success: false, error: '아이디 또는 비밀번호가 올바르지 않습니다.' }, 401)
+  }
+  
+  // 자동 마이그레이션: 레거시 SHA-256 사용자를 PBKDF2로 업그레이드
+  if (!user.salt || !user.iterations) {
+    const newSalt = generateSalt()
+    const newIterations = 150000
+    const newHash = await hashPasswordPBKDF2(password, newSalt, newIterations)
+    
+    await DB.prepare(`
+      UPDATE users 
+      SET password_hash = ?, salt = ?, iterations = ?
+      WHERE id = ?
+    `).bind(newHash, newSalt, newIterations, user.id).run()
+    
+    console.log(`[Security] User ${username} password upgraded to PBKDF2`)
   }
   
   // 마지막 로그인 시간 업데이트
