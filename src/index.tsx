@@ -1072,8 +1072,8 @@ app.get('/', (c) => {
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <link href="/static/style.css" rel="stylesheet">
     
-    <!-- Clerk Authentication -->
-    <script async crossorigin="anonymous" data-clerk-publishable-key="YOUR_CLERK_PUBLISHABLE_KEY" src="https://accounts.clerk.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"></script>
+    <!-- Clerk Authentication (Temporarily Disabled) -->
+    <!-- <script async crossorigin="anonymous" data-clerk-publishable-key="YOUR_CLERK_PUBLISHABLE_KEY" src="https://accounts.clerk.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"></script> -->
 </head>
 <body class="bg-gray-100">
     <!-- 로그인/로그아웃 UI -->
@@ -1146,75 +1146,18 @@ app.get('/', (c) => {
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- Clerk Authentication Script -->
+    <!-- Clerk Authentication Script (Temporarily Disabled) -->
     <script>
-      let clerk;
-      let currentUserId = 'anonymous';
+      // Clerk 기능 임시 비활성화 - 앱이 정상 작동하도록 함
+      console.log('✅ 앱 초기화 시작 (Clerk 비활성화)');
       
-      // Clerk 초기화
-      window.addEventListener('load', async () => {
-        // Clerk가 로드될 때까지 대기
-        while (!window.Clerk) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+      // 로그인 UI 숨기기
+      window.addEventListener('load', () => {
+        const authContainer = document.getElementById('auth-container');
+        if (authContainer) {
+          authContainer.style.display = 'none';
         }
-        
-        clerk = window.Clerk;
-        await clerk.load();
-        
-        // 사용자 상태 확인
-        if (clerk.user) {
-          handleUserSignedIn(clerk.user);
-        } else {
-          handleUserSignedOut();
-        }
-        
-        // 로그인 버튼 이벤트
-        document.getElementById('sign-in-btn').addEventListener('click', () => {
-          clerk.openSignIn();
-        });
-        
-        // 로그아웃 버튼 이벤트
-        document.getElementById('sign-out-btn').addEventListener('click', () => {
-          clerk.signOut();
-        });
       });
-      
-      // 사용자 로그인 처리
-      function handleUserSignedIn(user) {
-        currentUserId = user.id;
-        document.getElementById('sign-in-btn').classList.add('hidden');
-        document.getElementById('user-info').classList.remove('hidden');
-        document.getElementById('user-name').textContent = user.fullName || user.primaryEmailAddress?.emailAddress || 'User';
-        document.getElementById('user-avatar').src = user.imageUrl || '/icon-192.png';
-        
-        // Axios 기본 헤더 설정
-        axios.defaults.headers.common['X-User-Id'] = currentUserId;
-        
-        // 앱 초기화
-        if (window.initializeApp) {
-          window.initializeApp();
-        }
-      }
-      
-      // 사용자 로그아웃 처리
-      function handleUserSignedOut() {
-        currentUserId = 'anonymous';
-        document.getElementById('sign-in-btn').classList.remove('hidden');
-        document.getElementById('user-info').classList.add('hidden');
-        delete axios.defaults.headers.common['X-User-Id'];
-        
-        // 로그인 요청 메시지 표시
-        document.getElementById('content-area').innerHTML = `
-          <div class="text-center py-16">
-            <i class="fas fa-lock text-6xl text-gray-300 mb-4"></i>
-            <h2 class="text-2xl font-bold text-gray-700 mb-2">로그인이 필요합니다</h2>
-            <p class="text-gray-500 mb-6">가계부를 사용하려면 로그인해주세요.</p>
-            <button onclick="clerk.openSignIn()" class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 text-lg">
-              <i class="fas fa-sign-in-alt mr-2"></i>로그인하기
-            </button>
-          </div>
-        `;
-      }
     </script>
     
     <script src="/static/app.js"></script>

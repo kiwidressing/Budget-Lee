@@ -264,6 +264,7 @@ async function fetchBudgetVsSpending(yearMonth) {
 // =============================================================================
 
 async function switchView(view) {
+  console.log('🔀 switchView 호출:', view);
   state.activeView = view;
   
   // 모든 탭 버튼 업데이트
@@ -300,7 +301,9 @@ async function switchView(view) {
       await renderInvestmentsView();
       break;
     case 'receipts':
+      console.log('📋 receipts 케이스 진입');
       await renderReceiptsView();
+      console.log('✅ receipts 렌더링 완료');
       break;
     case 'reports':
       await renderReportsView();
@@ -2632,10 +2635,15 @@ function closeModal(event) {
 // =============================================================================
 
 async function renderReceiptsView() {
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
+  console.log('🔍 renderReceiptsView 시작');
   
-  const html = `
+  try {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+    
+    console.log('📅 현재 연도/월:', currentYear, currentMonth);
+    
+    const html = `
     <div class="mb-6">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-2xl font-bold text-gray-800">
@@ -2700,8 +2708,24 @@ async function renderReceiptsView() {
     </div>
   `;
   
+  console.log('📝 HTML 생성 완료');
   contentArea.innerHTML = html;
+  console.log('🎨 contentArea에 HTML 삽입 완료');
+  
   await loadReceipts();
+  console.log('✅ renderReceiptsView 완료');
+  
+  } catch (error) {
+    console.error('❌ renderReceiptsView 에러:', error);
+    contentArea.innerHTML = `
+      <div class="text-center py-16">
+        <i class="fas fa-exclamation-triangle text-6xl text-red-500 mb-4"></i>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">영수증 페이지 로딩 오류</h2>
+        <p class="text-gray-600 mb-4">${error.message}</p>
+        <pre class="text-left bg-gray-100 p-4 rounded-lg text-sm overflow-auto">${error.stack}</pre>
+      </div>
+    `;
+  }
 }
 
 async function loadReceipts() {
