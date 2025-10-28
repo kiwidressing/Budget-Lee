@@ -1,12 +1,19 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/cloudflare-workers'
+import { sign, verify } from 'hono/jwt'
 
 type Bindings = {
   DB: D1Database;
+  JWT_SECRET?: string;
 }
 
-const app = new Hono<{ Bindings: Bindings }>()
+type Variables = {
+  userId?: number;
+  userEmail?: string;
+}
+
+const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 // CORS 활성화
 app.use('/api/*', cors())
@@ -28,11 +35,186 @@ app.use('/api/*', async (c, next) => {
 // 정적 파일 서빙
 app.use('/static/*', serveStatic({ root: './public' }))
 
+// ========== 인증 유틸리티 함수 ==========
+
+// 비밀번호 해싱 (SHA-256)
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(password)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+// 비밀번호 검증
+async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  const passwordHash = await hashPassword(password)
+  return passwordHash === hash
+}
+
+// JWT 토큰 생성
+async function createToken(userId: number, username: string, secret: string): Promise<string> {
+  const payload = {
+    sub: userId.toString(),
+    username: username,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 30) // 30일
+  }
+  return await sign(payload, secret)
+}
+
+// 인증 미들웨어
+const authMiddleware = async (c: any, next: any) => {
+  const authHeader = c.req.header('Authorization')
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return c.json({ success: false, error: '인증이 필요합니다.' }, 401)
+  }
+  
+  const token = authHeader.substring(7)
+  const secret = c.env.JWT_SECRET || 'default-secret-key-change-in-production'
+  
+  try {
+    const payload = await verify(token, secret)
+    c.set('userId', parseInt(payload.sub as string))
+    c.set('username', payload.username as string)
+    await next()
+  } catch (error) {
+    return c.json({ success: false, error: '유효하지 않은 토큰입니다.' }, 401)
+  }
+}
+
+// ========== 인증 API ==========
+
+// 회원가입
+app.post('/api/auth/register', async (c) => {
+  const { DB } = c.env
+  const { username, password, name } = await c.req.json()
+  
+  // 입력 검증
+  if (!username || !password || !name) {
+    return c.json({ success: false, error: '모든 필드를 입력해주세요.' }, 400)
+  }
+  
+  if (password.length !== 4) {
+    return c.json({ success: false, error: '비밀번호는 4자리여야 합니다.' }, 400)
+  }
+  
+  // 숫자만 허용
+  if (!/^\d{4}$/.test(password)) {
+    return c.json({ success: false, error: '비밀번호는 숫자 4자리여야 합니다.' }, 400)
+  }
+  
+  // 아이디 중복 확인
+  const existing = await DB.prepare(`
+    SELECT id FROM users WHERE username = ?
+  `).bind(username).first()
+  
+  if (existing) {
+    return c.json({ success: false, error: '이미 사용 중인 아이디입니다.' }, 400)
+  }
+  
+  // 비밀번호 해싱
+  const passwordHash = await hashPassword(password)
+  
+  // 사용자 생성
+  const result = await DB.prepare(`
+    INSERT INTO users (username, password_hash, name)
+    VALUES (?, ?, ?)
+  `).bind(username, passwordHash, name).run()
+  
+  const userId = result.meta.last_row_id as number
+  const secret = c.env.JWT_SECRET || 'default-secret-key-change-in-production'
+  const token = await createToken(userId, username, secret)
+  
+  return c.json({ 
+    success: true, 
+    token,
+    user: {
+      id: userId,
+      username,
+      name
+    }
+  })
+})
+
+// 로그인
+app.post('/api/auth/login', async (c) => {
+  const { DB } = c.env
+  const { username, password } = await c.req.json()
+  
+  // 입력 검증
+  if (!username || !password) {
+    return c.json({ success: false, error: '아이디와 비밀번호를 입력해주세요.' }, 400)
+  }
+  
+  // 사용자 조회
+  const user = await DB.prepare(`
+    SELECT id, username, password_hash, name FROM users WHERE username = ?
+  `).bind(username).first() as any
+  
+  if (!user) {
+    return c.json({ success: false, error: '아이디 또는 비밀번호가 올바르지 않습니다.' }, 401)
+  }
+  
+  // 비밀번호 검증
+  const isValid = await verifyPassword(password, user.password_hash)
+  
+  if (!isValid) {
+    return c.json({ success: false, error: '아이디 또는 비밀번호가 올바르지 않습니다.' }, 401)
+  }
+  
+  // 마지막 로그인 시간 업데이트
+  await DB.prepare(`
+    UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?
+  `).bind(user.id).run()
+  
+  // JWT 토큰 생성
+  const secret = c.env.JWT_SECRET || 'default-secret-key-change-in-production'
+  const token = await createToken(user.id, user.username, secret)
+  
+  return c.json({ 
+    success: true, 
+    token,
+    user: {
+      id: user.id,
+      username: user.username,
+      name: user.name
+    }
+  })
+})
+
+// 현재 사용자 정보 조회
+app.get('/api/auth/me', authMiddleware, async (c) => {
+  const { DB } = c.env
+  const userId = c.get('userId')
+  
+  const user = await DB.prepare(`
+    SELECT id, username, name, created_at, last_login FROM users WHERE id = ?
+  `).bind(userId).first() as any
+  
+  if (!user) {
+    return c.json({ success: false, error: '사용자를 찾을 수 없습니다.' }, 404)
+  }
+  
+  return c.json({ 
+    success: true, 
+    user: {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      createdAt: user.created_at,
+      lastLogin: user.last_login
+    }
+  })
+})
+
 // API 엔드포인트 - 저축 통장
 
 // 1.1 저축 통장 목록 조회
-app.get('/api/savings-accounts', async (c) => {
+app.get('/api/savings-accounts', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   
   if (!DB) {
     return c.json({ success: true, data: [] })
@@ -43,17 +225,19 @@ app.get('/api/savings-accounts', async (c) => {
       sa.*,
       COALESCE(SUM(CASE WHEN t.type = 'savings' THEN t.amount ELSE 0 END), 0) as total_savings
     FROM savings_accounts sa
-    LEFT JOIN transactions t ON t.savings_account_id = sa.id
+    LEFT JOIN transactions t ON t.savings_account_id = sa.id AND t.user_id = ?
+    WHERE sa.user_id = ?
     GROUP BY sa.id
     ORDER BY sa.created_at ASC
-  `).all()
+  `).bind(userId?.toString(), userId?.toString()).all()
   
   return c.json({ success: true, data: result.results })
 })
 
 // 1.2 저축 통장 생성
-app.post('/api/savings-accounts', async (c) => {
+app.post('/api/savings-accounts', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const { name } = await c.req.json()
   
   if (!name) {
@@ -61,15 +245,16 @@ app.post('/api/savings-accounts', async (c) => {
   }
   
   const result = await DB.prepare(`
-    INSERT INTO savings_accounts (name, balance) VALUES (?, 0)
-  `).bind(name).run()
+    INSERT INTO savings_accounts (name, balance, user_id) VALUES (?, 0, ?)
+  `).bind(name, userId?.toString()).run()
   
   return c.json({ success: true, id: result.meta.last_row_id })
 })
 
 // 1.3 저축 통장 이름 수정
-app.put('/api/savings-accounts/:id', async (c) => {
+app.put('/api/savings-accounts/:id', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const id = c.req.param('id')
   const { name } = await c.req.json()
   
@@ -80,25 +265,27 @@ app.put('/api/savings-accounts/:id', async (c) => {
   await DB.prepare(`
     UPDATE savings_accounts 
     SET name = ?
-    WHERE id = ?
-  `).bind(name.trim(), id).run()
+    WHERE id = ? AND user_id = ?
+  `).bind(name.trim(), id, userId?.toString()).run()
   
   return c.json({ success: true })
 })
 
 // 1.4 저축 통장 삭제
-app.delete('/api/savings-accounts/:id', async (c) => {
+app.delete('/api/savings-accounts/:id', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const id = c.req.param('id')
   
-  await DB.prepare(`DELETE FROM savings_accounts WHERE id = ?`).bind(id).run()
+  await DB.prepare(`DELETE FROM savings_accounts WHERE id = ? AND user_id = ?`).bind(id, userId?.toString()).run()
   
   return c.json({ success: true })
 })
 
 // 1.5 저축 목표 설정
-app.put('/api/savings-accounts/:id/goal', async (c) => {
+app.put('/api/savings-accounts/:id/goal', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const id = c.req.param('id')
   const { savings_goal } = await c.req.json()
   
@@ -118,8 +305,9 @@ app.put('/api/savings-accounts/:id/goal', async (c) => {
 // 거래 내역 API
 
 // 2.1 거래 내역 조회 (날짜 범위)
-app.get('/api/transactions', async (c) => {
+app.get('/api/transactions', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const startDate = c.req.query('start_date')
   const endDate = c.req.query('end_date')
   const type = c.req.query('type')
@@ -130,9 +318,9 @@ app.get('/api/transactions', async (c) => {
       sa.name as savings_account_name
     FROM transactions t
     LEFT JOIN savings_accounts sa ON t.savings_account_id = sa.id
-    WHERE 1=1
+    WHERE t.user_id = ?
   `
-  const params: any[] = []
+  const params: any[] = [userId?.toString()]
   
   if (startDate) {
     query += ` AND t.date >= ?`
@@ -154,8 +342,9 @@ app.get('/api/transactions', async (c) => {
 })
 
 // 2.2 특정 날짜 거래 조회
-app.get('/api/transactions/date/:date', async (c) => {
+app.get('/api/transactions/date/:date', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const date = c.req.param('date')
   
   const result = await DB.prepare(`
@@ -164,16 +353,17 @@ app.get('/api/transactions/date/:date', async (c) => {
       sa.name as savings_account_name
     FROM transactions t
     LEFT JOIN savings_accounts sa ON t.savings_account_id = sa.id
-    WHERE t.date = ?
+    WHERE t.date = ? AND t.user_id = ?
     ORDER BY t.created_at DESC
-  `).bind(date).all()
+  `).bind(date, userId?.toString()).all()
   
   return c.json({ success: true, data: result.results })
 })
 
 // 2.3 거래 생성
-app.post('/api/transactions', async (c) => {
+app.post('/api/transactions', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const { type, category, amount, description, date, payment_method, savings_account_id } = await c.req.json()
   
   if (!type || !category || !amount || !date) {
@@ -189,16 +379,17 @@ app.post('/api/transactions', async (c) => {
   }
   
   const result = await DB.prepare(`
-    INSERT INTO transactions (type, category, amount, description, date, payment_method, savings_account_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).bind(type, category, amount, description || null, date, payment_method || 'card', savings_account_id || null).run()
+    INSERT INTO transactions (type, category, amount, description, date, payment_method, savings_account_id, user_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(type, category, amount, description || null, date, payment_method || 'card', savings_account_id || null, userId?.toString()).run()
   
   return c.json({ success: true, id: result.meta.last_row_id })
 })
 
 // 2.4 거래 수정
-app.put('/api/transactions/:id', async (c) => {
+app.put('/api/transactions/:id', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const id = c.req.param('id')
   const { type, category, amount, description, date, payment_method, savings_account_id } = await c.req.json()
   
@@ -209,18 +400,19 @@ app.put('/api/transactions/:id', async (c) => {
   await DB.prepare(`
     UPDATE transactions 
     SET type = ?, category = ?, amount = ?, description = ?, date = ?, payment_method = ?, savings_account_id = ?
-    WHERE id = ?
-  `).bind(type, category, amount, description || null, date, payment_method || 'card', savings_account_id || null, id).run()
+    WHERE id = ? AND user_id = ?
+  `).bind(type, category, amount, description || null, date, payment_method || 'card', savings_account_id || null, id, userId?.toString()).run()
   
   return c.json({ success: true })
 })
 
 // 2.5 거래 삭제
-app.delete('/api/transactions/:id', async (c) => {
+app.delete('/api/transactions/:id', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const id = c.req.param('id')
   
-  await DB.prepare(`DELETE FROM transactions WHERE id = ?`).bind(id).run()
+  await DB.prepare(`DELETE FROM transactions WHERE id = ? AND user_id = ?`).bind(id, userId?.toString()).run()
   
   return c.json({ success: true })
 })
@@ -228,8 +420,9 @@ app.delete('/api/transactions/:id', async (c) => {
 // 통계 API
 
 // 3.1 월별 통계
-app.get('/api/statistics/monthly/:yearMonth', async (c) => {
+app.get('/api/statistics/monthly/:yearMonth', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const yearMonth = c.req.param('yearMonth')
   
   const summary = await DB.prepare(`
@@ -237,9 +430,9 @@ app.get('/api/statistics/monthly/:yearMonth', async (c) => {
       type,
       SUM(amount) as total
     FROM transactions
-    WHERE strftime('%Y-%m', date) = ?
+    WHERE strftime('%Y-%m', date) = ? AND user_id = ?
     GROUP BY type
-  `).bind(yearMonth).all()
+  `).bind(yearMonth, userId?.toString()).all()
   
   const expenseByCategory = await DB.prepare(`
     SELECT 
@@ -247,10 +440,10 @@ app.get('/api/statistics/monthly/:yearMonth', async (c) => {
       SUM(amount) as total,
       COUNT(*) as count
     FROM transactions
-    WHERE type = 'expense' AND strftime('%Y-%m', date) = ?
+    WHERE type = 'expense' AND strftime('%Y-%m', date) = ? AND user_id = ?
     GROUP BY category
     ORDER BY total DESC
-  `).bind(yearMonth).all()
+  `).bind(yearMonth, userId?.toString()).all()
   
   return c.json({ 
     success: true, 
@@ -260,8 +453,9 @@ app.get('/api/statistics/monthly/:yearMonth', async (c) => {
 })
 
 // 3.2 주별 통계
-app.get('/api/statistics/weekly/:startDate', async (c) => {
+app.get('/api/statistics/weekly/:startDate', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const startDate = c.req.param('startDate')
   
   const endDate = new Date(startDate)
@@ -273,9 +467,9 @@ app.get('/api/statistics/weekly/:startDate', async (c) => {
       type,
       SUM(amount) as total
     FROM transactions
-    WHERE date >= ? AND date <= ?
+    WHERE date >= ? AND date <= ? AND user_id = ?
     GROUP BY type
-  `).bind(startDate, endDateStr).all()
+  `).bind(startDate, endDateStr, userId?.toString()).all()
   
   const expenseByCategory = await DB.prepare(`
     SELECT 
@@ -283,10 +477,10 @@ app.get('/api/statistics/weekly/:startDate', async (c) => {
       SUM(amount) as total,
       COUNT(*) as count
     FROM transactions
-    WHERE type = 'expense' AND date >= ? AND date <= ?
+    WHERE type = 'expense' AND date >= ? AND date <= ? AND user_id = ?
     GROUP BY category
     ORDER BY total DESC
-  `).bind(startDate, endDateStr).all()
+  `).bind(startDate, endDateStr, userId?.toString()).all()
   
   return c.json({ 
     success: true, 
@@ -296,8 +490,9 @@ app.get('/api/statistics/weekly/:startDate', async (c) => {
 })
 
 // 3.3 달력 데이터
-app.get('/api/calendar/:yearMonth', async (c) => {
+app.get('/api/calendar/:yearMonth', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const yearMonth = c.req.param('yearMonth')
   
   const result = await DB.prepare(`
@@ -307,10 +502,10 @@ app.get('/api/calendar/:yearMonth', async (c) => {
       SUM(amount) as total,
       COUNT(*) as count
     FROM transactions
-    WHERE strftime('%Y-%m', date) = ?
+    WHERE strftime('%Y-%m', date) = ? AND user_id = ?
     GROUP BY date, type
     ORDER BY date ASC
-  `).bind(yearMonth).all()
+  `).bind(yearMonth, userId?.toString()).all()
   
   return c.json({ success: true, data: result.results })
 })
@@ -318,31 +513,62 @@ app.get('/api/calendar/:yearMonth', async (c) => {
 // 설정 API
 
 // 4.1 설정 조회
-app.get('/api/settings', async (c) => {
+app.get('/api/settings', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   
-  const result = await DB.prepare(`
-    SELECT * FROM settings WHERE id = 1
-  `).first()
+  let result = await DB.prepare(`
+    SELECT * FROM settings WHERE user_id = ?
+  `).bind(userId?.toString()).first()
+  
+  // 사용자의 설정이 없으면 기본 설정 생성
+  if (!result) {
+    await DB.prepare(`
+      INSERT INTO settings (currency, initial_balance, initial_savings, category_colors, user_id)
+      VALUES ('KRW', 0, 0, NULL, ?)
+    `).bind(userId?.toString()).run()
+    
+    result = await DB.prepare(`
+      SELECT * FROM settings WHERE user_id = ?
+    `).bind(userId?.toString()).first()
+  }
   
   return c.json({ success: true, data: result })
 })
 
 // 4.2 설정 수정
-app.put('/api/settings', async (c) => {
+app.put('/api/settings', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const { currency, initial_balance, initial_savings, category_colors } = await c.req.json()
   
-  await DB.prepare(`
-    UPDATE settings 
-    SET currency = ?, initial_balance = ?, initial_savings = ?, category_colors = ?
-    WHERE id = 1
-  `).bind(
-    currency, 
-    initial_balance, 
-    initial_savings, 
-    category_colors ? JSON.stringify(category_colors) : null
-  ).run()
+  // 설정이 없으면 생성
+  const existing = await DB.prepare(`SELECT id FROM settings WHERE user_id = ?`).bind(userId?.toString()).first()
+  
+  if (!existing) {
+    await DB.prepare(`
+      INSERT INTO settings (currency, initial_balance, initial_savings, category_colors, user_id)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(
+      currency, 
+      initial_balance, 
+      initial_savings, 
+      category_colors ? JSON.stringify(category_colors) : null,
+      userId?.toString()
+    ).run()
+  } else {
+    await DB.prepare(`
+      UPDATE settings 
+      SET currency = ?, initial_balance = ?, initial_savings = ?, category_colors = ?
+      WHERE user_id = ?
+    `).bind(
+      currency, 
+      initial_balance, 
+      initial_savings, 
+      category_colors ? JSON.stringify(category_colors) : null,
+      userId?.toString()
+    ).run()
+  }
   
   return c.json({ success: true })
 })
@@ -350,21 +576,23 @@ app.put('/api/settings', async (c) => {
 // 고정지출 API
 
 // 5.1 고정지출 목록 조회
-app.get('/api/fixed-expenses', async (c) => {
+app.get('/api/fixed-expenses', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   
   const result = await DB.prepare(`
     SELECT * FROM fixed_expenses 
-    WHERE is_active = 1
+    WHERE is_active = 1 AND user_id = ?
     ORDER BY created_at DESC
-  `).all()
+  `).bind(userId?.toString()).all()
   
   return c.json({ success: true, data: result.results })
 })
 
 // 5.2 고정지출 생성
-app.post('/api/fixed-expenses', async (c) => {
+app.post('/api/fixed-expenses', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const { name, category, amount, frequency, week_of_month, day_of_week, payment_day } = await c.req.json()
   
   if (!name || !category || !amount || !frequency) {
@@ -397,16 +625,17 @@ app.post('/api/fixed-expenses', async (c) => {
   
   const result = await DB.prepare(`
     INSERT INTO fixed_expenses 
-    (name, category, amount, frequency, week_of_month, day_of_week, payment_day, is_active)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-  `).bind(name, category, amount, frequency, week_of_month || null, day_of_week ?? null, payment_day || null).run()
+    (name, category, amount, frequency, week_of_month, day_of_week, payment_day, is_active, user_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+  `).bind(name, category, amount, frequency, week_of_month || null, day_of_week ?? null, payment_day || null, userId?.toString()).run()
   
   return c.json({ success: true, id: result.meta.last_row_id })
 })
 
 // 5.3 고정지출 수정
-app.put('/api/fixed-expenses/:id', async (c) => {
+app.put('/api/fixed-expenses/:id', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const id = c.req.param('id')
   const { name, category, amount, frequency, week_of_month, day_of_week, payment_day } = await c.req.json()
   
@@ -442,27 +671,29 @@ app.put('/api/fixed-expenses/:id', async (c) => {
     UPDATE fixed_expenses 
     SET name = ?, category = ?, amount = ?, frequency = ?, 
         week_of_month = ?, day_of_week = ?, payment_day = ?
-    WHERE id = ?
-  `).bind(name, category, amount, frequency, week_of_month || null, day_of_week ?? null, payment_day || null, id).run()
+    WHERE id = ? AND user_id = ?
+  `).bind(name, category, amount, frequency, week_of_month || null, day_of_week ?? null, payment_day || null, id, userId?.toString()).run()
   
   return c.json({ success: true })
 })
 
 // 5.4 고정지출 삭제 (소프트 삭제)
-app.delete('/api/fixed-expenses/:id', async (c) => {
+app.delete('/api/fixed-expenses/:id', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const id = c.req.param('id')
   
   await DB.prepare(`
-    UPDATE fixed_expenses SET is_active = 0 WHERE id = ?
-  `).bind(id).run()
+    UPDATE fixed_expenses SET is_active = 0 WHERE id = ? AND user_id = ?
+  `).bind(id, userId?.toString()).run()
   
   return c.json({ success: true })
 })
 
 // 고정지출 지불 표시
-app.post('/api/fixed-expenses/:id/mark-paid', async (c) => {
+app.post('/api/fixed-expenses/:id/mark-paid', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const id = c.req.param('id')
   const { date } = await c.req.json()
   
@@ -489,7 +720,7 @@ app.post('/api/fixed-expenses/:id/mark-paid', async (c) => {
 })
 
 // 5.5 고정지출 지불 표시 제거
-app.delete('/api/fixed-expenses/:id/mark-paid/:date', async (c) => {
+app.delete('/api/fixed-expenses/:id/mark-paid/:date', authMiddleware, async (c) => {
   const { DB } = c.env
   const id = c.req.param('id')
   const date = c.req.param('date')
@@ -503,14 +734,15 @@ app.delete('/api/fixed-expenses/:id/mark-paid/:date', async (c) => {
 })
 
 // 고정지출 반복 인스턴스 조회
-app.get('/api/fixed-expenses/instances/:yearMonth', async (c) => {
+app.get('/api/fixed-expenses/instances/:yearMonth', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const yearMonth = c.req.param('yearMonth')
   
   // 모든 활성화된 고정지출 가져오기
   const fixedExpenses = await DB.prepare(`
-    SELECT * FROM fixed_expenses WHERE is_active = 1
-  `).all()
+    SELECT * FROM fixed_expenses WHERE is_active = 1 AND user_id = ?
+  `).bind(userId?.toString()).all()
   
   // 해당 월의 모든 지불 내역 가져오기
   const payments = await DB.prepare(`
@@ -632,19 +864,21 @@ function formatDate(date: Date): string {
 // 예산 API
 
 // 6.1 예산 목록 조회
-app.get('/api/budgets', async (c) => {
+app.get('/api/budgets', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   
   const result = await DB.prepare(`
-    SELECT * FROM category_budgets ORDER BY category ASC
-  `).all()
+    SELECT * FROM category_budgets WHERE user_id = ? ORDER BY category ASC
+  `).bind(userId?.toString()).all()
   
   return c.json({ success: true, data: result.results })
 })
 
 // 6.2 예산 설정/수정 (UPSERT)
-app.put('/api/budgets/:category', async (c) => {
+app.put('/api/budgets/:category', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const category = c.req.param('category')
   const { monthly_budget } = await c.req.json()
   
@@ -653,31 +887,33 @@ app.put('/api/budgets/:category', async (c) => {
   }
   
   await DB.prepare(`
-    INSERT INTO category_budgets (category, monthly_budget, updated_at)
-    VALUES (?, ?, CURRENT_TIMESTAMP)
-    ON CONFLICT(category) DO UPDATE SET 
+    INSERT INTO category_budgets (category, monthly_budget, user_id, updated_at)
+    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(category, user_id) DO UPDATE SET 
       monthly_budget = excluded.monthly_budget,
       updated_at = CURRENT_TIMESTAMP
-  `).bind(category, monthly_budget).run()
+  `).bind(category, monthly_budget, userId?.toString()).run()
   
   return c.json({ success: true })
 })
 
 // 6.3 예산 삭제
-app.delete('/api/budgets/:category', async (c) => {
+app.delete('/api/budgets/:category', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const category = c.req.param('category')
   
   await DB.prepare(`
-    DELETE FROM category_budgets WHERE category = ?
-  `).bind(category).run()
+    DELETE FROM category_budgets WHERE category = ? AND user_id = ?
+  `).bind(category, userId?.toString()).run()
   
   return c.json({ success: true })
 })
 
 // 6.4 예산 vs 실제 지출 현황
-app.get('/api/budgets/vs-spending/:yearMonth', async (c) => {
+app.get('/api/budgets/vs-spending/:yearMonth', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const yearMonth = c.req.param('yearMonth')
   
   const result = await DB.prepare(`
@@ -693,10 +929,12 @@ app.get('/api/budgets/vs-spending/:yearMonth', async (c) => {
     FROM category_budgets cb
     LEFT JOIN transactions t ON t.category = cb.category 
       AND t.type = 'expense' 
+      AND t.user_id = ?
       AND strftime('%Y-%m', t.date) = ?
+    WHERE cb.user_id = ?
     GROUP BY cb.category, cb.monthly_budget
     ORDER BY cb.category ASC
-  `).bind(yearMonth).all()
+  `).bind(userId?.toString(), yearMonth, userId?.toString()).all()
   
   return c.json({ success: true, data: result.results })
 })
@@ -704,20 +942,23 @@ app.get('/api/budgets/vs-spending/:yearMonth', async (c) => {
 // 투자 관리 API
 
 // 7.1 투자 목록 조회
-app.get('/api/investments', async (c) => {
+app.get('/api/investments', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   
   const result = await DB.prepare(`
     SELECT * FROM investments 
+    WHERE user_id = ?
     ORDER BY created_at DESC
-  `).all()
+  `).bind(userId?.toString()).all()
   
   return c.json({ success: true, data: result.results })
 })
 
 // 7.2 투자 생성
-app.post('/api/investments', async (c) => {
+app.post('/api/investments', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const { symbol, name, quantity, purchase_price, purchase_date, notes } = await c.req.json()
   
   if (!symbol || !name || !quantity || !purchase_price || !purchase_date) {
@@ -725,39 +966,41 @@ app.post('/api/investments', async (c) => {
   }
   
   const result = await DB.prepare(`
-    INSERT INTO investments (symbol, name, quantity, purchase_price, purchase_date, notes)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).bind(symbol.toUpperCase(), name, quantity, purchase_price, purchase_date, notes || null).run()
+    INSERT INTO investments (symbol, name, quantity, purchase_price, purchase_date, notes, user_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).bind(symbol.toUpperCase(), name, quantity, purchase_price, purchase_date, notes || null, userId?.toString()).run()
   
   return c.json({ success: true, id: result.meta.last_row_id })
 })
 
 // 7.3 투자 수정
-app.put('/api/investments/:id', async (c) => {
+app.put('/api/investments/:id', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const id = c.req.param('id')
   const { symbol, name, quantity, purchase_price, purchase_date, notes } = await c.req.json()
   
   await DB.prepare(`
     UPDATE investments 
     SET symbol = ?, name = ?, quantity = ?, purchase_price = ?, purchase_date = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?
-  `).bind(symbol.toUpperCase(), name, quantity, purchase_price, purchase_date, notes || null, id).run()
+    WHERE id = ? AND user_id = ?
+  `).bind(symbol.toUpperCase(), name, quantity, purchase_price, purchase_date, notes || null, id, userId?.toString()).run()
   
   return c.json({ success: true })
 })
 
 // 7.4 투자 삭제
-app.delete('/api/investments/:id', async (c) => {
+app.delete('/api/investments/:id', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const id = c.req.param('id')
   
-  await DB.prepare(`DELETE FROM investments WHERE id = ?`).bind(id).run()
+  await DB.prepare(`DELETE FROM investments WHERE id = ? AND user_id = ?`).bind(id, userId?.toString()).run()
   
   return c.json({ success: true })
 })
 
-// 7.5 실시간 주가 조회 (외부 API 프록시)
+// 7.5 실시간 주가 조회 (외부 API 프록시) - 인증 불필요 (공개 데이터)
 app.get('/api/investments/price/:symbol', async (c) => {
   const symbol = c.req.param('symbol')
   
@@ -840,15 +1083,16 @@ function generateSimulatedPrice(symbol: string) {
 }
 
 // 7.6 투자 거래 내역 조회
-app.get('/api/investments/:id/transactions', async (c) => {
+app.get('/api/investments/:id/transactions', authMiddleware, async (c) => {
   const { DB } = c.env
+  const userId = c.get('userId')
   const id = c.req.param('id')
   
   const result = await DB.prepare(`
     SELECT * FROM investment_transactions 
-    WHERE investment_id = ?
+    WHERE investment_id = ? AND user_id = ?
     ORDER BY transaction_date DESC
-  `).bind(id).all()
+  `).bind(id, userId?.toString()).all()
   
   return c.json({ success: true, data: result.results })
 })

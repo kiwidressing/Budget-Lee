@@ -22,7 +22,11 @@ const state = {
   expenseChart: null,
   currentTransactionType: 'income',
   investmentPriceRefreshInterval: null,
-  darkMode: localStorage.getItem('darkMode') === 'true'
+  darkMode: localStorage.getItem('darkMode') === 'true',
+  // 인증 관련 상태
+  isAuthenticated: false,
+  currentUser: null,
+  authToken: localStorage.getItem('authToken') || null
 };
 
 // 카테고리 정의
@@ -258,6 +262,369 @@ function validateInvestmentQuantity(quantity) {
 function validateInvestmentPrice(price) {
   // 투자 가격은 0.01 이상
   return validateNumber(price, 0.01, 100000000, '매수 가격');
+}
+
+// 인증 관련 함수
+
+function setAuthToken(token) {
+  state.authToken = token;
+  localStorage.setItem('authToken', token);
+  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+}
+
+function clearAuthToken() {
+  state.authToken = null;
+  state.isAuthenticated = false;
+  state.currentUser = null;
+  localStorage.removeItem('authToken');
+  delete axios.defaults.headers.common['Authorization'];
+}
+
+async function checkAuth() {
+  const token = localStorage.getItem('authToken');
+  
+  if (!token) {
+    return false;
+  }
+  
+  try {
+    setAuthToken(token);
+    const response = await axios.get('/api/auth/me');
+    
+    if (response.data.success) {
+      state.isAuthenticated = true;
+      state.currentUser = response.data.user;
+      return true;
+    }
+  } catch (error) {
+    clearAuthToken();
+  }
+  
+  return false;
+}
+
+async function handleLogin(event) {
+  event.preventDefault();
+  
+  const formData = new FormData(event.target);
+  const username = formData.get('username');
+  const password = formData.get('password');
+  
+  if (!username || !password) {
+    alert('아이디와 비밀번호를 입력해주세요.');
+    return;
+  }
+  
+  try {
+    const response = await axios.post('/api/auth/login', { username, password });
+    
+    if (response.data.success) {
+      setAuthToken(response.data.token);
+      state.isAuthenticated = true;
+      state.currentUser = response.data.user;
+      renderApp();
+    }
+  } catch (error) {
+    alert(error.response?.data?.error || '로그인에 실패했습니다.');
+  }
+}
+
+async function handleRegister(event) {
+  event.preventDefault();
+  
+  const formData = new FormData(event.target);
+  const username = formData.get('username');
+  const password = formData.get('password');
+  const confirmPassword = formData.get('confirmPassword');
+  const name = formData.get('name');
+  
+  if (!username || !password || !confirmPassword || !name) {
+    alert('모든 필드를 입력해주세요.');
+    return;
+  }
+  
+  if (password !== confirmPassword) {
+    alert('비밀번호가 일치하지 않습니다.');
+    return;
+  }
+  
+  if (password.length !== 4) {
+    alert('비밀번호는 4자리여야 합니다.');
+    return;
+  }
+  
+  if (!/^\d{4}$/.test(password)) {
+    alert('비밀번호는 숫자 4자리여야 합니다.');
+    return;
+  }
+  
+  try {
+    const response = await axios.post('/api/auth/register', { username, password, name });
+    
+    if (response.data.success) {
+      setAuthToken(response.data.token);
+      state.isAuthenticated = true;
+      state.currentUser = response.data.user;
+      renderApp();
+    }
+  } catch (error) {
+    alert(error.response?.data?.error || '회원가입에 실패했습니다.');
+  }
+}
+
+function handleLogout() {
+  if (confirm('로그아웃 하시겠습니까?')) {
+    clearAuthToken();
+    renderLoginScreen();
+  }
+}
+
+function renderLoginScreen() {
+  document.getElementById('app').innerHTML = `
+    <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
+      <div class="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full mx-4">
+        <div class="text-center mb-8">
+          <i class="fas fa-wallet text-6xl text-blue-600 mb-4"></i>
+          <h1 class="text-3xl font-bold text-gray-800">가계부 앱</h1>
+          <p class="text-gray-600 mt-2">개인 재무 관리 도우미</p>
+        </div>
+        
+        <div class="mb-6">
+          <div class="flex border-b">
+            <button onclick="showLoginForm()" id="login-tab" class="flex-1 py-3 font-medium text-blue-600 border-b-2 border-blue-600">
+              로그인
+            </button>
+            <button onclick="showRegisterForm()" id="register-tab" class="flex-1 py-3 font-medium text-gray-600">
+              회원가입
+            </button>
+          </div>
+        </div>
+        
+        <!-- 로그인 폼 -->
+        <div id="login-form">
+          <form onsubmit="handleLogin(event)" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                <i class="fas fa-user mr-2"></i>아이디
+              </label>
+              <input 
+                type="text" 
+                name="username" 
+                required 
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="아이디 입력"
+                autocomplete="username"
+              >
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                <i class="fas fa-lock mr-2"></i>비밀번호 (숫자 4자리)
+              </label>
+              <input 
+                type="password" 
+                name="password" 
+                required 
+                pattern="\\d{4}"
+                maxlength="4"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-2xl tracking-widest"
+                placeholder="••••"
+                inputmode="numeric"
+                autocomplete="current-password"
+              >
+            </div>
+            <button 
+              type="submit" 
+              class="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+            >
+              <i class="fas fa-sign-in-alt mr-2"></i>로그인
+            </button>
+          </form>
+        </div>
+        
+        <!-- 회원가입 폼 -->
+        <div id="register-form" style="display: none;">
+          <form onsubmit="handleRegister(event)" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                <i class="fas fa-user mr-2"></i>이름
+              </label>
+              <input 
+                type="text" 
+                name="name" 
+                required 
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="홍길동"
+                autocomplete="name"
+              >
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                <i class="fas fa-id-card mr-2"></i>아이디
+              </label>
+              <input 
+                type="text" 
+                name="username" 
+                required 
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="아이디 입력"
+                autocomplete="username"
+              >
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                <i class="fas fa-lock mr-2"></i>비밀번호 (숫자 4자리)
+              </label>
+              <input 
+                type="password" 
+                name="password" 
+                required 
+                pattern="\\d{4}"
+                maxlength="4"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-2xl tracking-widest"
+                placeholder="••••"
+                inputmode="numeric"
+                autocomplete="new-password"
+              >
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                <i class="fas fa-lock mr-2"></i>비밀번호 확인
+              </label>
+              <input 
+                type="password" 
+                name="confirmPassword" 
+                required 
+                pattern="\\d{4}"
+                maxlength="4"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-2xl tracking-widest"
+                placeholder="••••"
+                inputmode="numeric"
+                autocomplete="new-password"
+              >
+            </div>
+            <button 
+              type="submit" 
+              class="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+            >
+              <i class="fas fa-user-plus mr-2"></i>회원가입
+            </button>
+          </form>
+        </div>
+        
+        <div class="mt-6 text-center text-sm text-gray-600">
+          <p>처음 사용하시나요? 회원가입 후 이용하세요!</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function showLoginForm() {
+  document.getElementById('login-form').style.display = 'block';
+  document.getElementById('register-form').style.display = 'none';
+  document.getElementById('login-tab').className = 'flex-1 py-3 font-medium text-blue-600 border-b-2 border-blue-600';
+  document.getElementById('register-tab').className = 'flex-1 py-3 font-medium text-gray-600';
+}
+
+function showRegisterForm() {
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('register-form').style.display = 'block';
+  document.getElementById('login-tab').className = 'flex-1 py-3 font-medium text-gray-600';
+  document.getElementById('register-tab').className = 'flex-1 py-3 font-medium text-blue-600 border-b-2 border-blue-600';
+}
+
+async function renderApp() {
+  // 인증 확인 후 메인 앱 렌더링
+  const isAuth = await checkAuth();
+  
+  if (!isAuth) {
+    renderLoginScreen();
+    return;
+  }
+  
+  // 메인 앱 UI 렌더링
+  document.getElementById('app').innerHTML = `
+    <div class="container mx-auto max-w-7xl p-4">
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <div class="flex items-center justify-between mb-6">
+          <h1 class="text-3xl font-bold text-gray-800 flex items-center">
+            <i class="fas fa-wallet mr-3 text-blue-600"></i>
+            가계부 앱
+          </h1>
+          <div class="flex items-center gap-4">
+            <span class="text-sm text-gray-600">
+              <i class="fas fa-user mr-2"></i>${state.currentUser?.name || '사용자'}님
+            </span>
+            <button onclick="handleLogout()" class="text-sm text-red-600 hover:text-red-700">
+              <i class="fas fa-sign-out-alt mr-1"></i>로그아웃
+            </button>
+          </div>
+        </div>
+        
+        <!-- 탭 네비게이션 -->
+        <div class="border-b mb-6">
+          <nav class="flex flex-wrap -mb-px">
+            <button id="tab-month" class="tab-button border-b-2 border-blue-600 text-blue-600 py-4 px-6 font-medium">
+              <i class="fas fa-calendar-alt mr-2"></i>월별
+            </button>
+            <button id="tab-week" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
+              <i class="fas fa-calendar-week mr-2"></i>주별
+            </button>
+            <button id="tab-savings" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
+              <i class="fas fa-piggy-bank mr-2"></i>저축
+            </button>
+            <button id="tab-fixed-expenses" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
+              <i class="fas fa-redo mr-2"></i>고정지출
+            </button>
+            <button id="tab-budgets" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
+              <i class="fas fa-chart-pie mr-2"></i>예산
+            </button>
+            <button id="tab-investments" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
+              <i class="fas fa-chart-line mr-2"></i>투자
+            </button>
+            <button id="tab-reports" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
+              <i class="fas fa-chart-bar mr-2"></i>리포트
+            </button>
+            <button id="tab-settings" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
+              <i class="fas fa-cog mr-2"></i>설정
+            </button>
+          </nav>
+        </div>
+        
+        <!-- 콘텐츠 영역 -->
+        <div id="content-area" class="min-h-screen">
+          <div class="text-center text-gray-500 py-8">
+            <i class="fas fa-spinner fa-spin text-4xl mb-4"></i>
+            <p>로딩 중...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 모달들이 여기에 동적으로 추가됩니다 -->
+    <div id="modal-container"></div>
+  `;
+  
+  // 탭 이벤트 리스너 설정
+  setupTabListeners();
+  
+  // 다크모드 적용
+  applyDarkMode();
+  
+  // 설정 로드 및 초기 뷰 렌더링
+  await fetchSettings();
+  await switchView('month');
+}
+
+function setupTabListeners() {
+  document.getElementById('tab-month').onclick = () => switchView('month');
+  document.getElementById('tab-week').onclick = () => switchView('week');
+  document.getElementById('tab-savings').onclick = () => switchView('savings');
+  document.getElementById('tab-fixed-expenses').onclick = () => switchView('fixed-expenses');
+  document.getElementById('tab-budgets').onclick = () => switchView('budgets');
+  document.getElementById('tab-investments').onclick = () => switchView('investments');
+  document.getElementById('tab-reports').onclick = () => switchView('reports');
+  document.getElementById('tab-settings').onclick = () => switchView('settings');
 }
 
 // API 호출 함수
@@ -3676,26 +4043,7 @@ async function performDataRestore(importData) {
   }
 }
 
-// 초기화
-
-async function init() {
-  applyDarkMode();
-  await fetchSettings();
-  await switchView('month');
-  
-  // 탭 버튼 이벤트 리스너 등록
-  document.getElementById('tab-month').onclick = () => switchView('month');
-  document.getElementById('tab-week').onclick = () => switchView('week');
-  document.getElementById('tab-savings').onclick = () => switchView('savings');
-  document.getElementById('tab-fixed-expenses').onclick = () => switchView('fixed-expenses');
-  document.getElementById('tab-budgets').onclick = () => switchView('budgets');
-  document.getElementById('tab-investments').onclick = () => switchView('investments');
-  document.getElementById('tab-reports').onclick = () => switchView('reports');
-  document.getElementById('tab-settings').onclick = () => switchView('settings');
-}
-
-// 앱 시작
-init();
+// 초기화는 renderApp() 함수에서 처리됨
 
 
 // ========== 고정지출 & 저축 통장 수정 기능 ==========
@@ -3872,3 +4220,6 @@ async function handleEditSavingsAccount(event, id) {
     alert(error.response?.data?.error || '저축 통장 수정 중 오류가 발생했습니다.');
   }
 }
+
+// 앱 초기화 - 페이지 로드 시 인증 확인 후 적절한 화면 렌더링
+renderApp();
