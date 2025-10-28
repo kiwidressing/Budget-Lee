@@ -221,3 +221,168 @@ body {
     height: 32px;
   }
 }
+
+/* 모바일 반응형 개선 */
+@media (max-width: 640px) {
+  /* 컨테이너 패딩 조정 */
+  .container {
+    padding: 0.5rem !important;
+  }
+  
+  /* 카드 패딩 축소 */
+  .bg-white,
+  .bg-gray-50,
+  .bg-gradient-to-r,
+  .bg-gradient-to-br {
+    padding: 1rem !important;
+  }
+  
+  /* 환영 메시지 작게 */
+  .bg-gradient-to-r h2 {
+    font-size: 1.25rem !important;
+  }
+  
+  /* 통계 카드 텍스트 크기 */
+  .text-3xl {
+    font-size: 1.5rem !important;
+  }
+  
+  .text-2xl {
+    font-size: 1.25rem !important;
+  }
+  
+  .text-xl {
+    font-size: 1.125rem !important;
+  }
+  
+  /* 그리드 간격 축소 */
+  .gap-4 {
+    gap: 0.75rem !important;
+  }
+  
+  .gap-6 {
+    gap: 1rem !important;
+  }
+  
+  /* space-y 간격 축소 */
+  .space-y-6 > * + * {
+    margin-top: 1rem !important;
+  }
+  
+  /* 차트 높이 조정 */
+  .h-80 {
+    height: 16rem !important;
+  }
+  
+  .h-64 {
+    height: 14rem !important;
+  }
+  
+  /* 버튼 크기 조정 */
+  button {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.875rem !important;
+  }
+  
+  /* 탭 네비게이션 스크롤 */
+  nav.flex {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  
+  nav.flex::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* 탭 버튼 최소 너비 */
+  .tab-button {
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: auto;
+  }
+  
+  /* 저축률 바 높이 */
+  .h-8 {
+    height: 1.5rem !important;
+  }
+  
+  /* 입력 필드 */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important; /* iOS zoom 방지 */
+  }
+  
+  /* 모달 크기 */
+  .max-w-2xl,
+  .max-w-xl,
+  .max-w-lg {
+    max-width: calc(100vw - 2rem) !important;
+    margin: 1rem !important;
+  }
+  
+  /* 테이블 스크롤 */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* 태블릿 최적화 */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .container {
+    padding: 1rem !important;
+  }
+  
+  /* 카드 간격 */
+  .gap-4 {
+    gap: 1rem !important;
+  }
+  
+  /* 텍스트 크기 조정 */
+  .text-3xl {
+    font-size: 1.75rem !important;
+  }
+  
+  .text-2xl {
+    font-size: 1.5rem !important;
+  }
+}
+
+/* 데스크톱 최적화 */
+@media (min-width: 1025px) {
+  .container {
+    max-width: 1280px !important;
+    margin: 0 auto !important;
+  }
+}
+
+/* Safe area 적용 (iPhone 노치 대응) */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+}
+
+/* 터치 디바이스 최적화 */
+@media (hover: none) and (pointer: coarse) {
+  /* 터치 타겟 크기 증가 */
+  button,
+  a,
+  input[type="button"],
+  input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* 호버 효과 제거 */
+  .hover\:shadow-lg:hover {
+    box-shadow: none;
+  }
+  
+  .tab-button:hover {
+    background-color: transparent;
+  }
+}
