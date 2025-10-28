@@ -903,8 +903,8 @@ async function renderHomeView() {
           <span class="text-2xl font-bold text-green-600">${savingsRate}%</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-8 overflow-hidden">
-          <div class="bg-gradient-to-r from-green-400 to-green-600 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm transition-all duration-500" 
-               style="width: ${Math.min(savingsRate, 100)}%">
+          <div class="bg-gradient-to-r from-green-400 to-green-600 h-8 flex items-center justify-center text-white font-bold text-sm transition-all duration-500" 
+               style="width: ${Math.min(savingsRate, 100)}%; border-radius: ${savingsRate >= 100 ? '9999px' : '9999px 0 0 9999px'};">
             ${savingsRate > 10 ? `${savingsRate}%` : ''}
           </div>
         </div>
