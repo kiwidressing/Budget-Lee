@@ -560,10 +560,10 @@ app.get('/api/fixed-expenses/instances/:yearMonth', async (c) => {
         transaction_id: payment?.transaction_id || null
       })
     } else if (expense.frequency === 'weekly') {
-      // 주별: 해당 월의 모든 해당 요일 찾기
-      const dates = getAllDaysOfWeekInMonth(year, month - 1, expense.day_of_week)
+      // 주별: 해당 월의 첫 번째 해당 요일만 표시
+      const date = getFirstDayOfWeekInMonth(year, month - 1, expense.day_of_week)
       
-      for (const date of dates) {
+      if (date) {
         const dateStr = formatDate(date)
         const payment = (payments.results as any[]).find(
           p => p.fixed_expense_id === expense.id && p.payment_date === dateStr
@@ -604,24 +604,22 @@ function getNthDayOfMonth(year: number, month: number, weekOfMonth: number, dayO
   return targetDate
 }
 
-function getAllDaysOfWeekInMonth(year: number, month: number, dayOfWeek: number): Date[] {
-  const dates: Date[] = []
+function getFirstDayOfWeekInMonth(year: number, month: number, dayOfWeek: number): Date | null {
   const firstDay = new Date(year, month, 1)
   const lastDay = new Date(year, month + 1, 0)
   
   // 첫 번째 해당 요일 찾기
   let current = new Date(firstDay)
-  while (current.getDay() !== dayOfWeek) {
+  while (current.getDay() !== dayOfWeek && current <= lastDay) {
     current.setDate(current.getDate() + 1)
   }
   
-  // 모든 해당 요일 수집
-  while (current <= lastDay) {
-    dates.push(new Date(current))
-    current.setDate(current.getDate() + 7)
+  // 해당 월에 존재하는지 확인
+  if (current > lastDay) {
+    return null
   }
   
-  return dates
+  return current
 }
 
 function formatDate(date: Date): string {
