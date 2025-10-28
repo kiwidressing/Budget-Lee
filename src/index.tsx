@@ -168,15 +168,75 @@ async function verifyPassword(
   return passwordHash === hash
 }
 
-// JWT 토큰 생성
-async function createToken(userId: number, username: string, secret: string): Promise<string> {
+// ========== JWT 토큰 시스템 (Access + Refresh) ==========
+
+// Access Token 생성 (45분)
+async function createAccessToken(userId: number, username: string, secret: string): Promise<string> {
   const payload = {
     sub: userId.toString(),
     username: username,
+    type: 'access',
     iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 30) // 30일
+    exp: Math.floor(Date.now() / 1000) + (60 * 45) // 45분
   }
   return await sign(payload, secret)
+}
+
+// Refresh Token 생성 (30일)
+function generateRefreshToken(): string {
+  const array = new Uint8Array(32) // 32 bytes = 256 bits
+  crypto.getRandomValues(array)
+  return Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+// Refresh Token 저장
+async function saveRefreshToken(
+  DB: D1Database, 
+  userId: number, 
+  refreshToken: string,
+  userAgent?: string,
+  ipAddress?: string
+): Promise<void> {
+  const expiresAt = new Date(Date.now() + (60 * 60 * 24 * 30 * 1000)) // 30일
+  const expiresAtStr = expiresAt.toISOString().replace('T', ' ').substring(0, 19)
+  
+  await DB.prepare(`
+    INSERT INTO sessions (user_id, refresh_token, expires_at, user_agent, ip_address)
+    VALUES (?, ?, ?, ?, ?)
+  `).bind(userId, refreshToken, expiresAtStr, userAgent || null, ipAddress || null).run()
+}
+
+// Refresh Token 검증 및 조회
+async function verifyRefreshToken(DB: D1Database, refreshToken: string): Promise<any | null> {
+  const session = await DB.prepare(`
+    SELECT s.*, u.username, u.name
+    FROM sessions s
+    JOIN users u ON s.user_id = u.id
+    WHERE s.refresh_token = ? AND s.expires_at > datetime('now')
+  `).bind(refreshToken).first() as any
+  
+  if (!session) return null
+  
+  // 마지막 사용 시간 업데이트
+  await DB.prepare(`
+    UPDATE sessions SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?
+  `).bind(session.id).run()
+  
+  return session
+}
+
+// Refresh Token 삭제 (로그아웃)
+async function deleteRefreshToken(DB: D1Database, refreshToken: string): Promise<void> {
+  await DB.prepare(`
+    DELETE FROM sessions WHERE refresh_token = ?
+  `).bind(refreshToken).run()
+}
+
+// 만료된 세션 정리
+async function cleanExpiredSessions(DB: D1Database): Promise<void> {
+  await DB.prepare(`
+    DELETE FROM sessions WHERE expires_at < datetime('now')
+  `).run()
 }
 
 // 인증 미들웨어
@@ -243,11 +303,20 @@ app.post('/api/auth/register', async (c) => {
   
   const userId = result.meta.last_row_id as number
   const secret = c.env.JWT_SECRET || 'default-secret-key-change-in-production'
-  const token = await createToken(userId, username, secret)
+  
+  // Access Token + Refresh Token 발급
+  const accessToken = await createAccessToken(userId, username, secret)
+  const refreshToken = generateRefreshToken()
+  
+  // Refresh Token 저장
+  const userAgent = c.req.header('user-agent')
+  const ipAddress = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for')
+  await saveRefreshToken(DB, userId, refreshToken, userAgent, ipAddress)
   
   return c.json({ 
     success: true, 
-    token,
+    accessToken,
+    refreshToken,
     user: {
       id: userId,
       username,
@@ -302,19 +371,67 @@ app.post('/api/auth/login', async (c) => {
     UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?
   `).bind(user.id).run()
   
-  // JWT 토큰 생성
+  // Access Token + Refresh Token 발급
   const secret = c.env.JWT_SECRET || 'default-secret-key-change-in-production'
-  const token = await createToken(user.id, user.username, secret)
+  const accessToken = await createAccessToken(user.id, user.username, secret)
+  const refreshToken = generateRefreshToken()
+  
+  // Refresh Token 저장
+  const userAgent = c.req.header('user-agent')
+  const ipAddress = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for')
+  await saveRefreshToken(DB, user.id, refreshToken, userAgent, ipAddress)
+  
+  // 만료된 세션 정리 (비동기)
+  cleanExpiredSessions(DB).catch(err => console.error('[Sessions] Cleanup error:', err))
   
   return c.json({ 
     success: true, 
-    token,
+    accessToken,
+    refreshToken,
     user: {
       id: user.id,
       username: user.username,
       name: user.name
     }
   })
+})
+
+// Token Refresh (Access Token 갱신)
+app.post('/api/auth/refresh', async (c) => {
+  const { DB } = c.env
+  const { refreshToken } = await c.req.json()
+  
+  if (!refreshToken) {
+    return c.json({ success: false, error: 'Refresh token이 필요합니다.' }, 400)
+  }
+  
+  // Refresh Token 검증
+  const session = await verifyRefreshToken(DB, refreshToken)
+  
+  if (!session) {
+    return c.json({ success: false, error: '유효하지 않거나 만료된 refresh token입니다.' }, 401)
+  }
+  
+  // 새로운 Access Token 생성
+  const secret = c.env.JWT_SECRET || 'default-secret-key-change-in-production'
+  const accessToken = await createAccessToken(session.user_id, session.username, secret)
+  
+  return c.json({
+    success: true,
+    accessToken
+  })
+})
+
+// 로그아웃 (Refresh Token 삭제)
+app.post('/api/auth/logout', async (c) => {
+  const { DB } = c.env
+  const { refreshToken } = await c.req.json()
+  
+  if (refreshToken) {
+    await deleteRefreshToken(DB, refreshToken)
+  }
+  
+  return c.json({ success: true, message: '로그아웃되었습니다.' })
 })
 
 // 현재 사용자 정보 조회
