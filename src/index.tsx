@@ -816,6 +816,166 @@ app.get('/api/investments/:id/transactions', async (c) => {
   return c.json({ success: true, data: result.results })
 })
 
+// -----------------------------------------------------------------------------
+// 그룹 8: 영수증 관리 API (5개)
+// -----------------------------------------------------------------------------
+
+// 8.1 영수증 목록 조회
+app.get('/api/receipts', async (c) => {
+  const { DB } = c.env
+  
+  const category = c.req.query('category')
+  const startDate = c.req.query('start_date')
+  const endDate = c.req.query('end_date')
+  
+  let query = `
+    SELECT 
+      r.*,
+      t.id as transaction_id,
+      t.payment_method
+    FROM receipts r
+    LEFT JOIN transactions t ON r.transaction_id = t.id
+    WHERE 1=1
+  `
+  const params: any[] = []
+  
+  if (category) {
+    query += ` AND r.category = ?`
+    params.push(category)
+  }
+  
+  if (startDate && endDate) {
+    query += ` AND r.purchase_date BETWEEN ? AND ?`
+    params.push(startDate, endDate)
+  }
+  
+  query += ` ORDER BY r.purchase_date DESC, r.created_at DESC`
+  
+  const result = await DB.prepare(query).bind(...params).all()
+  
+  return c.json({ success: true, data: result.results })
+})
+
+// 8.2 영수증 상세 조회 (이미지 포함)
+app.get('/api/receipts/:id', async (c) => {
+  const { DB } = c.env
+  const id = c.req.param('id')
+  
+  const result = await DB.prepare(`
+    SELECT 
+      r.*,
+      t.id as transaction_id,
+      t.payment_method
+    FROM receipts r
+    LEFT JOIN transactions t ON r.transaction_id = t.id
+    WHERE r.id = ?
+  `).bind(id).first()
+  
+  if (!result) {
+    return c.json({ success: false, error: '영수증을 찾을 수 없습니다.' }, 404)
+  }
+  
+  return c.json({ success: true, data: result })
+})
+
+// 8.3 영수증 추가 (자동으로 거래내역 생성)
+app.post('/api/receipts', async (c) => {
+  const { DB } = c.env
+  const { store_name, purchase_date, amount, category, payment_method, image_data, description, notes } = await c.req.json()
+  
+  if (!store_name || !purchase_date || !amount || !category || !payment_method) {
+    return c.json({ success: false, error: '필수 항목을 입력해주세요.' }, 400)
+  }
+  
+  // 1. 거래 내역 먼저 생성
+  const transactionResult = await DB.prepare(`
+    INSERT INTO transactions (type, category, amount, description, date, payment_method)
+    VALUES ('expense', ?, ?, ?, ?, ?)
+  `).bind(category, amount, `[영수증] ${store_name}${description ? ' - ' + description : ''}`, purchase_date, payment_method).run()
+  
+  const transactionId = transactionResult.meta.last_row_id
+  
+  // 2. 영수증 생성 (거래 내역 ID 연결)
+  const receiptResult = await DB.prepare(`
+    INSERT INTO receipts (store_name, purchase_date, amount, category, payment_method, image_data, description, notes, transaction_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(store_name, purchase_date, amount, category, payment_method, image_data, description, notes, transactionId).run()
+  
+  return c.json({ success: true, id: receiptResult.meta.last_row_id, transaction_id: transactionId })
+})
+
+// 8.4 영수증 수정
+app.put('/api/receipts/:id', async (c) => {
+  const { DB } = c.env
+  const id = c.req.param('id')
+  const { store_name, purchase_date, amount, category, payment_method, image_data, description, notes } = await c.req.json()
+  
+  // 영수증 조회 (transaction_id 확인)
+  const receipt = await DB.prepare(`
+    SELECT transaction_id FROM receipts WHERE id = ?
+  `).bind(id).first() as any
+  
+  if (!receipt) {
+    return c.json({ success: false, error: '영수증을 찾을 수 없습니다.' }, 404)
+  }
+  
+  // 1. 연결된 거래 내역 수정
+  if (receipt.transaction_id) {
+    await DB.prepare(`
+      UPDATE transactions 
+      SET category = ?, amount = ?, description = ?, date = ?, payment_method = ?
+      WHERE id = ?
+    `).bind(category, amount, `[영수증] ${store_name}${description ? ' - ' + description : ''}`, purchase_date, payment_method, receipt.transaction_id).run()
+  }
+  
+  // 2. 영수증 수정
+  let updateQuery = `
+    UPDATE receipts 
+    SET store_name = ?, purchase_date = ?, amount = ?, category = ?, payment_method = ?, description = ?, notes = ?
+  `
+  const params: any[] = [store_name, purchase_date, amount, category, payment_method, description, notes]
+  
+  if (image_data) {
+    updateQuery += `, image_data = ?`
+    params.push(image_data)
+  }
+  
+  updateQuery += ` WHERE id = ?`
+  params.push(id)
+  
+  await DB.prepare(updateQuery).bind(...params).run()
+  
+  return c.json({ success: true })
+})
+
+// 8.5 영수증 삭제 (연결된 거래내역도 삭제)
+app.delete('/api/receipts/:id', async (c) => {
+  const { DB } = c.env
+  const id = c.req.param('id')
+  
+  // 영수증 조회 (transaction_id 확인)
+  const receipt = await DB.prepare(`
+    SELECT transaction_id FROM receipts WHERE id = ?
+  `).bind(id).first() as any
+  
+  if (!receipt) {
+    return c.json({ success: false, error: '영수증을 찾을 수 없습니다.' }, 404)
+  }
+  
+  // 1. 연결된 거래 내역 삭제
+  if (receipt.transaction_id) {
+    await DB.prepare(`
+      DELETE FROM transactions WHERE id = ?
+    `).bind(receipt.transaction_id).run()
+  }
+  
+  // 2. 영수증 삭제
+  await DB.prepare(`
+    DELETE FROM receipts WHERE id = ?
+  `).bind(id).run()
+  
+  return c.json({ success: true })
+})
 
 
 // =============================================================================
@@ -870,6 +1030,9 @@ app.get('/', (c) => {
                     </button>
                     <button id="tab-investments" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
                         <i class="fas fa-chart-line mr-2"></i>투자
+                    </button>
+                    <button id="tab-receipts" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
+                        <i class="fas fa-receipt mr-2"></i>영수증
                     </button>
                     <button id="tab-reports" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
                         <i class="fas fa-chart-bar mr-2"></i>리포트
