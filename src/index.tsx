@@ -1088,9 +1088,6 @@ app.get('/', (c) => {
                     <button id="tab-investments" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
                         <i class="fas fa-chart-line mr-2"></i>투자
                     </button>
-                    <button id="tab-receipts" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
-                        <i class="fas fa-receipt mr-2"></i>영수증
-                    </button>
                     <button id="tab-reports" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
                         <i class="fas fa-chart-bar mr-2"></i>리포트
                     </button>
