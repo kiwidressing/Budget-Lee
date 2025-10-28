@@ -1030,8 +1030,12 @@ async function renderSavingsView() {
             <div class="flex justify-between items-start mb-3">
               <h4 class="text-lg font-bold">${acc.name}</h4>
               <div class="flex gap-2">
+                <button onclick="openEditSavingsAccountModal(${acc.id}, '${acc.name.replace(/'/g, "\'")}')\" 
+                        class="text-blue-500 hover:text-blue-700" title="이름 수정">
+                  <i class="fas fa-edit"></i>
+                </button>
                 <button onclick="openSavingsGoalModal(${acc.id}, ${savingsGoal})" 
-                        class="text-blue-500 hover:text-blue-700" title="목표 설정">
+                        class="text-green-500 hover:text-green-700" title="목표 설정">
                   <i class="fas fa-target"></i>
                 </button>
                 <button onclick="deleteSavingsAccount(${acc.id})" 
@@ -1125,21 +1129,20 @@ async function renderFixedExpensesView() {
           
           return `
           <div class="bg-white p-5 rounded-lg shadow hover:shadow-md transition">
-            <div class="flex items-center gap-3 mb-3">
-              <input 
-                type="checkbox" 
-                id="${checkboxId}"
-                ${instance.is_paid ? 'checked' : ''}
-                onchange="handleFixedExpenseCheck('${checkboxId}', ${instance.id}, '${instance.scheduled_date}', this.checked)"
-                class="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-500 cursor-pointer"
-              >
+            <div class="flex items-center justify-between mb-3">
               <div class="flex-1">
-                <h4 class="text-lg font-bold ${instance.is_paid ? 'text-gray-400 line-through' : 'text-gray-800'}">${instance.name}</h4>
-                <p class="text-2xl font-bold ${instance.is_paid ? 'text-gray-400' : 'text-red-600'}">${formatCurrency(instance.amount)}</p>
+                <h4 class="text-lg font-bold text-gray-800">${instance.name}</h4>
+                <p class="text-2xl font-bold text-red-600">${formatCurrency(instance.amount)}</p>
               </div>
-              <button onclick="deleteFixedExpense(${instance.id})" class="text-gray-400 hover:text-red-600 transition">
-                <i class="fas fa-trash"></i>
-              </button>
+              <div class="flex gap-2">
+                <button onclick="openEditFixedExpenseModal({id: ${instance.id}, name: '${instance.name.replace(/'/g, "\'")}', amount: ${instance.amount}, category: '${instance.category}', frequency: '${instance.frequency}', week_of_month: ${instance.week_of_month || 'null'}, day_of_week: ${instance.day_of_week ?? 'null'}, payment_day: ${instance.payment_day || 'null'}})" 
+                        class="text-blue-500 hover:text-blue-700" title="수정">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button onclick="deleteFixedExpense(${instance.id})" class="text-red-500 hover:text-red-700" title="삭제">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
             </div>
             
             <div class="flex items-center gap-2 text-sm text-gray-600 mb-2">
@@ -3694,3 +3697,178 @@ async function init() {
 // 앱 시작
 init();
 
+
+// ========== 고정지출 & 저축 통장 수정 기능 ==========
+
+// 고정지출 수정 모달 열기
+function openEditFixedExpenseModal(expenseData) {
+  const modalContainer = document.getElementById('modal-container');
+  
+  const frequencyOptions = [
+    { value: 'monthly_day', label: '매월 (특정 일자)', selected: expenseData.frequency === 'monthly_day' },
+    { value: 'monthly', label: '매월 (특정 주/요일)', selected: expenseData.frequency === 'monthly' },
+    { value: 'weekly', label: '매주', selected: expenseData.frequency === 'weekly' }
+  ];
+  
+  modalContainer.innerHTML = `
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
+      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
+        <h3 class="text-xl font-bold mb-4">고정지출 수정</h3>
+        <form onsubmit="handleEditFixedExpense(event, ${expenseData.id})" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">항목명</label>
+            <input type="text" name="name" value="${expenseData.name}" required class="w-full px-4 py-2 border rounded">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">카테고리</label>
+            <select name="category" required class="w-full px-4 py-2 border rounded">
+              ${categories.expense.map(cat => `<option value="${cat}" ${cat === expenseData.category ? 'selected' : ''}>${cat}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">금액 (${CURRENCIES[state.settings.currency]?.symbol || '₩'})</label>
+            <input type="number" name="amount" value="${expenseData.amount}" required min="0" step="1000" class="w-full px-4 py-2 border rounded">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">주기</label>
+            <select name="frequency" required class="w-full px-4 py-2 border rounded" onchange="toggleFixedExpenseFields(this.value, 'edit')">
+              ${frequencyOptions.map(opt => `<option value="${opt.value}" ${opt.selected ? 'selected' : ''}>${opt.label}</option>`).join('')}
+            </select>
+          </div>
+          <div id="edit-monthly-day-field" style="display: ${expenseData.frequency === 'monthly_day' ? 'block' : 'none'}">
+            <label class="block text-sm font-medium mb-1">일자</label>
+            <input type="number" name="payment_day" value="${expenseData.payment_day || ''}" min="1" max="31" class="w-full px-4 py-2 border rounded">
+          </div>
+          <div id="edit-monthly-fields" style="display: ${expenseData.frequency === 'monthly' ? 'block' : 'none'}" class="space-y-2">
+            <div>
+              <label class="block text-sm font-medium mb-1">주차</label>
+              <select name="week_of_month" class="w-full px-4 py-2 border rounded">
+                <option value="1" ${expenseData.week_of_month === 1 ? 'selected' : ''}>첫째 주</option>
+                <option value="2" ${expenseData.week_of_month === 2 ? 'selected' : ''}>둘째 주</option>
+                <option value="3" ${expenseData.week_of_month === 3 ? 'selected' : ''}>셋째 주</option>
+                <option value="4" ${expenseData.week_of_month === 4 ? 'selected' : ''}>넷째 주</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">요일</label>
+              <select name="day_of_week_monthly" class="w-full px-4 py-2 border rounded">
+                ${['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'].map((day, idx) => `<option value="${idx}" ${expenseData.day_of_week === idx ? 'selected' : ''}>${day}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div id="edit-weekly-field" style="display: ${expenseData.frequency === 'weekly' ? 'block' : 'none'}">
+            <label class="block text-sm font-medium mb-1">요일</label>
+            <select name="day_of_week_weekly" class="w-full px-4 py-2 border rounded">
+              ${['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'].map((day, idx) => `<option value="${idx}" ${expenseData.day_of_week === idx ? 'selected' : ''}>${day}</option>`).join('')}
+            </select>
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="flex-1 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
+              수정
+            </button>
+            <button type="button" onclick="closeModal()" class="flex-1 py-3 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 font-medium">
+              취소
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+// 고정지출 수정 처리
+async function handleEditFixedExpense(event, id) {
+  event.preventDefault();
+  
+  const formData = new FormData(event.target);
+  const frequency = formData.get('frequency');
+  
+  const data = {
+    name: formData.get('name'),
+    category: formData.get('category'),
+    amount: parseInt(formData.get('amount')),
+    frequency: frequency
+  };
+  
+  // 주기에 따라 필요한 필드 추가
+  if (frequency === 'monthly_day') {
+    const paymentDay = parseInt(formData.get('payment_day'));
+    const paymentDayValidation = validateInteger(paymentDay, 1, 31, '결제일');
+    if (!paymentDayValidation.valid) {
+      showValidationError(paymentDayValidation.error);
+      return;
+    }
+    data.payment_day = paymentDayValidation.value;
+  } else if (frequency === 'monthly') {
+    data.week_of_month = parseInt(formData.get('week_of_month'));
+    data.day_of_week = parseInt(formData.get('day_of_week_monthly'));
+  } else if (frequency === 'weekly') {
+    data.day_of_week = parseInt(formData.get('day_of_week_weekly'));
+  }
+  
+  // 금액 검증
+  const amountValidation = validateNumber(data.amount, 0, 10000000000, '금액');
+  if (!amountValidation.valid) {
+    showValidationError(amountValidation.error);
+    return;
+  }
+  
+  try {
+    const response = await axios.put(`/api/fixed-expenses/${id}`, data);
+    if (response.data.success) {
+      closeModal();
+      renderFixedExpensesView();
+    }
+  } catch (error) {
+    alert(error.response?.data?.error || '고정지출 수정 중 오류가 발생했습니다.');
+  }
+}
+
+// 저축 통장 이름 수정 모달 열기
+function openEditSavingsAccountModal(id, name) {
+  const modalContainer = document.getElementById('modal-container');
+  modalContainer.innerHTML = `
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
+      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
+        <h3 class="text-xl font-bold mb-4">저축 통장 이름 수정</h3>
+        <form onsubmit="handleEditSavingsAccount(event, ${id})" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">통장 이름</label>
+            <input type="text" name="name" value="${name}" required class="w-full px-4 py-2 border rounded">
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="flex-1 py-3 bg-green-500 text-white rounded hover:bg-green-600 font-medium">
+              수정
+            </button>
+            <button type="button" onclick="closeModal()" class="flex-1 py-3 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 font-medium">
+              취소
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+// 저축 통장 이름 수정 처리
+async function handleEditSavingsAccount(event, id) {
+  event.preventDefault();
+  
+  const formData = new FormData(event.target);
+  const name = formData.get('name').trim();
+  
+  if (!name) {
+    alert('통장 이름을 입력해주세요.');
+    return;
+  }
+  
+  try {
+    const response = await axios.put(`/api/savings-accounts/${id}`, { name });
+    if (response.data.success) {
+      closeModal();
+      renderSavingsView();
+    }
+  } catch (error) {
+    alert(error.response?.data?.error || '저축 통장 수정 중 오류가 발생했습니다.');
+  }
+}

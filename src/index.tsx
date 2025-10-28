@@ -67,7 +67,26 @@ app.post('/api/savings-accounts', async (c) => {
   return c.json({ success: true, id: result.meta.last_row_id })
 })
 
-// 1.3 저축 통장 삭제
+// 1.3 저축 통장 이름 수정
+app.put('/api/savings-accounts/:id', async (c) => {
+  const { DB } = c.env
+  const id = c.req.param('id')
+  const { name } = await c.req.json()
+  
+  if (!name || name.trim() === '') {
+    return c.json({ success: false, error: '통장 이름을 입력해주세요.' }, 400)
+  }
+  
+  await DB.prepare(`
+    UPDATE savings_accounts 
+    SET name = ?
+    WHERE id = ?
+  `).bind(name.trim(), id).run()
+  
+  return c.json({ success: true })
+})
+
+// 1.4 저축 통장 삭제
 app.delete('/api/savings-accounts/:id', async (c) => {
   const { DB } = c.env
   const id = c.req.param('id')
@@ -77,7 +96,7 @@ app.delete('/api/savings-accounts/:id', async (c) => {
   return c.json({ success: true })
 })
 
-// 1.4 저축 목표 설정
+// 1.5 저축 목표 설정
 app.put('/api/savings-accounts/:id/goal', async (c) => {
   const { DB } = c.env
   const id = c.req.param('id')
@@ -385,7 +404,51 @@ app.post('/api/fixed-expenses', async (c) => {
   return c.json({ success: true, id: result.meta.last_row_id })
 })
 
-// 5.3 고정지출 삭제 (소프트 삭제)
+// 5.3 고정지출 수정
+app.put('/api/fixed-expenses/:id', async (c) => {
+  const { DB } = c.env
+  const id = c.req.param('id')
+  const { name, category, amount, frequency, week_of_month, day_of_week, payment_day } = await c.req.json()
+  
+  if (!name || !category || !amount || !frequency) {
+    return c.json({ success: false, error: '필수 항목을 입력해주세요.' }, 400)
+  }
+  
+  if (!['monthly', 'weekly', 'monthly_day'].includes(frequency)) {
+    return c.json({ success: false, error: '유효하지 않은 주기입니다.' }, 400)
+  }
+  
+  // 'monthly' = 매월 특정 주/요일 (예: 매월 첫째 주 월요일)
+  if (frequency === 'monthly') {
+    if (!week_of_month) {
+      return c.json({ success: false, error: '주차를 선택해주세요.' }, 400)
+    }
+    if (day_of_week === undefined) {
+      return c.json({ success: false, error: '요일을 선택해주세요.' }, 400)
+    }
+  }
+  
+  // 'monthly_day' = 매월 특정 일자 (예: 매월 5일)
+  if (frequency === 'monthly_day' && !payment_day) {
+    return c.json({ success: false, error: '일자를 선택해주세요.' }, 400)
+  }
+  
+  // 'weekly' = 매주 특정 요일 (예: 매주 금요일)
+  if (frequency === 'weekly' && day_of_week === undefined) {
+    return c.json({ success: false, error: '요일을 선택해주세요.' }, 400)
+  }
+  
+  await DB.prepare(`
+    UPDATE fixed_expenses 
+    SET name = ?, category = ?, amount = ?, frequency = ?, 
+        week_of_month = ?, day_of_week = ?, payment_day = ?
+    WHERE id = ?
+  `).bind(name, category, amount, frequency, week_of_month || null, day_of_week ?? null, payment_day || null, id).run()
+  
+  return c.json({ success: true })
+})
+
+// 5.4 고정지출 삭제 (소프트 삭제)
 app.delete('/api/fixed-expenses/:id', async (c) => {
   const { DB } = c.env
   const id = c.req.param('id')

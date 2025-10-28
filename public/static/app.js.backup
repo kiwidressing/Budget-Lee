@@ -1,10 +1,4 @@
-// =============================================================================
-// 가계부 앱 - 프론트엔드 JavaScript
-// =============================================================================
-
-// =============================================================================
 // 전역 상태 객체
-// =============================================================================
 
 const state = {
   currentMonth: new Date(),
@@ -13,10 +7,11 @@ const state = {
   savingsAccounts: [],
   fixedExpenses: [],
   budgets: [],
+  investments: [],
   settings: {
     currency: 'KRW',
     initial_balance: 0,
-    initial_savings: 0,
+    cash_on_hand: 0,
     category_colors: {
       income: '#3B82F6',
       expense: '#EF4444',
@@ -25,12 +20,12 @@ const state = {
   },
   activeView: 'month',
   expenseChart: null,
-  currentTransactionType: 'income'
+  currentTransactionType: 'income',
+  investmentPriceRefreshInterval: null,
+  darkMode: localStorage.getItem('darkMode') === 'true'
 };
 
-// =============================================================================
 // 카테고리 정의
-// =============================================================================
 
 const categories = {
   income: ['급여', '상여금', '부수입', '기타수입'],
@@ -42,9 +37,7 @@ const categories = {
   savings: ['저축']
 };
 
-// =============================================================================
 // 통화 정의
-// =============================================================================
 
 const CURRENCIES = {
   'KRW': { symbol: '₩', name: '원화 (KRW)' },
@@ -55,9 +48,7 @@ const CURRENCIES = {
   'GBP': { symbol: '£', name: '영국 파운드 (GBP)' }
 };
 
-// =============================================================================
 // 유틸리티 함수
-// =============================================================================
 
 function formatCurrency(amount) {
   const currency = state.settings.currency || 'KRW';
@@ -87,11 +78,6 @@ function getDateString(date) {
 
 function getDaysInMonth(date) {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-}
-
-function getWeekName(nth) {
-  const names = ['', '첫째', '둘째', '셋째', '넷째'];
-  return names[nth] || '';
 }
 
 function getDayName(dayOfWeek) {
@@ -124,9 +110,157 @@ function getNthDayOfMonth(year, month, nth, dayOfWeek) {
   return null;
 }
 
-// =============================================================================
+// 입력 검증 유틸리티 함수들
+
+function validateNumber(value, min = 0, max = null, fieldName = '값') {
+  const num = parseFloat(value);
+  
+  if (isNaN(num)) {
+    return { valid: false, error: `${fieldName}은(는) 유효한 숫자여야 합니다.` };
+  }
+  
+  if (num < min) {
+    return { valid: false, error: `${fieldName}은(는) ${min} 이상이어야 합니다.` };
+  }
+  
+  if (max !== null && num > max) {
+    return { valid: false, error: `${fieldName}은(는) ${max} 이하여야 합니다.` };
+  }
+  
+  return { valid: true, value: num };
+}
+
+function validateInteger(value, min = 0, max = null, fieldName = '값') {
+  const result = validateNumber(value, min, max, fieldName);
+  
+  if (!result.valid) {
+    return result;
+  }
+  
+  if (!Number.isInteger(result.value)) {
+    return { valid: false, error: `${fieldName}은(는) 정수여야 합니다.` };
+  }
+  
+  return result;
+}
+
+function validatePositiveNumber(value, fieldName = '금액') {
+  const result = validateNumber(value, 0.01, null, fieldName);
+  
+  if (!result.valid) {
+    return result;
+  }
+  
+  if (result.value <= 0) {
+    return { valid: false, error: `${fieldName}은(는) 0보다 커야 합니다.` };
+  }
+  
+  return result;
+}
+
+function validateDate(dateString, fieldName = '날짜') {
+  if (!dateString || dateString.trim() === '') {
+    return { valid: false, error: `${fieldName}을(를) 입력해주세요.` };
+  }
+  
+  const date = new Date(dateString);
+  
+  if (isNaN(date.getTime())) {
+    return { valid: false, error: `${fieldName}이(가) 유효하지 않습니다.` };
+  }
+  
+  // 1900년 ~ 2100년 사이만 허용
+  const year = date.getFullYear();
+  if (year < 1900 || year > 2100) {
+    return { valid: false, error: `${fieldName}은(는) 1900년부터 2100년 사이여야 합니다.` };
+  }
+  
+  return { valid: true, value: dateString };
+}
+
+function validateDateRange(startDate, endDate) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  
+  if (start > end) {
+    return { valid: false, error: '시작 날짜는 종료 날짜보다 이전이어야 합니다.' };
+  }
+  
+  return { valid: true };
+}
+
+function validateString(value, minLength = 1, maxLength = 255, fieldName = '텍스트') {
+  if (!value || typeof value !== 'string') {
+    return { valid: false, error: `${fieldName}을(를) 입력해주세요.` };
+  }
+  
+  const trimmed = value.trim();
+  
+  if (trimmed.length < minLength) {
+    return { valid: false, error: `${fieldName}은(는) 최소 ${minLength}자 이상이어야 합니다.` };
+  }
+  
+  if (trimmed.length > maxLength) {
+    return { valid: false, error: `${fieldName}은(는) 최대 ${maxLength}자 이하여야 합니다.` };
+  }
+  
+  return { valid: true, value: trimmed };
+}
+
+function sanitizeString(value) {
+  if (!value || typeof value !== 'string') {
+    return '';
+  }
+  
+  // HTML 태그 제거 및 특수 문자 이스케이프
+  return value
+    .trim()
+    .replace(/[<>]/g, '')
+    .substring(0, 500); // 최대 500자로 제한
+}
+
+function validateRequired(value, fieldName = '필드') {
+  if (value === null || value === undefined || value === '') {
+    return { valid: false, error: `${fieldName}은(는) 필수 입력 항목입니다.` };
+  }
+  
+  if (typeof value === 'string' && value.trim() === '') {
+    return { valid: false, error: `${fieldName}을(를) 입력해주세요.` };
+  }
+  
+  return { valid: true };
+}
+
+function showValidationError(message) {
+  alert(`⚠️ 입력 오류\n\n${message}`);
+}
+
+function validateTransactionAmount(amount) {
+  // 거래 금액은 1원 이상 100억 원 이하
+  return validateNumber(amount, 1, 10000000000, '거래 금액');
+}
+
+function validateBudgetAmount(amount) {
+  // 예산은 0원 이상 (0은 삭제를 의미)
+  return validateNumber(amount, 0, 100000000000, '예산 금액');
+}
+
+function validateSavingsGoal(amount) {
+  // 저축 목표는 0원 이상 (0은 목표 제거를 의미)
+  return validateNumber(amount, 0, 100000000000, '저축 목표');
+}
+
+function validateInvestmentQuantity(quantity) {
+  // 투자 수량은 1 이상의 정수 또는 소수
+  return validateNumber(quantity, 0.00000001, 1000000000, '보유 수량');
+}
+
+function validateInvestmentPrice(price) {
+  // 투자 가격은 0.01 이상
+  return validateNumber(price, 0.01, 100000000, '매수 가격');
+}
+
 // API 호출 함수
-// =============================================================================
 
 // 거래 내역 가져오기
 async function fetchTransactions(startDate, endDate, type = null) {
@@ -139,9 +273,7 @@ async function fetchTransactions(startDate, endDate, type = null) {
     if (response.data.success) {
       state.transactions = response.data.data;
     }
-  } catch (error) {
-    console.error('거래 내역 조회 오류:', error);
-  }
+  } catch (error) {}
 }
 
 // 저축 통장 가져오기
@@ -151,9 +283,7 @@ async function fetchSavingsAccounts() {
     if (response.data.success) {
       state.savingsAccounts = response.data.data;
     }
-  } catch (error) {
-    console.error('저축 통장 조회 오류:', error);
-  }
+  } catch (error) {}
 }
 
 // 고정지출 가져오기
@@ -163,8 +293,20 @@ async function fetchFixedExpenses() {
     if (response.data.success) {
       state.fixedExpenses = response.data.data;
     }
+  } catch (error) {}
+}
+
+// 고정지출 반복 인스턴스 가져오기
+async function fetchFixedExpenseInstances(yearMonth) {
+  try {
+    const response = await axios.get(`/api/fixed-expenses/instances/${yearMonth}`);
+    if (response.data.success) {
+      return response.data.data;
+    }
+    return [];
   } catch (error) {
-    console.error('고정지출 조회 오류:', error);
+
+    return [];
   }
 }
 
@@ -175,9 +317,7 @@ async function fetchBudgets() {
     if (response.data.success) {
       state.budgets = response.data.data;
     }
-  } catch (error) {
-    console.error('예산 조회 오류:', error);
-  }
+  } catch (error) {}
 }
 
 // 설정 가져오기
@@ -193,9 +333,7 @@ async function fetchSettings() {
           : state.settings.category_colors
       };
     }
-  } catch (error) {
-    console.error('설정 조회 오류:', error);
-  }
+  } catch (error) {}
 }
 
 // 월별 통계 가져오기
@@ -204,7 +342,18 @@ async function fetchMonthlyStatistics(yearMonth) {
     const response = await axios.get(`/api/statistics/monthly/${yearMonth}`);
     return response.data;
   } catch (error) {
-    console.error('월별 통계 조회 오류:', error);
+
+    return { success: false, summary: [], expenseByCategory: [] };
+  }
+}
+
+// 주별 통계 가져오기
+async function fetchWeeklyStatistics(startDate) {
+  try {
+    const response = await axios.get(`/api/statistics/weekly/${startDate}`);
+    return response.data;
+  } catch (error) {
+
     return { success: false, summary: [], expenseByCategory: [] };
   }
 }
@@ -215,7 +364,7 @@ async function fetchCalendarData(yearMonth) {
     const response = await axios.get(`/api/calendar/${yearMonth}`);
     return response.data;
   } catch (error) {
-    console.error('달력 데이터 조회 오류:', error);
+
     return { success: false, data: [] };
   }
 }
@@ -226,20 +375,18 @@ async function fetchBudgetVsSpending(yearMonth) {
     const response = await axios.get(`/api/budgets/vs-spending/${yearMonth}`);
     return response.data;
   } catch (error) {
-    console.error('예산 현황 조회 오류:', error);
+
     return { success: false, data: [] };
   }
 }
 
-// =============================================================================
 // 탭 전환 함수
-// =============================================================================
 
 async function switchView(view) {
   state.activeView = view;
   
   // 모든 탭 버튼 업데이트
-  const tabs = ['month', 'week', 'savings', 'fixed-expenses', 'budgets', 'settings'];
+  const tabs = ['month', 'week', 'savings', 'fixed-expenses', 'budgets', 'investments', 'reports', 'settings'];
   tabs.forEach(tabName => {
     const tab = document.getElementById(`tab-${tabName}`);
     if (tab) {
@@ -268,16 +415,19 @@ async function switchView(view) {
     case 'budgets':
       await renderBudgetsView();
       break;
+    case 'investments':
+      await renderInvestmentsView();
+      break;
+    case 'reports':
+      await renderReportsView();
+      break;
     case 'settings':
       await renderSettingsView();
       break;
   }
 }
 
-
-// =============================================================================
 // 뷰 렌더링 함수들
-// =============================================================================
 
 // 월별 뷰 렌더링
 async function renderMonthView() {
@@ -298,6 +448,12 @@ async function renderMonthView() {
   const savings = state.transactions.filter(t => t.type === 'savings').reduce((sum, t) => sum + t.amount, 0);
   const balance = state.settings.initial_balance + income - expense - savings;
   
+  // 현금 거래 계산
+  const cashIncome = state.transactions.filter(t => t.type === 'income' && t.payment_method === 'cash').reduce((sum, t) => sum + t.amount, 0);
+  const cashExpense = state.transactions.filter(t => t.type === 'expense' && t.payment_method === 'cash').reduce((sum, t) => sum + t.amount, 0);
+  const cashSavings = state.transactions.filter(t => t.type === 'savings' && t.payment_method === 'cash').reduce((sum, t) => sum + t.amount, 0);
+  const cashBalance = (state.settings.cash_on_hand || 0) + cashIncome - cashExpense - cashSavings;
+  
   // 달력 데이터 준비
   const calendarDataResponse = await fetchCalendarData(yearMonth);
   const calendarDataArray = calendarDataResponse.data || [];
@@ -309,38 +465,61 @@ async function renderMonthView() {
     calendarData[item.date][item.type] = item.total;
   });
   
+  // 예산 vs 지출 데이터 가져오기
+  const budgetDataResponse = await fetchBudgetVsSpending(yearMonth);
+  const budgetData = budgetDataResponse.data || [];
+  
+  // 월별 통계 데이터 가져오기 (카테고리별 지출)
+  const monthlyStats = await fetchMonthlyStatistics(yearMonth);
+  const expenseByCategory = monthlyStats.expenseByCategory || [];
+  
   contentArea.innerHTML = `
     <div class="space-y-6">
       <!-- 월 네비게이션 -->
       <div class="flex justify-between items-center">
-        <button onclick="changeMonth(-1)" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-          <i class="fas fa-chevron-left"></i> 이전 달
+        <button onclick="changeMonth(-1)" class="w-8 h-8 md:w-10 md:h-10 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center">
+          <i class="fas fa-chevron-left text-sm"></i>
         </button>
-        <h2 class="text-2xl font-bold">${state.currentMonth.getFullYear()}년 ${state.currentMonth.getMonth() + 1}월</h2>
-        <button onclick="changeMonth(1)" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-          다음 달 <i class="fas fa-chevron-right"></i>
+        <h2 class="text-sm md:text-base font-semibold">${state.currentMonth.getFullYear()}년 ${state.currentMonth.getMonth() + 1}월</h2>
+        <button onclick="changeMonth(1)" class="w-8 h-8 md:w-10 md:h-10 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center">
+          <i class="fas fa-chevron-right text-sm"></i>
         </button>
       </div>
       
       <!-- 통계 카드 -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-blue-50 p-4 rounded-lg shadow">
-          <p class="text-blue-600 text-sm font-medium">수입</p>
+          <p class="text-blue-600 text-sm font-medium">📈 수입</p>
           <p class="text-2xl font-bold text-blue-800">${formatCurrency(income)}</p>
+          <p class="text-xs text-blue-600 mt-1">💵 현금: ${formatCurrency(cashIncome)}</p>
         </div>
         <div class="bg-red-50 p-4 rounded-lg shadow">
-          <p class="text-red-600 text-sm font-medium">지출</p>
+          <p class="text-red-600 text-sm font-medium">📉 지출</p>
           <p class="text-2xl font-bold text-red-800">${formatCurrency(expense)}</p>
+          <p class="text-xs text-red-600 mt-1">💵 현금: ${formatCurrency(cashExpense)}</p>
         </div>
         <div class="bg-green-50 p-4 rounded-lg shadow">
-          <p class="text-green-600 text-sm font-medium">저축</p>
+          <p class="text-green-600 text-sm font-medium">💚 저축</p>
           <p class="text-2xl font-bold text-green-800">${formatCurrency(savings)}</p>
+          <p class="text-xs text-green-600 mt-1">💵 현금: ${formatCurrency(cashSavings)}</p>
         </div>
         <div class="bg-gray-50 p-4 rounded-lg shadow">
-          <p class="text-gray-600 text-sm font-medium">잔액</p>
+          <p class="text-gray-600 text-sm font-medium">💰 잔액</p>
           <p class="text-2xl font-bold text-gray-800">${formatCurrency(balance)}</p>
+          <p class="text-xs text-gray-600 mt-1">💵 현금: ${formatCurrency(cashBalance)}</p>
         </div>
       </div>
+      
+      <!-- 수입/지출/저축 비율 파이차트 -->
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-xl font-bold mb-4">월별 수입/지출/저축 비율</h3>
+        <div class="flex justify-center">
+          <canvas id="month-pie-chart" style="max-width: 300px; max-height: 300px;"></canvas>
+        </div>
+      </div>
+      
+      <!-- 예산 vs 지출 그래프 -->
+      ${renderBudgetChart(budgetData, '월별')}
       
       <!-- 달력 -->
       <div class="bg-white p-6 rounded-lg shadow">
@@ -348,21 +527,105 @@ async function renderMonthView() {
         ${renderCalendar(calendarData)}
       </div>
       
+      <!-- 카테고리별 지출 바 그래프 -->
+      ${renderExpenseBarChart(expenseByCategory, '월별')}
+      
       <!-- 거래 내역 -->
       <div class="bg-white p-6 rounded-lg shadow">
         <div class="flex justify-between items-center mb-4">
           <h3 class="text-xl font-bold">거래 내역</h3>
           <button onclick="openTransactionModal(null)" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-            <i class="fas fa-plus mr-2"></i>거래 추가
+            <i class="fas fa-plus"></i>
           </button>
         </div>
-        ${renderTransactionList(state.transactions)}
+        
+        <!-- 검색 및 필터 -->
+        <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input type="text" id="search-transaction" 
+                 placeholder="설명으로 검색..." 
+                 class="px-4 py-2 border rounded"
+                 oninput="filterTransactions()">
+          
+          <select id="filter-type" class="px-4 py-2 border rounded" onchange="filterTransactions()">
+            <option value="">전체 유형</option>
+            <option value="income">수입</option>
+            <option value="expense">지출</option>
+            <option value="savings">저축</option>
+          </select>
+          
+          <select id="filter-category" class="px-4 py-2 border rounded" onchange="filterTransactions()">
+            <option value="">전체 카테고리</option>
+            ${Object.values(categories).flat().map(cat => `<option value="${cat}">${cat}</option>`).join('')}
+          </select>
+        </div>
+        
+        <div id="filtered-transactions">
+          ${renderTransactionList(state.transactions)}
+        </div>
       </div>
     </div>
   `;
+  
+  // 파이차트 그리기
+  setTimeout(() => drawPieChart('month-pie-chart', income, expense, savings), 100);
 }
 
-// 달력 렌더링
+// 파이차트 그리기
+function drawPieChart(canvasId, income, expense, savings) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  const total = income + expense + savings;
+  
+  if (total === 0) {
+    ctx.font = '14px sans-serif';
+    ctx.fillStyle = '#999';
+    ctx.textAlign = 'center';
+    ctx.fillText('데이터 없음', canvas.width / 2, canvas.height / 2);
+    return;
+  }
+  
+  new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: ['수입', '지출', '저축'],
+      datasets: [{
+        data: [income, expense, savings],
+        backgroundColor: ['#3B82F6', '#EF4444', '#10B981'],
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            padding: 15,
+            font: {
+              size: 12
+            }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const label = context.label || '';
+              const value = context.parsed || 0;
+              const percentage = ((value / total) * 100).toFixed(1);
+              return `${label}: ${formatCurrency(value)} (${percentage}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// 달력 렌더링 (토요일 파란색, 일요일 빨간색)
 function renderCalendar(calendarData) {
   const year = state.currentMonth.getFullYear();
   const month = state.currentMonth.getMonth();
@@ -371,9 +634,12 @@ function renderCalendar(calendarData) {
   
   let html = '<div class="grid grid-cols-7 gap-2">';
   
-  // 요일 헤더
-  ['일', '월', '화', '수', '목', '금', '토'].forEach(day => {
-    html += `<div class="text-center font-bold text-gray-600 py-2">${day}</div>`;
+  // 요일 헤더 (일요일 빨강, 토요일 파랑)
+  const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+  const dayColors = ['text-red-600', 'text-gray-600', 'text-gray-600', 'text-gray-600', 'text-gray-600', 'text-gray-600', 'text-blue-600'];
+  
+  dayNames.forEach((day, index) => {
+    html += `<div class="text-center font-bold ${dayColors[index]} py-2">${day}</div>`;
   });
   
   // 첫 주 빈 칸
@@ -381,23 +647,187 @@ function renderCalendar(calendarData) {
     html += '<div></div>';
   }
   
-  // 날짜 렌더링
+  // 날짜 렌더링 (컴팩트 모드 - 점으로 표시)
   for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = getDateString(new Date(year, month, day));
+    const currentDate = new Date(year, month, day);
+    const dateStr = getDateString(currentDate);
+    const dayOfWeek = currentDate.getDay();
     const dayData = calendarData[dateStr] || {};
     
+    // 토요일(6) 파란색, 일요일(0) 빨간색
+    let dayColor = 'text-gray-700';
+    if (dayOfWeek === 0) dayColor = 'text-red-500';
+    else if (dayOfWeek === 6) dayColor = 'text-blue-500';
+    
+    // 거래 점 생성 (입력 순서대로 배치)
+    let dots = '';
+    const hasIncome = dayData.income && dayData.income > 0;
+    const hasExpense = dayData.expense && dayData.expense > 0;
+    const hasSavings = dayData.savings && dayData.savings > 0;
+    
+    if (hasIncome) dots += '<span class="calendar-dot income"></span>';
+    if (hasExpense) dots += '<span class="calendar-dot expense"></span>';
+    if (hasSavings) dots += '<span class="calendar-dot savings"></span>';
+    
     html += `
-      <div class="border p-2 rounded cursor-pointer hover:bg-gray-50 min-h-[80px]" 
+      <div class="border rounded cursor-pointer hover:bg-gray-50 calendar-cell-compact" 
            onclick="openTransactionModal('${dateStr}')">
-        <div class="font-bold mb-1">${day}</div>
-        ${dayData.income ? `<div class="text-xs text-blue-600">+${formatCurrencyShort(dayData.income)}</div>` : ''}
-        ${dayData.expense ? `<div class="text-xs text-red-600">-${formatCurrencyShort(dayData.expense)}</div>` : ''}
-        ${dayData.savings ? `<div class="text-xs text-green-600">저축${formatCurrencyShort(dayData.savings)}</div>` : ''}
+        <div class="calendar-day-number text-xs md:text-sm font-semibold ${dayColor}">${day}</div>
+        <div class="calendar-dots-container">
+          ${dots}
+        </div>
       </div>
     `;
   }
   
   html += '</div>';
+  return html;
+}
+
+// 예산 vs 지출 그래프 렌더링
+function renderBudgetChart(budgetData, period) {
+  if (!budgetData || budgetData.length === 0) {
+    return `
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-xl font-bold mb-4">${period} 예산 현황</h3>
+        <p class="text-center text-gray-500 py-4">설정된 예산이 없습니다. 예산 탭에서 카테고리별 예산을 설정하세요.</p>
+      </div>
+    `;
+  }
+  
+  let html = `
+    <div class="bg-white p-6 rounded-lg shadow">
+      <h3 class="text-xl font-bold mb-4">${period} 예산 현황</h3>
+      <div class="space-y-4">
+  `;
+  
+  budgetData.forEach(item => {
+    const percentage = item.monthly_budget > 0 ? (item.actual_spending / item.monthly_budget * 100) : 0;
+    const remaining = item.monthly_budget - item.actual_spending;
+    
+    // 진행률에 따른 색상
+    let barColor = '#10B981'; // 초록
+    if (percentage >= 100) barColor = '#EF4444'; // 빨강
+    else if (percentage >= 80) barColor = '#F97316'; // 주황
+    else if (percentage >= 50) barColor = '#F59E0B'; // 노랑
+    
+    html += `
+      <div>
+        <div class="flex justify-between items-center mb-2">
+          <span class="font-medium text-gray-700">${item.category}</span>
+          <div class="text-right">
+            <span class="text-sm font-bold" style="color: ${barColor}">${formatCurrency(item.actual_spending)}</span>
+            <span class="text-sm text-gray-500"> / ${formatCurrency(item.monthly_budget)}</span>
+            <span class="text-xs ml-2 px-2 py-1 rounded" style="background-color: ${barColor}20; color: ${barColor}">
+              ${percentage.toFixed(1)}%
+            </span>
+          </div>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+          <div class="h-4 rounded-full transition-all flex items-center justify-end px-2" 
+               style="width: ${Math.min(percentage, 100)}%; background-color: ${barColor}">
+            ${percentage > 10 ? `<span class="text-xs text-white font-bold">${formatCurrencyShort(item.actual_spending)}</span>` : ''}
+          </div>
+        </div>
+        <p class="text-xs mt-1 ${remaining < 0 ? 'text-red-600 font-bold' : 'text-gray-600'}">
+          ${remaining >= 0 ? `잔액: ${formatCurrency(remaining)}` : `⚠️ 초과: ${formatCurrency(Math.abs(remaining))}`}
+        </p>
+      </div>
+    `;
+  });
+  
+  html += `
+      </div>
+    </div>
+  `;
+  
+  return html;
+}
+
+// 카테고리별 지출 바 그래프 렌더링
+function renderExpenseBarChart(expenseByCategory, period) {
+  if (!expenseByCategory || expenseByCategory.length === 0) {
+    return `
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-xl font-bold mb-4">${period} 카테고리별 지출</h3>
+        <p class="text-center text-gray-500 py-4">지출 내역이 없습니다.</p>
+      </div>
+    `;
+  }
+  
+  // 카테고리별 색상 매핑 (일관된 색상 사용)
+  const categoryColors = {
+    '의복비': '#8B5CF6',
+    '식비': '#10B981',
+    '주거비': '#F59E0B',
+    '교통비': '#3B82F6',
+    '문화생활': '#EC4899',
+    '쇼핑': '#F97316',
+    '의료비': '#EF4444',
+    '교육비': '#6366F1',
+    '통신비': '#14B8A6',
+    '보험': '#8B5CF6',
+    '기타지출': '#6B7280'
+  };
+  
+  // 총 지출 계산
+  const totalExpense = expenseByCategory.reduce((sum, item) => sum + item.total, 0);
+  
+  // 최대값 찾기 (바 너비 계산용)
+  const maxAmount = Math.max(...expenseByCategory.map(item => item.total));
+  
+  let html = `
+    <div class="bg-white p-6 rounded-lg shadow">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold">
+          <i class="fas fa-chart-bar mr-2 text-blue-600"></i>${period} 카테고리별 지출
+        </h3>
+        <div class="text-right">
+          <p class="text-sm text-gray-600">총 지출</p>
+          <p class="text-2xl font-bold text-red-600">${formatCurrency(totalExpense)}</p>
+        </div>
+      </div>
+      <div class="space-y-3">
+  `;
+  
+  // 지출 금액 순으로 정렬
+  const sortedExpenses = [...expenseByCategory].sort((a, b) => b.total - a.total);
+  
+  sortedExpenses.forEach(item => {
+    const percentage = totalExpense > 0 ? (item.total / totalExpense * 100) : 0;
+    const barWidth = maxAmount > 0 ? (item.total / maxAmount * 100) : 0;
+    const color = categoryColors[item.category] || '#6B7280';
+    
+    html += `
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded-full" style="background-color: ${color}"></div>
+            <span class="font-medium text-gray-700">${item.category}</span>
+            <span class="text-xs text-gray-500">(${item.count}건)</span>
+          </div>
+          <div class="text-right">
+            <span class="font-bold text-gray-900">${formatCurrency(item.total)}</span>
+            <span class="text-xs ml-2 px-2 py-1 rounded" style="background-color: ${color}20; color: ${color}">
+              ${percentage.toFixed(1)}%
+            </span>
+          </div>
+        </div>
+        <div class="w-full bg-gray-100 rounded-full h-6 overflow-hidden">
+          <div class="h-6 rounded-full transition-all flex items-center px-3" 
+               style="width: ${barWidth}%; background-color: ${color}">
+            ${barWidth > 15 ? `<span class="text-xs text-white font-bold">${formatCurrencyShort(item.total)}</span>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  
+  html += `
+      </div>
+    </div>
+  `;
+  
   return html;
 }
 
@@ -411,11 +841,13 @@ function renderTransactionList(transactions) {
   transactions.forEach(t => {
     const typeColor = t.type === 'income' ? 'blue' : t.type === 'expense' ? 'red' : 'green';
     const typeText = t.type === 'income' ? '수입' : t.type === 'expense' ? '지출' : '저축';
+    const paymentIcon = t.payment_method === 'cash' ? '💵' : '💳';
     
     html += `
       <div class="flex justify-between items-center p-3 bg-gray-50 rounded hover:bg-gray-100">
         <div class="flex-1">
           <div class="flex items-center gap-2">
+            <span class="text-lg">${paymentIcon}</span>
             <span class="px-2 py-1 text-xs rounded bg-${typeColor}-100 text-${typeColor}-600">${typeText}</span>
             <span class="font-medium">${t.category}</span>
           </div>
@@ -423,6 +855,9 @@ function renderTransactionList(transactions) {
         </div>
         <div class="flex items-center gap-3">
           <span class="font-bold text-${typeColor}-600">${t.type === 'income' ? '+' : '-'}${formatCurrency(t.amount)}</span>
+          <button onclick="openEditTransactionModal(${t.id})" class="text-blue-500 hover:text-blue-700">
+            <i class="fas fa-edit"></i>
+          </button>
           <button onclick="deleteTransaction(${t.id})" class="text-red-500 hover:text-red-700">
             <i class="fas fa-trash"></i>
           </button>
@@ -432,6 +867,38 @@ function renderTransactionList(transactions) {
   });
   html += '</div>';
   return html;
+}
+
+// 거래 내역 필터링
+function filterTransactions() {
+  const searchText = document.getElementById('search-transaction')?.value.toLowerCase() || '';
+  const filterType = document.getElementById('filter-type')?.value || '';
+  const filterCategory = document.getElementById('filter-category')?.value || '';
+  
+  let filtered = state.transactions.filter(t => {
+    // 검색어 필터
+    if (searchText && !(t.description || '').toLowerCase().includes(searchText)) {
+      return false;
+    }
+    
+    // 거래 유형 필터
+    if (filterType && t.type !== filterType) {
+      return false;
+    }
+    
+    // 카테고리 필터
+    if (filterCategory && t.category !== filterCategory) {
+      return false;
+    }
+    
+    return true;
+  });
+  
+  // 필터링된 결과 렌더링
+  const filteredContainer = document.getElementById('filtered-transactions');
+  if (filteredContainer) {
+    filteredContainer.innerHTML = renderTransactionList(filtered);
+  }
 }
 
 // 주별 뷰 렌더링
@@ -449,45 +916,85 @@ async function renderWeekView() {
   const expense = state.transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const savings = state.transactions.filter(t => t.type === 'savings').reduce((sum, t) => sum + t.amount, 0);
   
+  // 현금 거래 계산
+  const cashIncome = state.transactions.filter(t => t.type === 'income' && t.payment_method === 'cash').reduce((sum, t) => sum + t.amount, 0);
+  const cashExpense = state.transactions.filter(t => t.type === 'expense' && t.payment_method === 'cash').reduce((sum, t) => sum + t.amount, 0);
+  const cashSavings = state.transactions.filter(t => t.type === 'savings' && t.payment_method === 'cash').reduce((sum, t) => sum + t.amount, 0);
+  
+  // 주간 예산 계산 (월별 예산을 4로 나눔)
+  const yearMonth = getYearMonth(state.currentWeekStart);
+  const budgetDataResponse = await fetchBudgetVsSpending(yearMonth);
+  const budgetData = (budgetDataResponse.data || []).map(item => ({
+    ...item,
+    monthly_budget: Math.round(item.monthly_budget / 4),
+    actual_spending: state.transactions
+      .filter(t => t.type === 'expense' && t.category === item.category)
+      .reduce((sum, t) => sum + t.amount, 0)
+  }));
+  
+  // 주간 통계 데이터 가져오기 (카테고리별 지출)
+  const weeklyStats = await fetchWeeklyStatistics(getDateString(state.currentWeekStart));
+  const expenseByCategory = weeklyStats.expenseByCategory || [];
+  
   const contentArea = document.getElementById('content-area');
   contentArea.innerHTML = `
     <div class="space-y-6">
       <div class="flex justify-between items-center">
-        <button onclick="changeWeek(-1)" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-          <i class="fas fa-chevron-left"></i> 이전 주
+        <button onclick="changeWeek(-1)" class="w-8 h-8 md:w-10 md:h-10 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center">
+          <i class="fas fa-chevron-left text-sm"></i>
         </button>
-        <h2 class="text-2xl font-bold">${getDateString(state.currentWeekStart)} ~ ${getDateString(weekEnd)}</h2>
-        <button onclick="changeWeek(1)" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-          다음 주 <i class="fas fa-chevron-right"></i>
+        <h2 class="text-xs md:text-sm font-semibold">${getDateString(state.currentWeekStart)} ~ ${getDateString(weekEnd)}</h2>
+        <button onclick="changeWeek(1)" class="w-8 h-8 md:w-10 md:h-10 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center">
+          <i class="fas fa-chevron-right text-sm"></i>
         </button>
       </div>
       
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-blue-50 p-4 rounded-lg shadow">
-          <p class="text-blue-600 text-sm font-medium">수입</p>
+          <p class="text-blue-600 text-sm font-medium">📈 수입</p>
           <p class="text-2xl font-bold text-blue-800">${formatCurrency(income)}</p>
+          <p class="text-xs text-blue-600 mt-1">💵 현금: ${formatCurrency(cashIncome)}</p>
         </div>
         <div class="bg-red-50 p-4 rounded-lg shadow">
-          <p class="text-red-600 text-sm font-medium">지출</p>
+          <p class="text-red-600 text-sm font-medium">📉 지출</p>
           <p class="text-2xl font-bold text-red-800">${formatCurrency(expense)}</p>
+          <p class="text-xs text-red-600 mt-1">💵 현금: ${formatCurrency(cashExpense)}</p>
         </div>
         <div class="bg-green-50 p-4 rounded-lg shadow">
-          <p class="text-green-600 text-sm font-medium">저축</p>
+          <p class="text-green-600 text-sm font-medium">💚 저축</p>
           <p class="text-2xl font-bold text-green-800">${formatCurrency(savings)}</p>
+          <p class="text-xs text-green-600 mt-1">💵 현금: ${formatCurrency(cashSavings)}</p>
         </div>
       </div>
+      
+      <!-- 수입/지출/저축 비율 파이차트 -->
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-xl font-bold mb-4">주별 수입/지출/저축 비율</h3>
+        <div class="flex justify-center">
+          <canvas id="week-pie-chart" style="max-width: 300px; max-height: 300px;"></canvas>
+        </div>
+      </div>
+      
+      <!-- 주간 예산 vs 지출 그래프 -->
+      ${renderBudgetChart(budgetData, '주별')}
+      
+      <!-- 주간 카테고리별 지출 바 그래프 -->
+      ${renderExpenseBarChart(expenseByCategory, '주별')}
       
       <div class="bg-white p-6 rounded-lg shadow">
         <div class="flex justify-between items-center mb-4">
           <h3 class="text-xl font-bold">거래 내역</h3>
           <button onclick="openTransactionModal(null)" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-            <i class="fas fa-plus mr-2"></i>거래 추가
+            <i class="fas fa-plus"></i>
           </button>
         </div>
         ${renderTransactionList(state.transactions)}
       </div>
     </div>
   `;
+  
+  // 파이차트 그리기
+  setTimeout(() => drawPieChart('week-pie-chart', income, expense, savings), 100);
 }
 
 // 저축 뷰 렌더링
@@ -507,22 +1014,58 @@ async function renderSavingsView() {
       <div class="flex justify-between items-center">
         <h3 class="text-xl font-bold">저축 통장 목록</h3>
         <button onclick="openSavingsAccountModal()" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-          <i class="fas fa-plus mr-2"></i>통장 추가
+          <i class="fas fa-plus"></i>
         </button>
       </div>
       
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        ${state.savingsAccounts.map(acc => `
+        ${state.savingsAccounts.map(acc => {
+          const savingsGoal = acc.savings_goal || 0;
+          const currentSavings = acc.total_savings || 0;
+          const progress = savingsGoal > 0 ? Math.min((currentSavings / savingsGoal) * 100, 100) : 0;
+          const progressColor = progress >= 100 ? '#10B981' : progress >= 75 ? '#F59E0B' : '#3B82F6';
+          
+          return `
           <div class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition">
-            <div class="flex justify-between items-start mb-4">
+            <div class="flex justify-between items-start mb-3">
               <h4 class="text-lg font-bold">${acc.name}</h4>
-              <button onclick="deleteSavingsAccount(${acc.id})" class="text-red-500 hover:text-red-700">
-                <i class="fas fa-trash"></i>
-              </button>
+              <div class="flex gap-2">
+                <button onclick="openSavingsGoalModal(${acc.id}, ${savingsGoal})" 
+                        class="text-blue-500 hover:text-blue-700" title="목표 설정">
+                  <i class="fas fa-target"></i>
+                </button>
+                <button onclick="deleteSavingsAccount(${acc.id})" 
+                        class="text-red-500 hover:text-red-700" title="삭제">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
             </div>
-            <p class="text-3xl font-bold text-green-600">${formatCurrency(acc.total_savings || 0)}</p>
+            
+            <p class="text-3xl font-bold text-green-600 mb-2">${formatCurrency(currentSavings)}</p>
+            
+            ${savingsGoal > 0 ? `
+              <div class="mt-3">
+                <div class="flex justify-between text-xs text-gray-600 mb-1">
+                  <span>목표: ${formatCurrency(savingsGoal)}</span>
+                  <span>${progress.toFixed(1)}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div class="h-3 rounded-full transition-all" 
+                       style="width: ${progress}%; background-color: ${progressColor}">
+                  </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">
+                  ${currentSavings >= savingsGoal ? '🎉 목표 달성!' : `남은 금액: ${formatCurrency(savingsGoal - currentSavings)}`}
+                </p>
+              </div>
+            ` : `
+              <p class="text-xs text-gray-500 mt-2">
+                <i class="fas fa-info-circle mr-1"></i>목표를 설정하려면 타겟 아이콘을 클릭하세요
+              </p>
+            `}
           </div>
-        `).join('')}
+        `;
+        }).join('')}
       </div>
     </div>
   `;
@@ -532,47 +1075,113 @@ async function renderSavingsView() {
 async function renderFixedExpensesView() {
   await fetchFixedExpenses();
   
+  // 현재 월의 고정지출 반복 인스턴스 가져오기
+  const currentYearMonth = getYearMonth(new Date());
+  const fixedExpenseInstances = await fetchFixedExpenseInstances(currentYearMonth);
+  
   const contentArea = document.getElementById('content-area');
   contentArea.innerHTML = `
     <div class="space-y-6">
-      <div class="flex justify-between items-center">
+      <div class="flex justify-between items-center mb-4">
         <h3 class="text-xl font-bold">고정지출 관리</h3>
         <button onclick="openFixedExpenseModal()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-          <i class="fas fa-plus mr-2"></i>고정지출 추가
+          <i class="fas fa-plus"></i>
         </button>
       </div>
       
+      <!-- 안내 메시지 -->
+      <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+        <div class="flex items-start">
+          <i class="fas fa-info-circle text-blue-500 text-xl mr-3 mt-1"></i>
+          <div>
+            <h4 class="font-bold text-blue-800 mb-1">📌 고정지출 항목 안내</h4>
+            <p class="text-sm text-blue-700 leading-relaxed">
+              고정지출 항목은 <strong>확인용</strong>으로 만들어졌습니다.<br>
+              번거롭겠지만 <strong>거래내역</strong> 탭에서 고정지출 지불내역을 <strong>별도로 입력</strong>해야 합니다.<br>
+              이곳은 매월/매주 발생하는 고정지출을 잊지 않도록 관리하는 용도입니다.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 월 선택 네비게이션 -->
+      <div class="flex items-center justify-between bg-white p-4 rounded-lg shadow">
+        <button onclick="changeFixedExpenseMonth(-1)" class="p-2 hover:bg-gray-100 rounded">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <h3 class="text-lg font-semibold">
+          ${state.currentMonth.getFullYear()}년 ${state.currentMonth.getMonth() + 1}월
+        </h3>
+        <button onclick="changeFixedExpenseMonth(1)" class="p-2 hover:bg-gray-100 rounded">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+      
+      <!-- 고정지출 인스턴스 목록 -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        ${state.fixedExpenses.map(expense => `
-          <div class="bg-white p-6 rounded-lg shadow">
-            <div class="flex justify-between items-start mb-3">
-              <h4 class="text-lg font-bold">${expense.name}</h4>
-              <button onclick="deleteFixedExpense(${expense.id})" class="text-red-500 hover:text-red-700">
+        ${fixedExpenseInstances.map((instance, index) => {
+          // 체크박스 ID를 날짜 기반으로 고유하게 생성
+          const checkboxId = 'check-' + instance.id + '-' + instance.scheduled_date.replace(/-/g, '');
+          
+          return `
+          <div class="bg-white p-5 rounded-lg shadow hover:shadow-md transition">
+            <div class="flex items-center gap-3 mb-3">
+              <input 
+                type="checkbox" 
+                id="${checkboxId}"
+                ${instance.is_paid ? 'checked' : ''}
+                onchange="handleFixedExpenseCheck('${checkboxId}', ${instance.id}, '${instance.scheduled_date}', this.checked)"
+                class="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-500 cursor-pointer"
+              >
+              <div class="flex-1">
+                <h4 class="text-lg font-bold ${instance.is_paid ? 'text-gray-400 line-through' : 'text-gray-800'}">${instance.name}</h4>
+                <p class="text-2xl font-bold ${instance.is_paid ? 'text-gray-400' : 'text-red-600'}">${formatCurrency(instance.amount)}</p>
+              </div>
+              <button onclick="deleteFixedExpense(${instance.id})" class="text-gray-400 hover:text-red-600 transition">
                 <i class="fas fa-trash"></i>
               </button>
             </div>
-            <p class="text-2xl font-bold text-red-600 mb-3">${formatCurrency(expense.amount)}</p>
-            <div class="flex flex-wrap gap-1 mb-3">
-              <span class="px-2 py-1 text-xs rounded-full ${expense.frequency === 'monthly' ? 'bg-blue-500' : 'bg-green-500'} text-white">
-                ${expense.frequency === 'monthly' ? '월별' : '주별'}
-              </span>
-              ${expense.frequency === 'monthly' ? `
-                <span class="px-2 py-1 text-xs rounded-full bg-orange-500 text-white">
-                  ${getWeekName(expense.week_of_month)}주
-                </span>
-              ` : ''}
-              <span class="px-2 py-1 text-xs rounded-full bg-purple-500 text-white">
-                ${getDayName(expense.day_of_week)}요일
+            
+            <div class="flex items-center gap-2 text-sm text-gray-600 mb-2">
+              <i class="fas fa-calendar-alt"></i>
+              <span>${instance.scheduled_date}</span>
+              <span class="text-xs px-2 py-0.5 rounded-full ${instance.frequency === 'monthly_day' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}">
+                ${instance.frequency === 'monthly_day' ? `매월 ${instance.payment_day}일` : `매주 ${getDayName(instance.day_of_week)}요일`}
               </span>
             </div>
-            <p class="text-sm text-gray-600">카테고리: ${expense.category}</p>
+            
+            <div class="flex items-center gap-2 text-sm text-gray-500">
+              <i class="fas fa-tag"></i>
+              <span>${instance.category}</span>
+            </div>
           </div>
-        `).join('')}
+        `;
+        }).join('')}
       </div>
       
-      ${state.fixedExpenses.length === 0 ? '<p class="text-center text-gray-500 py-8">등록된 고정지출이 없습니다.</p>' : ''}
+      ${fixedExpenseInstances.length === 0 ? '<p class="text-center text-gray-500 py-8">이번 달에 예정된 고정지출이 없습니다.</p>' : ''}
     </div>
   `;
+}
+
+// 고정지출 체크박스 핸들러 - 단순 확인용
+async function handleFixedExpenseCheck(checkboxId, expenseId, date, isChecked) {
+  // 체크박스 상태만 저장 (거래내역에 추가하지 않음)
+  try {
+    if (isChecked) {
+      // 체크 시: 지불 표시만 저장
+      await axios.post(`/api/fixed-expenses/${expenseId}/mark-paid`, { date });
+      renderFixedExpensesView();
+    } else {
+      // 체크 해제 시: 지불 표시 제거
+      await axios.delete(`/api/fixed-expenses/${expenseId}/mark-paid/${date}`);
+      renderFixedExpensesView();
+    }
+  } catch (error) {
+    console.error('체크박스 상태 저장 오류:', error);
+    const checkbox = document.getElementById(checkboxId);
+    if (checkbox) checkbox.checked = !isChecked;
+  }
 }
 
 // 예산 뷰 렌더링
@@ -595,6 +1204,7 @@ async function renderBudgetsView() {
         ${categories.expense.map(category => {
           const budget = state.budgets.find(b => b.category === category);
           const budgetAmount = budget ? budget.monthly_budget : 0;
+          const currencySymbol = CURRENCIES[state.settings.currency]?.symbol || '₩';
           
           return `
             <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -607,13 +1217,1274 @@ async function renderBudgetsView() {
                 class="flex-1 px-4 py-2 border rounded"
                 onchange="handleBudgetChange('${category}', this.value)"
                 placeholder="예산 없음 (0원 입력 시 삭제)">
-              <span class="text-gray-600">₩</span>
+              <span class="text-gray-600">${currencySymbol}</span>
             </div>
           `;
         }).join('')}
       </div>
     </div>
   `;
+}
+
+// 투자 관리 뷰 렌더링
+
+async function renderInvestmentsView() {
+  await fetchInvestments();
+  
+  const contentArea = document.getElementById('content-area');
+  
+  // 전체 포트폴리오 계산
+  let totalInvestment = 0;
+  let totalCurrentValue = 0;
+  
+  contentArea.innerHTML = `
+    <div class="space-y-6">
+      <div class="flex justify-between items-center">
+        <h2 class="text-2xl font-bold">투자 관리</h2>
+        <button onclick="openInvestmentModal()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      
+      <!-- 안내 메시지 -->
+      <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div class="flex items-start gap-3">
+          <i class="fas fa-info-circle text-yellow-600 mt-1"></i>
+          <div class="text-sm text-yellow-800">
+            <p class="font-medium mb-1">실시간 주가 정보 안내</p>
+            <p>샌드박스 환경에서는 외부 API 접근이 제한되어 시뮬레이션 데이터가 표시될 수 있습니다.</p>
+            <p class="mt-1">실제 Cloudflare Pages 배포 시에는 실시간 주가 데이터가 정상적으로 표시됩니다.</p>
+            <p class="mt-2 text-xs">
+              <strong>지원 종목:</strong> 
+              <br/>• 미국 주식: AAPL, GOOGL, MSFT, TSLA, AMZN, META, NVDA, AMD, NFLX
+              <br/>• 한국 주식: 005930.KS (삼성전자), 000660.KS (SK하이닉스)
+              <br/>• 암호화폐: BTC, ETH, BNB, XRP, SOL, ADA, DOGE, DOT, MATIC, AVAX
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 포트폴리오 요약 -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="portfolio-summary">
+        <div class="bg-white rounded-lg shadow p-4">
+          <div class="text-gray-500 text-sm">총 투자금액</div>
+          <div class="text-2xl font-bold mt-1" id="total-investment">로딩중...</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+          <div class="text-gray-500 text-sm">현재 평가금액</div>
+          <div class="text-2xl font-bold mt-1" id="total-current-value">로딩중...</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+          <div class="text-gray-500 text-sm">총 수익/손실</div>
+          <div class="text-2xl font-bold mt-1" id="total-profit-loss">로딩중...</div>
+        </div>
+      </div>
+      
+      <!-- 보유 종목 리스트 -->
+      <div class="bg-white rounded-lg shadow">
+        <div class="p-4 border-b">
+          <h3 class="text-lg font-bold">보유 종목</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">종목</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">수량</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">평균매수가</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">현재가</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">평가금액</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">수익률</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">손익</th>
+                <th class="px-4 py-3 text-center text-sm font-medium text-gray-700">관리</th>
+              </tr>
+            </thead>
+            <tbody id="investments-list">
+              <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">로딩중...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // 실시간 주가 업데이트 시작
+  await updateInvestmentPrices();
+  startInvestmentPriceRefresh();
+}
+
+async function fetchInvestments() {
+  try {
+    const response = await axios.get('/api/investments');
+    if (response.data.success) {
+      state.investments = response.data.data || [];
+    }
+  } catch (error) {
+    console.error('Failed to fetch investments:', error);
+    state.investments = [];
+  }
+}
+
+async function updateInvestmentPrices() {
+  const investmentsList = document.getElementById('investments-list');
+  const totalInvestmentEl = document.getElementById('total-investment');
+  const totalCurrentValueEl = document.getElementById('total-current-value');
+  const totalProfitLossEl = document.getElementById('total-profit-loss');
+  
+  if (!investmentsList || state.investments.length === 0) {
+    if (investmentsList) {
+      investmentsList.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">보유 종목이 없습니다.</td></tr>';
+    }
+    return;
+  }
+  
+  let totalInvestment = 0;
+  let totalCurrentValue = 0;
+  
+  let rowsHTML = '';
+  
+  for (const inv of state.investments) {
+    try {
+      const priceResponse = await axios.get(`/api/investments/price/${inv.symbol}`);
+      
+      if (priceResponse.data.success) {
+        const priceData = priceResponse.data.data;
+        const currentPrice = priceData.price;
+        const purchaseValue = inv.purchase_price * inv.quantity;
+        const currentValue = currentPrice * inv.quantity;
+        const profitLoss = currentValue - purchaseValue;
+        const profitLossPercent = (profitLoss / purchaseValue * 100).toFixed(2);
+        
+        totalInvestment += purchaseValue;
+        totalCurrentValue += currentValue;
+        
+        const profitClass = profitLoss >= 0 ? 'text-red-600' : 'text-blue-600';
+        const profitSign = profitLoss >= 0 ? '+' : '';
+        
+        rowsHTML += `
+          <tr class="border-t hover:bg-gray-50">
+            <td class="px-4 py-3">
+              <div class="font-medium">${inv.name}</div>
+              <div class="text-sm text-gray-500">${inv.symbol}${priceData.simulated ? ' <span class="text-orange-500" title="실제 API 접근 제한으로 시뮬레이션 데이터가 표시됩니다">[시뮬레이션]</span>' : ''}</div>
+            </td>
+            <td class="px-4 py-3 text-right">${inv.quantity.toLocaleString()}주</td>
+            <td class="px-4 py-3 text-right">${formatCurrency(inv.purchase_price)}</td>
+            <td class="px-4 py-3 text-right">
+              <div>${formatCurrency(currentPrice)}</div>
+              <div class="text-sm ${priceData.change >= 0 ? 'text-red-600' : 'text-blue-600'}">
+                ${priceData.change >= 0 ? '▲' : '▼'} ${Math.abs(priceData.changePercent).toFixed(2)}%
+              </div>
+            </td>
+            <td class="px-4 py-3 text-right font-medium">${formatCurrency(currentValue)}</td>
+            <td class="px-4 py-3 text-right ${profitClass} font-medium">${profitSign}${profitLossPercent}%</td>
+            <td class="px-4 py-3 text-right ${profitClass} font-medium">${profitSign}${formatCurrency(Math.abs(profitLoss))}</td>
+            <td class="px-4 py-3 text-center">
+              <button onclick="editInvestment(${inv.id})" 
+                      class="px-2 py-1 text-blue-600 hover:bg-blue-50 text-xs rounded mr-1"
+                      title="수정">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button onclick="deleteInvestment(${inv.id})" 
+                      class="px-2 py-1 text-red-600 hover:bg-red-50 text-xs rounded"
+                      title="삭제">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }
+    } catch (error) {
+      console.error(`Failed to fetch price for ${inv.symbol}:`, error);
+      rowsHTML += `
+        <tr class="border-t hover:bg-gray-50">
+          <td class="px-4 py-3">
+            <div class="font-medium">${inv.name}</div>
+            <div class="text-sm text-gray-500">${inv.symbol}</div>
+          </td>
+          <td colspan="7" class="px-4 py-3 text-center text-red-500">주가 정보를 불러올 수 없습니다.</td>
+        </tr>
+      `;
+    }
+  }
+  
+  investmentsList.innerHTML = rowsHTML || '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">보유 종목이 없습니다.</td></tr>';
+  
+  // 포트폴리오 요약 업데이트
+  const totalProfitLoss = totalCurrentValue - totalInvestment;
+  const totalProfitLossPercent = totalInvestment > 0 ? ((totalProfitLoss / totalInvestment) * 100).toFixed(2) : 0;
+  const profitClass = totalProfitLoss >= 0 ? 'text-red-600' : 'text-blue-600';
+  const profitSign = totalProfitLoss >= 0 ? '+' : '';
+  
+  if (totalInvestmentEl) totalInvestmentEl.textContent = formatCurrency(totalInvestment);
+  if (totalCurrentValueEl) totalCurrentValueEl.textContent = formatCurrency(totalCurrentValue);
+  if (totalProfitLossEl) {
+    totalProfitLossEl.innerHTML = `
+      <span class="${profitClass}">${profitSign}${formatCurrency(Math.abs(totalProfitLoss))}</span>
+      <span class="text-sm ${profitClass}"> (${profitSign}${totalProfitLossPercent}%)</span>
+    `;
+  }
+}
+
+function startInvestmentPriceRefresh() {
+  // 기존 인터벌 제거
+  if (state.investmentPriceRefreshInterval) {
+    clearInterval(state.investmentPriceRefreshInterval);
+  }
+  
+  // 30초마다 주가 업데이트
+  state.investmentPriceRefreshInterval = setInterval(() => {
+    if (state.activeView === 'investments') {
+      updateInvestmentPrices();
+    }
+  }, 30000);
+}
+
+async function openInvestmentModal(investmentId = null) {
+  const modalContainer = document.getElementById('modal-container');
+  const isEdit = investmentId !== null;
+  
+  let investment = null;
+  if (isEdit) {
+    investment = state.investments.find(inv => inv.id === investmentId);
+    if (!investment) {
+      alert('투자 정보를 찾을 수 없습니다.');
+      return;
+    }
+  }
+  
+  modalContainer.innerHTML = `
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
+      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold">${isEdit ? '투자 수정' : '투자 추가'}</h3>
+          <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <form onsubmit="handleInvestmentSubmit(event, ${investmentId})" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-2">종목 심볼</label>
+            <input type="text" name="symbol" value="${investment?.symbol || ''}" 
+                   placeholder="예: AAPL, BTC, 005930.KS" required
+                   class="w-full px-4 py-2 border rounded">
+            <p class="text-xs text-gray-500 mt-1">주식: AAPL, 005930.KS / 코인: BTC, ETH, SOL</p>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">종목 이름</label>
+            <input type="text" name="name" value="${investment?.name || ''}" 
+                   placeholder="예: Apple Inc., 비트코인, 삼성전자" required
+                   class="w-full px-4 py-2 border rounded">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">보유 수량</label>
+            <input type="number" name="quantity" value="${investment?.quantity || ''}" 
+                   placeholder="보유 주식 수" required min="1"
+                   class="w-full px-4 py-2 border rounded">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">평균 매수가</label>
+            <input type="number" name="purchase_price" value="${investment?.purchase_price || ''}" 
+                   placeholder="주당 매수 가격" required min="0" step="0.01"
+                   class="w-full px-4 py-2 border rounded">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">매수일</label>
+            <input type="date" name="purchase_date" 
+                   value="${investment?.purchase_date || getDateString(new Date())}" 
+                   required class="w-full px-4 py-2 border rounded">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">메모 (선택)</label>
+            <textarea name="notes" rows="2" 
+                      class="w-full px-4 py-2 border rounded">${investment?.notes || ''}</textarea>
+          </div>
+          
+          <div class="flex gap-2 pt-4">
+            <button type="submit" class="flex-1 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+              ${isEdit ? '수정' : '추가'}
+            </button>
+            <button type="button" onclick="closeModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">
+              취소
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+async function handleInvestmentSubmit(event, investmentId = null) {
+  event.preventDefault();
+  
+  const formData = new FormData(event.target);
+  
+  // 종목 심볼 검증
+  const symbolValue = formData.get('symbol');
+  const symbolValidation = validateString(symbolValue, 1, 20, '종목 심볼');
+  if (!symbolValidation.valid) {
+    showValidationError(symbolValidation.error);
+    return;
+  }
+  
+  // 종목 이름 검증
+  const nameValue = formData.get('name');
+  const nameValidation = validateString(nameValue, 1, 100, '종목 이름');
+  if (!nameValidation.valid) {
+    showValidationError(nameValidation.error);
+    return;
+  }
+  
+  // 수량 검증
+  const quantityValue = formData.get('quantity');
+  const quantityValidation = validateInvestmentQuantity(quantityValue);
+  if (!quantityValidation.valid) {
+    showValidationError(quantityValidation.error);
+    return;
+  }
+  
+  // 매수 가격 검증
+  const priceValue = formData.get('purchase_price');
+  const priceValidation = validateInvestmentPrice(priceValue);
+  if (!priceValidation.valid) {
+    showValidationError(priceValidation.error);
+    return;
+  }
+  
+  // 매수일 검증
+  const dateValue = formData.get('purchase_date');
+  const dateValidation = validateDate(dateValue, '매수일');
+  if (!dateValidation.valid) {
+    showValidationError(dateValidation.error);
+    return;
+  }
+  
+  const data = {
+    symbol: symbolValidation.value.toUpperCase(),
+    name: nameValidation.value,
+    quantity: quantityValidation.value,
+    purchase_price: priceValidation.value,
+    purchase_date: dateValidation.value,
+    notes: sanitizeString(formData.get('notes'))
+  };
+  
+  try {
+    let response;
+    if (investmentId) {
+      // 수정
+      response = await axios.put(`/api/investments/${investmentId}`, data);
+      if (response.data.success) {
+        alert(`${data.name} 투자 정보가 수정되었습니다.`);
+      }
+    } else {
+      // 추가
+      response = await axios.post('/api/investments', data);
+      if (response.data.success) {
+        alert(`${data.name} 투자가 추가되었습니다.`);
+      }
+    }
+    
+    closeModal();
+    await renderInvestmentsView();
+  } catch (error) {
+    console.error('Failed to save investment:', error);
+    alert('투자 정보 저장 중 오류가 발생했습니다.\n' + (error.response?.data?.error || error.message));
+  }
+}
+
+async function editInvestment(id) {
+  try {
+    // 투자 목록 다시 로드 (최신 데이터 확보)
+    await fetchInvestments();
+    await openInvestmentModal(id);
+  } catch (error) {
+    console.error('Failed to open edit modal:', error);
+    alert('투자 수정 모달을 여는 중 오류가 발생했습니다.');
+  }
+}
+
+async function deleteInvestment(id) {
+  
+  const investment = state.investments.find(inv => inv.id === id);
+  const confirmMessage = investment 
+    ? `${investment.name} (${investment.symbol}) 투자를 삭제하시겠습니까?`
+    : '이 투자를 삭제하시겠습니까?';
+  
+  if (!confirm(confirmMessage)) return;
+  
+  try {
+    const response = await axios.delete(`/api/investments/${id}`);
+    
+    if (response.data.success) {
+      alert('투자가 삭제되었습니다.');
+      await renderInvestmentsView();
+    } else {
+      alert('투자 삭제에 실패했습니다.');
+    }
+  } catch (error) {
+    console.error('Failed to delete investment:', error);
+    alert('투자 삭제 중 오류가 발생했습니다.');
+  }
+}
+
+// 거래 내역 수정 기능
+
+async function openEditTransactionModal(transactionId) {
+  // 거래 정보 가져오기
+  const transaction = state.transactions.find(t => t.id === transactionId);
+  if (!transaction) {
+    alert('거래 정보를 찾을 수 없습니다.');
+    return;
+  }
+  
+  await fetchSavingsAccounts();
+  
+  const modalContainer = document.getElementById('modal-container');
+  
+  modalContainer.innerHTML = `
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
+      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold">거래 수정</h3>
+          <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <form onsubmit="handleEditTransactionSubmit(event, ${transactionId})" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-2">거래 유형</label>
+            <div class="flex gap-2">
+              <button type="button" onclick="setEditTransactionType('income', ${transactionId})" 
+                      class="flex-1 py-2 rounded border ${transaction.type === 'income' ? 'bg-blue-500 text-white' : 'bg-gray-100'}"
+                      id="edit-type-income-${transactionId}">
+                수입
+              </button>
+              <button type="button" onclick="setEditTransactionType('expense', ${transactionId})" 
+                      class="flex-1 py-2 rounded border ${transaction.type === 'expense' ? 'bg-red-500 text-white' : 'bg-gray-100'}"
+                      id="edit-type-expense-${transactionId}">
+                지출
+              </button>
+              <button type="button" onclick="setEditTransactionType('savings', ${transactionId})" 
+                      class="flex-1 py-2 rounded border ${transaction.type === 'savings' ? 'bg-green-500 text-white' : 'bg-gray-100'}"
+                      id="edit-type-savings-${transactionId}">
+                저축
+              </button>
+            </div>
+            <input type="hidden" name="type" value="${transaction.type}" id="edit-transaction-type-${transactionId}">
+          </div>
+          
+          <div id="edit-savings-account-select-${transactionId}" style="display: ${transaction.type === 'savings' ? 'block' : 'none'}">
+            <label class="block text-sm font-medium mb-2">저축 통장</label>
+            <select name="savings_account_id" class="w-full px-4 py-2 border rounded">
+              <option value="">선택하세요</option>
+              ${state.savingsAccounts.map(acc => 
+                `<option value="${acc.id}" ${acc.id === transaction.savings_account_id ? 'selected' : ''}>${acc.name}</option>`
+              ).join('')}
+            </select>
+          </div>
+          
+          <div id="edit-category-select-${transactionId}">
+            <label class="block text-sm font-medium mb-2">카테고리</label>
+            <select name="category" required class="w-full px-4 py-2 border rounded" 
+                    id="edit-category-${transactionId}">
+              ${(categories[transaction.type] || []).map(cat => 
+                `<option value="${cat}" ${cat === transaction.category ? 'selected' : ''}>${cat}</option>`
+              ).join('')}
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">금액</label>
+            <input type="number" name="amount" value="${transaction.amount}" 
+                   required min="0" class="w-full px-4 py-2 border rounded">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">날짜</label>
+            <input type="date" name="date" value="${transaction.date}" 
+                   required class="w-full px-4 py-2 border rounded">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">설명 (선택)</label>
+            <input type="text" name="description" value="${transaction.description || ''}" 
+                   class="w-full px-4 py-2 border rounded">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">결제 수단</label>
+            <select name="payment_method" class="w-full px-4 py-2 border rounded" required>
+              <option value="card" ${(transaction.payment_method || 'card') === 'card' ? 'selected' : ''}>카드</option>
+              <option value="cash" ${transaction.payment_method === 'cash' ? 'selected' : ''}>현금</option>
+            </select>
+          </div>
+          
+          <div class="flex gap-2 pt-4">
+            <button type="submit" class="flex-1 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+              수정
+            </button>
+            <button type="button" onclick="closeModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">
+              취소
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function setEditTransactionType(type, transactionId) {
+  document.getElementById(`edit-transaction-type-${transactionId}`).value = type;
+  
+  // 버튼 스타일 업데이트
+  ['income', 'expense', 'savings'].forEach(t => {
+    const btn = document.getElementById(`edit-type-${t}-${transactionId}`);
+    if (t === type) {
+      btn.className = `flex-1 py-2 rounded border ${
+        t === 'income' ? 'bg-blue-500 text-white' : 
+        t === 'expense' ? 'bg-red-500 text-white' : 
+        'bg-green-500 text-white'
+      }`;
+    } else {
+      btn.className = 'flex-1 py-2 rounded border bg-gray-100';
+    }
+  });
+  
+  // 카테고리 업데이트
+  const categorySelect = document.getElementById(`edit-category-${transactionId}`);
+  categorySelect.innerHTML = (categories[type] || [])
+    .map(cat => `<option value="${cat}">${cat}</option>`)
+    .join('');
+  
+  // 저축 통장 선택 표시/숨김
+  const savingsAccountSelect = document.getElementById(`edit-savings-account-select-${transactionId}`);
+  savingsAccountSelect.style.display = type === 'savings' ? 'block' : 'none';
+}
+
+async function handleEditTransactionSubmit(event, transactionId) {
+  event.preventDefault();
+  
+  const formData = new FormData(event.target);
+  
+  // 입력 검증
+  const typeValue = formData.get('type');
+  const amountValue = formData.get('amount');
+  const dateValue = formData.get('date');
+  const categoryValue = formData.get('category');
+  const descriptionValue = formData.get('description');
+  
+  // 금액 검증
+  const amountValidation = validateTransactionAmount(amountValue);
+  if (!amountValidation.valid) {
+    showValidationError(amountValidation.error);
+    return;
+  }
+  
+  // 날짜 검증
+  const dateValidation = validateDate(dateValue, '거래 날짜');
+  if (!dateValidation.valid) {
+    showValidationError(dateValidation.error);
+    return;
+  }
+  
+  // 카테고리 검증
+  const categoryValidation = validateRequired(categoryValue, '카테고리');
+  if (!categoryValidation.valid) {
+    showValidationError(categoryValidation.error);
+    return;
+  }
+  
+  // 저축 유형일 경우 저축 통장 선택 검증
+  if (typeValue === 'savings') {
+    const savingsAccountId = formData.get('savings_account_id');
+    if (!savingsAccountId) {
+      showValidationError('저축 통장을 선택해주세요.');
+      return;
+    }
+  }
+  
+  const data = {
+    type: typeValue,
+    category: categoryValue,
+    amount: Math.round(amountValidation.value),
+    date: dateValidation.value,
+    description: sanitizeString(descriptionValue),
+    payment_method: formData.get('payment_method') || 'card',
+    savings_account_id: formData.get('savings_account_id') || null
+  };
+  
+  try {
+    await axios.put(`/api/transactions/${transactionId}`, data);
+    closeModal();
+    
+    // 현재 뷰에 따라 다시 렌더링
+    switch (state.activeView) {
+      case 'month':
+        await renderMonthView();
+        break;
+      case 'week':
+        await renderWeekView();
+        break;
+      default:
+        await switchView(state.activeView);
+    }
+  } catch (error) {
+    alert('거래 수정 중 오류가 발생했습니다.');
+  }
+}
+
+// 연간 지출 리포트 뷰
+
+async function renderReportsView() {
+  const contentArea = document.getElementById('content-area');
+  const currentYear = new Date().getFullYear();
+  
+  contentArea.innerHTML = `
+    <div class="space-y-6">
+      <!-- 헤더 -->
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="text-2xl font-bold" id="report-title">연간 지출 현황</h2>
+          <p class="text-gray-600 text-sm mt-1" id="report-subtitle">월별 총 지출을 확인하세요. 막대를 클릭하면 카테고리별 상세 내역을 볼 수 있습니다.</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="changeReportYear(-1)" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <select id="report-year" onchange="loadYearlyReport()" class="px-4 py-2 border rounded">
+            ${[0, 1, 2, 3, 4].map(offset => `
+              <option value="${currentYear - offset}" ${offset === 0 ? 'selected' : ''}>${currentYear - offset}년</option>
+            `).join('')}
+          </select>
+          <button onclick="changeReportYear(1)" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+      
+      <!-- 네비게이션 경로 (Breadcrumb) -->
+      <div id="report-breadcrumb" class="bg-white rounded-lg shadow px-6 py-3">
+        <div class="flex items-center gap-2 text-sm">
+          <button onclick="loadYearlyReport()" class="text-blue-600 hover:text-blue-800 font-medium">
+            <i class="fas fa-home mr-1"></i>연간 지출
+          </button>
+        </div>
+      </div>
+      
+      <!-- 차트 영역 -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <canvas id="report-chart" style="height: 400px;"></canvas>
+      </div>
+      
+      <!-- 상세 데이터 테이블 -->
+      <div id="report-details" class="bg-white rounded-lg shadow p-6">
+        <p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>
+      </div>
+    </div>
+  `;
+  
+  // 초기 로드
+  await loadYearlyReport();
+}
+
+// 리포트 상태 관리
+let reportChart = null;
+let reportState = {
+  year: new Date().getFullYear(),
+  selectedMonth: null,
+  selectedCategory: null,
+  yearlyData: null
+};
+
+// 연도 변경
+function changeReportYear(delta) {
+  reportState.year += delta;
+  document.getElementById('report-year').value = reportState.year;
+  loadYearlyReport();
+}
+
+// 1단계: 연간 월별 지출 현황 (바 그래프)
+async function loadYearlyReport() {
+  try {
+    reportState.selectedMonth = null;
+    reportState.selectedCategory = null;
+    reportState.year = parseInt(document.getElementById('report-year').value);
+  
+  const detailsDiv = document.getElementById('report-details');
+  detailsDiv.innerHTML = '<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>';
+  
+  // 업데이트 제목과 서브타이틀
+  document.getElementById('report-title').textContent = `${reportState.year}년 월별 지출 현황`;
+  document.getElementById('report-subtitle').textContent = '막대를 클릭하면 해당 월의 카테고리별 지출을 확인할 수 있습니다.';
+  
+  // Breadcrumb 업데이트
+  document.getElementById('report-breadcrumb').innerHTML = `
+    <div class="flex items-center gap-2 text-sm">
+      <button onclick="loadYearlyReport()" class="text-blue-600 hover:text-blue-800 font-medium">
+        <i class="fas fa-home mr-1"></i>${reportState.year}년 연간 지출
+      </button>
+    </div>
+  `;
+  
+  // 12개월 데이터 가져오기
+  const monthlyData = [];
+  const monthLabels = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+  
+  for (let month = 1; month <= 12; month++) {
+    const monthStr = `${reportState.year}-${String(month).padStart(2, '0')}`;
+    const firstDay = `${monthStr}-01`;
+    const lastDay = `${monthStr}-${new Date(reportState.year, month, 0).getDate()}`;
+    
+    const response = await axios.get(`/api/transactions?start_date=${firstDay}&end_date=${lastDay}`);
+    const transactions = response.data.data || [];
+    
+    const total = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    
+    monthlyData.push({
+      month: month,
+      monthStr: monthStr,
+      label: monthLabels[month - 1],
+      total: total
+    });
+  }
+  
+  reportState.yearlyData = monthlyData;
+  
+  // 바 차트 그리기
+  drawYearlyBarChart(monthlyData);
+  
+  // 상세 테이블
+  const maxAmount = Math.max(...monthlyData.map(d => d.total));
+  const prevYearSameMonthComparison = await getPreviousYearComparison(reportState.year);
+  
+  let tableHTML = `
+    <h3 class="text-lg font-bold mb-4">월별 상세</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-3 text-left">월</th>
+            <th class="px-4 py-3 text-right">지출액</th>
+            <th class="px-4 py-3 text-right">전년 대비</th>
+            <th class="px-4 py-3 text-center">액션</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+  
+  monthlyData.forEach((data, index) => {
+    const prevYearAmount = prevYearSameMonthComparison[data.month - 1] || 0;
+    const diff = prevYearAmount > 0 ? ((data.total - prevYearAmount) / prevYearAmount * 100).toFixed(1) : 0;
+    const diffClass = diff > 0 ? 'text-red-600' : diff < 0 ? 'text-blue-600' : 'text-gray-600';
+    const diffSign = diff > 0 ? '+' : '';
+    
+    tableHTML += `
+      <tr class="border-t hover:bg-gray-50">
+        <td class="px-4 py-3 font-medium">${data.label}</td>
+        <td class="px-4 py-3 text-right">
+          <div class="font-bold">${formatCurrency(data.total)}</div>
+          <div class="text-xs text-gray-500">전체의 ${maxAmount > 0 ? ((data.total / maxAmount) * 100).toFixed(0) : 0}%</div>
+        </td>
+        <td class="px-4 py-3 text-right ${diffClass}">
+          ${prevYearAmount > 0 ? `${diffSign}${diff}%` : '-'}
+        </td>
+        <td class="px-4 py-3 text-center">
+          <button onclick="loadMonthCategoryReport(${data.month})" 
+                  class="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600">
+            <i class="fas fa-chart-bar mr-1"></i>상세보기
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+  
+  const yearTotal = monthlyData.reduce((sum, d) => sum + d.total, 0);
+  tableHTML += `
+      <tr class="border-t-2 bg-gray-50 font-bold">
+        <td class="px-4 py-3">연간 합계</td>
+        <td class="px-4 py-3 text-right">${formatCurrency(yearTotal)}</td>
+        <td class="px-4 py-3"></td>
+        <td class="px-4 py-3"></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+  `;
+  
+    detailsDiv.innerHTML = tableHTML;
+  } catch (error) {
+    const detailsDiv = document.getElementById('report-details');
+    if (detailsDiv) {
+      detailsDiv.innerHTML = `
+        <div class="bg-red-50 p-6 rounded-lg">
+          <p class="text-red-800 mb-2"><i class="fas fa-exclamation-circle mr-2"></i>연간 리포트를 불러오는 중 오류가 발생했습니다.</p>
+          <button onclick="loadYearlyReport()" class="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+            <i class="fas fa-redo mr-2"></i>다시 시도
+          </button>
+        </div>
+      `;
+    }
+  }
+}
+
+// 전년 동월 비교 데이터 가져오기
+async function getPreviousYearComparison(currentYear) {
+  const prevYear = currentYear - 1;
+  const prevYearData = [];
+  
+  for (let month = 1; month <= 12; month++) {
+    const monthStr = `${prevYear}-${String(month).padStart(2, '0')}`;
+    const firstDay = `${monthStr}-01`;
+    const lastDay = `${monthStr}-${new Date(prevYear, month, 0).getDate()}`;
+    
+    try {
+      const response = await axios.get(`/api/transactions?start_date=${firstDay}&end_date=${lastDay}`);
+      const transactions = response.data.data || [];
+      const total = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+      prevYearData.push(total);
+    } catch (error) {
+      prevYearData.push(0);
+    }
+  }
+  
+  return prevYearData;
+}
+
+// 2단계: 특정 월의 카테고리별 지출 (바 그래프)
+async function loadMonthCategoryReport(month) {
+  try {
+    reportState.selectedMonth = month;
+    reportState.selectedCategory = null;
+  
+  const monthStr = `${reportState.year}-${String(month).padStart(2, '0')}`;
+  const monthLabel = ['', '1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'][month];
+  
+  const detailsDiv = document.getElementById('report-details');
+  detailsDiv.innerHTML = '<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>';
+  
+  // 제목 업데이트
+  document.getElementById('report-title').textContent = `${reportState.year}년 ${monthLabel} 카테고리별 지출`;
+  document.getElementById('report-subtitle').textContent = '막대를 클릭하면 해당 카테고리의 거래 내역을 확인할 수 있습니다.';
+  
+  // Breadcrumb 업데이트
+  document.getElementById('report-breadcrumb').innerHTML = `
+    <div class="flex items-center gap-2 text-sm">
+      <button onclick="loadYearlyReport()" class="text-blue-600 hover:text-blue-800">
+        <i class="fas fa-home mr-1"></i>${reportState.year}년 연간 지출
+      </button>
+      <i class="fas fa-chevron-right text-gray-400"></i>
+      <span class="text-gray-700 font-medium">${monthLabel}</span>
+    </div>
+  `;
+  
+  // 해당 월의 거래 데이터 가져오기
+  const firstDay = `${monthStr}-01`;
+  const lastDay = `${monthStr}-${new Date(reportState.year, month, 0).getDate()}`;
+  
+  const response = await axios.get(`/api/transactions?start_date=${firstDay}&end_date=${lastDay}`);
+  const transactions = response.data.data || [];
+  const expenses = transactions.filter(t => t.type === 'expense');
+  
+  // 카테고리별 집계
+  const categoryData = {};
+  categories.expense.forEach(cat => {
+    categoryData[cat] = {
+      category: cat,
+      total: 0,
+      count: 0
+    };
+  });
+  
+  expenses.forEach(t => {
+    if (categoryData[t.category]) {
+      categoryData[t.category].total += t.amount;
+      categoryData[t.category].count++;
+    }
+  });
+  
+  // 배열로 변환하고 금액 순으로 정렬
+  const categoryArray = Object.values(categoryData)
+    .filter(d => d.total > 0)
+    .sort((a, b) => b.total - a.total);
+  
+  if (categoryArray.length === 0) {
+    detailsDiv.innerHTML = '<p class="text-center text-gray-500">이 달에는 지출 내역이 없습니다.</p>';
+    
+    if (reportChart) {
+      reportChart.destroy();
+      reportChart = null;
+    }
+    return;
+  }
+  
+  // 바 차트 그리기
+  drawCategoryBarChart(categoryArray, monthLabel);
+  
+  // 상세 테이블
+  const monthTotal = categoryArray.reduce((sum, d) => sum + d.total, 0);
+  
+  let tableHTML = `
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold">카테고리별 상세</h3>
+      <div class="text-sm text-gray-600">
+        총 <span class="font-bold text-blue-600">${formatCurrency(monthTotal)}</span>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-3 text-left">카테고리</th>
+            <th class="px-4 py-3 text-right">지출액</th>
+            <th class="px-4 py-3 text-right">비율</th>
+            <th class="px-4 py-3 text-right">건수</th>
+            <th class="px-4 py-3 text-center">액션</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+  
+  categoryArray.forEach(data => {
+    const percentage = ((data.total / monthTotal) * 100).toFixed(1);
+    
+    tableHTML += `
+      <tr class="border-t hover:bg-gray-50">
+        <td class="px-4 py-3">
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded" style="background-color: ${getCategoryColor(data.category)}"></div>
+            <span class="font-medium">${data.category}</span>
+          </div>
+        </td>
+        <td class="px-4 py-3 text-right font-bold">${formatCurrency(data.total)}</td>
+        <td class="px-4 py-3 text-right text-gray-600">${percentage}%</td>
+        <td class="px-4 py-3 text-right text-gray-600">${data.count}건</td>
+        <td class="px-4 py-3 text-center">
+          <button onclick="loadCategoryTransactions('${data.category}')" 
+                  class="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600">
+            <i class="fas fa-list mr-1"></i>거래내역
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+  
+  tableHTML += `
+    </tbody>
+  </table>
+</div>
+  `;
+  
+    detailsDiv.innerHTML = tableHTML;
+  } catch (error) {
+    const detailsDiv = document.getElementById('report-details');
+    if (detailsDiv) {
+      detailsDiv.innerHTML = `
+        <div class="bg-red-50 p-6 rounded-lg">
+          <p class="text-red-800 mb-2"><i class="fas fa-exclamation-circle mr-2"></i>월별 카테고리 리포트를 불러오는 중 오류가 발생했습니다.</p>
+          <button onclick="loadMonthCategoryReport(${month})" class="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+            <i class="fas fa-redo mr-2"></i>다시 시도
+          </button>
+        </div>
+      `;
+    }
+  }
+}
+
+// 카테고리별 색상 (Chart.js 기본 팔레트)
+function getCategoryColor(category) {
+  const colors = {
+    '의복비': '#FF6384',
+    '식비': '#36A2EB',
+    '주거비': '#FFCE56',
+    '교통비': '#4BC0C0',
+    '문화생활': '#9966FF',
+    '쇼핑': '#FF9F40',
+    '의료비': '#FF6384',
+    '교육비': '#C9CBCF',
+    '통신비': '#4BC0C0',
+    '보험': '#FF6384',
+    '기타지출': '#36A2EB'
+  };
+  return colors[category] || '#999999';
+}
+
+// 3단계: 특정 카테고리의 거래 내역 리스트
+async function loadCategoryTransactions(category) {
+  try {
+    reportState.selectedCategory = category;
+    
+    const month = reportState.selectedMonth;
+    const monthStr = `${reportState.year}-${String(month).padStart(2, '0')}`;
+    const monthLabel = ['', '1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'][month];
+    
+    const detailsDiv = document.getElementById('report-details');
+    detailsDiv.innerHTML = '<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>';
+    
+    // 제목 업데이트
+    document.getElementById('report-title').textContent = `${reportState.year}년 ${monthLabel} - ${category}`;
+    document.getElementById('report-subtitle').textContent = '해당 카테고리의 모든 거래 내역입니다.';
+  
+  // Breadcrumb 업데이트
+  document.getElementById('report-breadcrumb').innerHTML = `
+    <div class="flex items-center gap-2 text-sm">
+      <button onclick="loadYearlyReport()" class="text-blue-600 hover:text-blue-800">
+        <i class="fas fa-home mr-1"></i>${reportState.year}년 연간 지출
+      </button>
+      <i class="fas fa-chevron-right text-gray-400"></i>
+      <button onclick="loadMonthCategoryReport(${month})" class="text-blue-600 hover:text-blue-800">
+        ${monthLabel}
+      </button>
+      <i class="fas fa-chevron-right text-gray-400"></i>
+      <span class="text-gray-700 font-medium">${category}</span>
+    </div>
+  `;
+  
+  // 해당 월의 거래 데이터 가져오기
+  const firstDay = `${monthStr}-01`;
+  const lastDay = `${monthStr}-${new Date(reportState.year, month, 0).getDate()}`;
+  
+  const response = await axios.get(`/api/transactions?start_date=${firstDay}&end_date=${lastDay}`);
+  const transactions = response.data.data || [];
+  const categoryTransactions = transactions
+    .filter(t => t.type === 'expense' && t.category === category)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  if (categoryTransactions.length === 0) {
+    detailsDiv.innerHTML = '<p class="text-center text-gray-500">거래 내역이 없습니다.</p>';
+    
+    if (reportChart) {
+      reportChart.destroy();
+      reportChart = null;
+    }
+    return;
+  }
+  
+  // 차트 숨기기 (거래 내역은 차트가 필요없음)
+  if (reportChart) {
+    reportChart.destroy();
+    reportChart = null;
+  }
+  
+  // 거래 내역 테이블
+  const categoryTotal = categoryTransactions.reduce((sum, t) => sum + t.amount, 0);
+  
+  let tableHTML = `
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold">거래 내역</h3>
+      <div class="text-sm">
+        총 <span class="font-bold text-red-600">${formatCurrency(categoryTotal)}</span>
+        <span class="text-gray-500 ml-2">(${categoryTransactions.length}건)</span>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-3 text-left">날짜</th>
+            <th class="px-4 py-3 text-left">설명</th>
+            <th class="px-4 py-3 text-right">금액</th>
+            <th class="px-4 py-3 text-center">액션</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+  
+  categoryTransactions.forEach(t => {
+    const dayOfWeek = ['일', '월', '화', '수', '목', '금', '토'][new Date(t.date).getDay()];
+    
+    tableHTML += `
+      <tr class="border-t hover:bg-gray-50">
+        <td class="px-4 py-3">
+          <div class="font-medium">${t.date}</div>
+          <div class="text-xs text-gray-500">${dayOfWeek}요일</div>
+        </td>
+        <td class="px-4 py-3">
+          ${t.description ? `<div class="text-gray-700">${t.description}</div>` : '<div class="text-gray-400 text-sm">-</div>'}
+        </td>
+        <td class="px-4 py-3 text-right">
+          <span class="font-bold text-red-600">${formatCurrency(t.amount)}</span>
+        </td>
+        <td class="px-4 py-3 text-center">
+          <button onclick="openEditTransactionModal(${t.id})" 
+                  class="text-blue-600 hover:text-blue-800 mr-2"
+                  title="수정">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button onclick="deleteTransaction(${t.id})" 
+                  class="text-red-600 hover:text-red-800"
+                  title="삭제">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+  
+  tableHTML += `
+    </tbody>
+  </table>
+</div>
+  `;
+  
+    detailsDiv.innerHTML = tableHTML;
+  } catch (error) {
+    const detailsDiv = document.getElementById('report-details');
+    if (detailsDiv) {
+      detailsDiv.innerHTML = `
+        <div class="bg-red-50 p-6 rounded-lg">
+          <p class="text-red-800 mb-2"><i class="fas fa-exclamation-circle mr-2"></i>거래 내역을 불러오는 중 오류가 발생했습니다.</p>
+          <button onclick="loadCategoryTransactions('${category}')" class="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+            <i class="fas fa-redo mr-2"></i>다시 시도
+          </button>
+        </div>
+      `;
+    }
+  }
+}
+
+// 바 차트 그리기 함수들
+function drawYearlyBarChart(data) {
+  const ctx = document.getElementById('report-chart');
+  
+  if (reportChart) {
+    reportChart.destroy();
+  }
+  
+  const labels = data.map(d => d.label);
+  const amounts = data.map(d => d.total);
+  const maxAmount = Math.max(...amounts);
+  
+  reportChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '지출액',
+        data: amounts,
+        backgroundColor: amounts.map((amount, index) => {
+          // 금액에 따라 색상 그라데이션
+          const intensity = maxAmount > 0 ? (amount / maxAmount) : 0;
+          return `rgba(239, 68, 68, ${0.3 + intensity * 0.7})`;
+        }),
+        borderColor: 'rgb(239, 68, 68)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      onClick: (event, elements) => {
+        if (elements.length > 0) {
+          const index = elements[0].index;
+          const month = data[index].month;
+          loadMonthCategoryReport(month);
+        }
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        title: {
+          display: true,
+          text: `${reportState.year}년 월별 지출 (클릭하여 상세보기)`,
+          font: {
+            size: 16,
+            weight: 'bold'
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return formatCurrency(context.parsed.y);
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return formatCurrencyShort(value);
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function drawCategoryBarChart(data, monthLabel) {
+  const ctx = document.getElementById('report-chart');
+  
+  if (reportChart) {
+    reportChart.destroy();
+  }
+  
+  const labels = data.map(d => d.category);
+  const amounts = data.map(d => d.total);
+  const colors = data.map(d => getCategoryColor(d.category));
+  
+  reportChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '지출액',
+        data: amounts,
+        backgroundColor: colors.map(c => c + '80'), // 80% opacity
+        borderColor: colors,
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      onClick: (event, elements) => {
+        if (elements.length > 0) {
+          const index = elements[0].index;
+          const category = data[index].category;
+          loadCategoryTransactions(category);
+        }
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        title: {
+          display: true,
+          text: `${reportState.year}년 ${monthLabel} 카테고리별 지출 (클릭하여 상세보기)`,
+          font: {
+            size: 16,
+            weight: 'bold'
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return formatCurrency(context.parsed.y);
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return formatCurrencyShort(value);
+            }
+          }
+        }
+      }
+    }
+  });
 }
 
 // 설정 뷰 렌더링
@@ -638,15 +2509,55 @@ async function renderSettingsView() {
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">초기 잔액</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">💰 초기 총 잔액 (카드 + 현금)</label>
           <input type="number" id="initial-balance" value="${state.settings.initial_balance}" 
                  class="w-full px-4 py-2 border rounded" placeholder="0">
+          <p class="text-xs text-gray-500 mt-1">
+            <i class="fas fa-info-circle mr-1"></i>가계부 시작 시점의 전체 자산 (카드 잔액 + 현금 + 저축 포함)
+          </p>
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">초기 저축액</label>
-          <input type="number" id="initial-savings" value="${state.settings.initial_savings}" 
+          <label class="block text-sm font-medium text-gray-700 mb-2">💵 초기 현금 보유액</label>
+          <input type="number" id="cash-on-hand" value="${state.settings.cash_on_hand || 0}" 
                  class="w-full px-4 py-2 border rounded" placeholder="0">
+          <p class="text-xs text-gray-500 mt-1">
+            <i class="fas fa-info-circle mr-1"></i>가계부 시작 시점에 현금으로 보유한 금액
+          </p>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">🌙 다크모드</label>
+          <div class="flex items-center gap-3">
+            <button onclick="toggleDarkMode()" 
+                    class="px-4 py-2 rounded ${state.darkMode ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}">
+              <i class="fas fa-${state.darkMode ? 'moon' : 'sun'} mr-2"></i>
+              ${state.darkMode ? '다크모드 켜짐' : '라이트모드'}
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">
+            <i class="fas fa-info-circle mr-1"></i>어두운 화면에서 눈의 피로를 줄입니다
+          </p>
+        </div>
+        
+        <hr class="my-6">
+        
+        <div>
+          <h3 class="text-lg font-bold mb-3">데이터 백업/복원</h3>
+          <p class="text-sm text-gray-600 mb-4">
+            <i class="fas fa-info-circle mr-1"></i>
+            모든 데이터를 JSON 파일로 내보내거나 백업 파일에서 복원할 수 있습니다.
+          </p>
+          <div class="grid grid-cols-2 gap-3">
+            <button onclick="exportData()" 
+                    class="px-4 py-3 bg-green-500 text-white rounded hover:bg-green-600 font-medium">
+              <i class="fas fa-download mr-2"></i>내보내기
+            </button>
+            <button onclick="openImportDataModal()" 
+                    class="px-4 py-3 bg-orange-500 text-white rounded hover:bg-orange-600 font-medium">
+              <i class="fas fa-upload mr-2"></i>불러오기
+            </button>
+          </div>
         </div>
         
         <button onclick="saveSettings()" class="w-full px-4 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
@@ -657,9 +2568,9 @@ async function renderSettingsView() {
   `;
 }
 
-// =============================================================================
+// ---
 // 이벤트 핸들러 함수들
-// =============================================================================
+// ---
 
 function changeMonth(delta) {
   state.currentMonth.setMonth(state.currentMonth.getMonth() + delta);
@@ -669,6 +2580,11 @@ function changeMonth(delta) {
 function changeWeek(delta) {
   state.currentWeekStart.setDate(state.currentWeekStart.getDate() + (delta * 7));
   renderWeekView();
+}
+
+function changeFixedExpenseMonth(delta) {
+  state.currentMonth.setMonth(state.currentMonth.getMonth() + delta);
+  renderFixedExpensesView();
 }
 
 async function openTransactionModal(date) {
@@ -738,6 +2654,14 @@ async function openTransactionModal(date) {
             <input type="text" name="description" class="w-full px-4 py-2 border rounded" placeholder="메모를 입력하세요">
           </div>
           
+          <div>
+            <label class="block text-sm font-medium mb-2">결제 수단</label>
+            <select name="payment_method" class="w-full px-4 py-2 border rounded" required>
+              <option value="card">카드</option>
+              <option value="cash">현금</option>
+            </select>
+          </div>
+          
           <button type="submit" class="w-full py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
             추가
           </button>
@@ -756,12 +2680,49 @@ async function handleTransactionSubmit(event) {
   event.preventDefault();
   const formData = new FormData(event.target);
   
+  // 입력 검증
+  const amountValue = formData.get('amount');
+  const dateValue = formData.get('date');
+  const categoryValue = formData.get('category');
+  const descriptionValue = formData.get('description');
+  
+  // 금액 검증
+  const amountValidation = validateTransactionAmount(amountValue);
+  if (!amountValidation.valid) {
+    showValidationError(amountValidation.error);
+    return;
+  }
+  
+  // 날짜 검증
+  const dateValidation = validateDate(dateValue, '거래 날짜');
+  if (!dateValidation.valid) {
+    showValidationError(dateValidation.error);
+    return;
+  }
+  
+  // 카테고리 검증
+  const categoryValidation = validateRequired(categoryValue, '카테고리');
+  if (!categoryValidation.valid) {
+    showValidationError(categoryValidation.error);
+    return;
+  }
+  
+  // 저축 유형일 경우 저축 통장 선택 검증
+  if (state.currentTransactionType === 'savings') {
+    const savingsAccountId = formData.get('savings_account_id');
+    if (!savingsAccountId) {
+      showValidationError('저축 통장을 선택해주세요.');
+      return;
+    }
+  }
+  
   const data = {
     type: state.currentTransactionType,
-    category: formData.get('category'),
-    amount: parseInt(formData.get('amount')),
-    description: formData.get('description'),
-    date: formData.get('date'),
+    category: categoryValue,
+    amount: Math.round(amountValidation.value),
+    description: sanitizeString(descriptionValue),
+    date: dateValidation.value,
+    payment_method: formData.get('payment_method') || 'card',
     savings_account_id: formData.get('savings_account_id') || null
   };
   
@@ -813,9 +2774,17 @@ async function handleSavingsAccountSubmit(event) {
   event.preventDefault();
   const formData = new FormData(event.target);
   
+  // 통장 이름 검증
+  const nameValue = formData.get('name');
+  const nameValidation = validateString(nameValue, 1, 50, '통장 이름');
+  if (!nameValidation.valid) {
+    showValidationError(nameValidation.error);
+    return;
+  }
+  
   try {
     const response = await axios.post('/api/savings-accounts', {
-      name: formData.get('name')
+      name: nameValidation.value
     });
     if (response.data.success) {
       closeModal();
@@ -836,6 +2805,76 @@ async function deleteSavingsAccount(id) {
     }
   } catch (error) {
     alert('통장 삭제 중 오류가 발생했습니다.');
+  }
+}
+
+function openSavingsGoalModal(accountId, currentGoal) {
+  const modalContainer = document.getElementById('modal-container');
+  const account = state.savingsAccounts.find(a => a.id === accountId);
+  
+  if (!account) {
+    alert('저축 통장을 찾을 수 없습니다.');
+    return;
+  }
+  
+  modalContainer.innerHTML = `
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
+      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
+        <h3 class="text-xl font-bold mb-4">${account.name} - 저축 목표 설정</h3>
+        <form onsubmit="handleSavingsGoalSubmit(event, ${accountId})" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-2">목표 금액</label>
+            <input type="number" name="savings_goal" value="${currentGoal}" 
+                   class="w-full px-4 py-2 border rounded" required min="0" placeholder="0">
+            <p class="text-xs text-gray-500 mt-1">
+              <i class="fas fa-info-circle mr-1"></i>0을 입력하면 목표가 제거됩니다
+            </p>
+          </div>
+          <div class="bg-blue-50 p-3 rounded">
+            <p class="text-sm text-blue-800">
+              <i class="fas fa-info-circle mr-2"></i>
+              현재 저축액: <strong>${formatCurrency(account.total_savings || 0)}</strong>
+            </p>
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="flex-1 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
+              저장
+            </button>
+            <button type="button" onclick="closeModal()" 
+                    class="flex-1 py-3 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 font-medium">
+              취소
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+async function handleSavingsGoalSubmit(event, accountId) {
+  event.preventDefault();
+  const formData = new FormData(event.target);
+  
+  // 저축 목표 금액 검증
+  const goalValue = formData.get('savings_goal');
+  const goalValidation = validateSavingsGoal(goalValue);
+  if (!goalValidation.valid) {
+    showValidationError(goalValidation.error);
+    return;
+  }
+  
+  try {
+    const response = await axios.put(`/api/savings-accounts/${accountId}/goal`, {
+      savings_goal: Math.round(goalValidation.value)
+    });
+    
+    if (response.data.success) {
+      closeModal();
+      alert('저축 목표가 설정되었습니다.');
+      renderSavingsView();
+    }
+  } catch (error) {
+    alert('목표 설정 중 오류가 발생했습니다.');
   }
 }
 
@@ -862,23 +2901,14 @@ function openFixedExpenseModal() {
           </div>
           <div>
             <label class="block text-sm font-medium mb-2">주기</label>
-            <select name="frequency" class="w-full px-4 py-2 border rounded" required onchange="toggleWeekOfMonth(this.value)">
-              <option value="monthly">월별</option>
-              <option value="weekly">주별</option>
+            <select name="frequency" class="w-full px-4 py-2 border rounded" required onchange="toggleFixedExpenseFields(this.value)">
+              <option value="monthly_day">매월</option>
+              <option value="weekly">매주</option>
             </select>
           </div>
-          <div id="week-of-month-container">
-            <label class="block text-sm font-medium mb-2">주차 (월별만)</label>
-            <select name="week_of_month" class="w-full px-4 py-2 border rounded">
-              <option value="1">첫째 주</option>
-              <option value="2">둘째 주</option>
-              <option value="3">셋째 주</option>
-              <option value="4">넷째 주</option>
-            </select>
-          </div>
-          <div>
+          <div id="day-of-week-container" style="display: none;">
             <label class="block text-sm font-medium mb-2">요일</label>
-            <select name="day_of_week" class="w-full px-4 py-2 border rounded" required>
+            <select name="day_of_week" class="w-full px-4 py-2 border rounded">
               <option value="0">일요일</option>
               <option value="1">월요일</option>
               <option value="2">화요일</option>
@@ -887,6 +2917,10 @@ function openFixedExpenseModal() {
               <option value="5">금요일</option>
               <option value="6">토요일</option>
             </select>
+          </div>
+          <div id="payment-day-container" style="display: none;">
+            <label class="block text-sm font-medium mb-2">일자</label>
+            <input type="number" name="payment_day" class="w-full px-4 py-2 border rounded" min="1" max="31" placeholder="1-31">
           </div>
           <button type="submit" class="w-full py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
             추가
@@ -897,23 +2931,77 @@ function openFixedExpenseModal() {
   `;
 }
 
-function toggleWeekOfMonth(frequency) {
-  const container = document.getElementById('week-of-month-container');
-  container.style.display = frequency === 'monthly' ? 'block' : 'none';
+function toggleFixedExpenseFields(frequency) {
+  const weekOfMonthContainer = document.getElementById('week-of-month-container');
+  const dayOfWeekContainer = document.getElementById('day-of-week-container');
+  const paymentDayContainer = document.getElementById('payment-day-container');
+  
+  if (frequency === 'monthly_day') {
+    // 매월 (특정 일자)
+    weekOfMonthContainer.style.display = 'none';
+    dayOfWeekContainer.style.display = 'none';
+    paymentDayContainer.style.display = 'block';
+  } else if (frequency === 'weekly') {
+    // 매주 (특정 요일)
+    weekOfMonthContainer.style.display = 'none';
+    dayOfWeekContainer.style.display = 'block';
+    paymentDayContainer.style.display = 'none';
+  }
 }
 
 async function handleFixedExpenseSubmit(event) {
   event.preventDefault();
   const formData = new FormData(event.target);
+  const frequency = formData.get('frequency');
+  
+  // 이름 검증
+  const nameValue = formData.get('name');
+  const nameValidation = validateString(nameValue, 1, 100, '고정지출 이름');
+  if (!nameValidation.valid) {
+    showValidationError(nameValidation.error);
+    return;
+  }
+  
+  // 카테고리 검증
+  const categoryValue = formData.get('category');
+  const categoryValidation = validateRequired(categoryValue, '카테고리');
+  if (!categoryValidation.valid) {
+    showValidationError(categoryValidation.error);
+    return;
+  }
+  
+  // 금액 검증
+  const amountValue = formData.get('amount');
+  const amountValidation = validateTransactionAmount(amountValue);
+  if (!amountValidation.valid) {
+    showValidationError(amountValidation.error);
+    return;
+  }
   
   const data = {
-    name: formData.get('name'),
-    category: formData.get('category'),
-    amount: parseInt(formData.get('amount')),
-    frequency: formData.get('frequency'),
-    week_of_month: formData.get('frequency') === 'monthly' ? parseInt(formData.get('week_of_month')) : null,
-    day_of_week: parseInt(formData.get('day_of_week'))
+    name: nameValidation.value,
+    category: categoryValue,
+    amount: Math.round(amountValidation.value),
+    frequency: frequency
   };
+  
+  if (frequency === 'monthly_day') {
+    const paymentDay = formData.get('payment_day');
+    const paymentDayValidation = validateInteger(paymentDay, 1, 31, '결제일');
+    if (!paymentDayValidation.valid) {
+      showValidationError(paymentDayValidation.error);
+      return;
+    }
+    data.payment_day = paymentDayValidation.value;
+  } else if (frequency === 'weekly') {
+    const dayOfWeek = formData.get('day_of_week');
+    const dayValidation = validateInteger(dayOfWeek, 0, 6, '요일');
+    if (!dayValidation.valid) {
+      showValidationError(dayValidation.error);
+      return;
+    }
+    data.day_of_week = dayValidation.value;
+  }
   
   try {
     const response = await axios.post('/api/fixed-expenses', data);
@@ -922,7 +3010,7 @@ async function handleFixedExpenseSubmit(event) {
       renderFixedExpensesView();
     }
   } catch (error) {
-    alert('고정지출 추가 중 오류가 발생했습니다.');
+    alert(error.response?.data?.error || '고정지출 추가 중 오류가 발생했습니다.');
   }
 }
 
@@ -940,7 +3028,14 @@ async function deleteFixedExpense(id) {
 }
 
 async function handleBudgetChange(category, value) {
-  const amount = parseInt(value) || 0;
+  // 예산 금액 검증
+  const budgetValidation = validateBudgetAmount(value);
+  if (!budgetValidation.valid) {
+    showValidationError(budgetValidation.error);
+    return;
+  }
+  
+  const amount = Math.round(budgetValidation.value);
   
   try {
     if (amount === 0) {
@@ -960,20 +3055,73 @@ async function handleBudgetChange(category, value) {
 
 async function saveSettings() {
   const currency = document.getElementById('currency-select').value;
-  const initialBalance = parseInt(document.getElementById('initial-balance').value) || 0;
-  const initialSavings = parseInt(document.getElementById('initial-savings').value) || 0;
+  const initialBalanceValue = document.getElementById('initial-balance').value;
+  const cashOnHandValue = document.getElementById('cash-on-hand').value;
+  
+  // 초기 잔액 검증
+  const balanceValidation = validateNumber(initialBalanceValue, 0, 1000000000000, '초기 잔액');
+  if (!balanceValidation.valid) {
+    showValidationError(balanceValidation.error);
+    return;
+  }
+  
+  // 현금 보유액 검증
+  const cashValidation = validateNumber(cashOnHandValue, 0, 1000000000000, '현금 보유액');
+  if (!cashValidation.valid) {
+    showValidationError(cashValidation.error);
+    return;
+  }
+  
+  // 현금이 총 잔액보다 많으면 안됨
+  if (cashValidation.value > balanceValidation.value) {
+    showValidationError('현금 보유액은 초기 총 잔액보다 클 수 없습니다.');
+    return;
+  }
+  
+  const initialBalance = Math.round(balanceValidation.value);
+  const cashOnHand = Math.round(cashValidation.value);
   
   try {
     const response = await axios.put('/api/settings', {
       currency,
       initial_balance: initialBalance,
-      initial_savings: initialSavings,
+      cash_on_hand: cashOnHand,
       category_colors: state.settings.category_colors
     });
     
     if (response.data.success) {
-      alert('설정이 저장되었습니다.');
+      const previousCurrency = state.settings.currency;
       await fetchSettings();
+      
+      // 통화가 변경되었으면 현재 화면을 다시 렌더링
+      if (previousCurrency !== currency) {
+        alert(`설정이 저장되었습니다. 통화가 ${CURRENCIES[previousCurrency]?.name || previousCurrency}에서 ${CURRENCIES[currency]?.name || currency}로 변경되었습니다.`);
+        
+        // 현재 활성화된 뷰에 따라 다시 렌더링
+        switch(state.activeView) {
+          case 'month':
+            await renderMonthView();
+            break;
+          case 'week':
+            await renderWeekView();
+            break;
+          case 'savings':
+            await renderSavingsView();
+            break;
+          case 'fixed-expenses':
+            await renderFixedExpensesView();
+            break;
+          case 'budgets':
+            await renderBudgetsView();
+            break;
+          case 'settings':
+            await renderSettingsView();
+            break;
+        }
+      } else {
+        alert('설정이 저장되었습니다.');
+        await renderSettingsView();
+      }
     }
   } catch (error) {
     alert('설정 저장 중 오류가 발생했습니다.');
@@ -985,11 +3133,550 @@ function closeModal(event) {
   document.getElementById('modal-container').innerHTML = '';
 }
 
-// =============================================================================
+// 다크모드
+
+function toggleDarkMode() {
+  state.darkMode = !state.darkMode;
+  localStorage.setItem('darkMode', state.darkMode);
+  applyDarkMode();
+}
+
+function applyDarkMode() {
+  if (state.darkMode) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+}
+
+// 데이터 내보내기/불러오기
+
+// LocalStorage에서 백업 목록 가져오기
+function getBackupList() {
+  try {
+    const backupKeys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('backup_')) {
+        backupKeys.push(key);
+      }
+    }
+    
+    // 타임스탬프 기준으로 정렬 (최신순)
+    backupKeys.sort((a, b) => {
+      const timeA = parseInt(a.split('_')[1]);
+      const timeB = parseInt(b.split('_')[1]);
+      return timeB - timeA;
+    });
+    
+    return backupKeys;
+  } catch (error) {
+    console.error('백업 목록 조회 오류:', error);
+    return [];
+  }
+}
+
+// 오래된 백업 정리 (최대 3개 유지)
+function cleanOldBackups() {
+  try {
+    const backupKeys = getBackupList();
+    
+    // 3개 초과시 오래된 것 삭제
+    if (backupKeys.length > 3) {
+      for (let i = 3; i < backupKeys.length; i++) {
+        localStorage.removeItem(backupKeys[i]);
+      }
+    }
+  } catch (error) {
+    console.error('백업 정리 오류:', error);
+  }
+}
+
+// 백업 메타데이터 생성
+function createBackupMetadata(exportData) {
+  return {
+    exportDate: exportData.exportDate,
+    transactionCount: exportData.transactions?.length || 0,
+    savingsAccountCount: exportData.savingsAccounts?.length || 0,
+    fixedExpenseCount: exportData.fixedExpenses?.length || 0,
+    budgetCount: exportData.budgets?.length || 0,
+    investmentCount: exportData.investments?.length || 0
+  };
+}
+
+async function exportData() {
+  try {
+    // 모든 데이터 수집
+    const exportData = {
+      version: '1.0',
+      exportDate: new Date().toISOString(),
+      settings: state.settings,
+      transactions: state.transactions,
+      savingsAccounts: state.savingsAccounts,
+      fixedExpenses: state.fixedExpenses,
+      budgets: state.budgets,
+      investments: state.investments
+    };
+    
+    const timestamp = Date.now();
+    const fileName = `가계부_백업_${getYearMonth(new Date())}_${timestamp}.json`;
+    
+    // 1. LocalStorage에 백업 저장
+    try {
+      const backupKey = `backup_${timestamp}`;
+      const backupData = {
+        data: exportData,
+        metadata: createBackupMetadata(exportData)
+      };
+      
+      localStorage.setItem(backupKey, JSON.stringify(backupData));
+      
+      // 오래된 백업 정리
+      cleanOldBackups();
+      
+      const backupList = getBackupList();
+      const backupPosition = backupList.indexOf(backupKey) + 1;
+      
+      console.log('✅ 브라우저에 백업 저장 완료:', backupKey);
+    } catch (storageError) {
+      console.warn('LocalStorage 저장 실패:', storageError);
+      // LocalStorage 실패해도 파일 다운로드는 계속 진행
+    }
+    
+    // 2. 파일 다운로드
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    const backupCount = getBackupList().length;
+    
+    // 성공 메시지
+    alert(
+      `✅ 데이터 백업이 완료되었습니다!\n\n` +
+      `📱 브라우저에 저장됨 (${backupCount}/3개)\n` +
+      `💾 파일 다운로드: ${fileName}\n\n` +
+      `다운로드된 파일은 브라우저의 다운로드 폴더에 저장되었습니다.\n` +
+      `(Chrome: Ctrl+J, Safari: Cmd+Shift+L로 확인)`
+    );
+  } catch (error) {
+    console.error('데이터 내보내기 오류:', error);
+    alert('데이터 내보내기 중 오류가 발생했습니다.');
+  }
+}
+
+function openImportDataModal() {
+  const modalContainer = document.getElementById('modal-container');
+  
+  // LocalStorage에서 백업 목록 가져오기
+  const backupKeys = getBackupList();
+  const recentBackups = backupKeys.slice(0, 3); // 최신 3개만
+  
+  let backupListHTML = '';
+  
+  if (recentBackups.length > 0) {
+    backupListHTML = `
+      <div class="mb-6">
+        <h4 class="text-sm font-semibold mb-3 text-gray-700">
+          <i class="fas fa-clock mr-2"></i>최근 백업 (${recentBackups.length}개)
+        </h4>
+        <div class="space-y-2">
+    `;
+    
+    recentBackups.forEach((backupKey, index) => {
+      try {
+        const backupData = JSON.parse(localStorage.getItem(backupKey));
+        const metadata = backupData.metadata;
+        const exportDate = new Date(metadata.exportDate);
+        const dateStr = exportDate.toLocaleString('ko-KR', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        backupListHTML += `
+          <label class="flex items-start p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                 onclick="selectBackup('${backupKey}')">
+            <input type="radio" name="backup" value="${backupKey}" 
+                   class="mt-1 mr-3" id="backup_radio_${index}">
+            <div class="flex-1">
+              <div class="font-medium text-gray-900 mb-1">
+                <i class="fas fa-calendar-alt mr-2 text-blue-500"></i>${dateStr}
+              </div>
+              <div class="text-sm text-gray-600 space-y-1">
+                <div>
+                  <i class="fas fa-exchange-alt mr-2 w-4 text-gray-400"></i>거래 ${metadata.transactionCount}건
+                </div>
+                <div class="flex gap-4 flex-wrap">
+                  <span><i class="fas fa-piggy-bank mr-1 text-gray-400"></i>저축 ${metadata.savingsAccountCount}</span>
+                  <span><i class="fas fa-receipt mr-1 text-gray-400"></i>고정지출 ${metadata.fixedExpenseCount}</span>
+                  <span><i class="fas fa-chart-pie mr-1 text-gray-400"></i>예산 ${metadata.budgetCount}</span>
+                  <span><i class="fas fa-chart-line mr-1 text-gray-400"></i>투자 ${metadata.investmentCount}</span>
+                </div>
+              </div>
+            </div>
+          </label>
+        `;
+      } catch (error) {
+        console.error('백업 파싱 오류:', backupKey, error);
+      }
+    });
+    
+    backupListHTML += `
+        </div>
+        <button type="button" onclick="restoreFromLocalStorage()" 
+                class="w-full mt-3 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium">
+          <i class="fas fa-download mr-2"></i>선택한 백업 불러오기
+        </button>
+      </div>
+      
+      <div class="relative my-6">
+        <div class="absolute inset-0 flex items-center">
+          <div class="w-full border-t border-gray-300"></div>
+        </div>
+        <div class="relative flex justify-center text-sm">
+          <span class="px-3 bg-white text-gray-500">또는</span>
+        </div>
+      </div>
+    `;
+  } else {
+    backupListHTML = `
+      <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <p class="text-sm text-blue-800">
+          <i class="fas fa-info-circle mr-2"></i>
+          저장된 백업이 없습니다. 파일에서 백업을 불러오세요.
+        </p>
+      </div>
+    `;
+  }
+  
+  modalContainer.innerHTML = `
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
+      <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+        <h3 class="text-xl font-bold mb-4">
+          <i class="fas fa-upload mr-2"></i>데이터 불러오기
+        </h3>
+        
+        <div class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p class="text-sm text-yellow-800">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <strong>주의:</strong> 데이터를 불러오면 현재 데이터가 모두 덮어씌워집니다.
+          </p>
+        </div>
+        
+        ${backupListHTML}
+        
+        <form onsubmit="handleImportData(event)" class="space-y-4">
+          <div>
+            <label class="block text-sm font-semibold mb-2 text-gray-700">
+              <i class="fas fa-file-upload mr-2"></i>파일에서 불러오기
+            </label>
+            <input type="file" name="importFile" accept=".json" 
+                   class="w-full px-4 py-2 border-2 border-dashed rounded-lg hover:border-blue-400 transition-colors">
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="flex-1 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium">
+              <i class="fas fa-file-import mr-2"></i>파일에서 불러오기
+            </button>
+            <button type="button" onclick="closeModal()" 
+                    class="flex-1 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium">
+              <i class="fas fa-times mr-2"></i>취소
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+// 백업 선택 처리
+function selectBackup(backupKey) {
+  // 모든 라디오 버튼 해제
+  document.querySelectorAll('input[name="backup"]').forEach(radio => {
+    radio.checked = false;
+  });
+  
+  // 선택한 백업의 라디오 버튼 체크
+  const radio = document.querySelector(`input[value="${backupKey}"]`);
+  if (radio) {
+    radio.checked = true;
+  }
+}
+
+// LocalStorage에서 백업 복원
+async function restoreFromLocalStorage() {
+  try {
+    const selectedRadio = document.querySelector('input[name="backup"]:checked');
+    
+    if (!selectedRadio) {
+      alert('복원할 백업을 선택해주세요.');
+      return;
+    }
+    
+    const backupKey = selectedRadio.value;
+    const backupData = JSON.parse(localStorage.getItem(backupKey));
+    
+    if (!backupData || !backupData.data) {
+      alert('백업 데이터를 불러올 수 없습니다.');
+      return;
+    }
+    
+    const importData = backupData.data;
+    const metadata = backupData.metadata;
+    const exportDate = new Date(metadata.exportDate);
+    const dateStr = exportDate.toLocaleString('ko-KR');
+    
+    // 확인 메시지
+    if (!confirm(
+      `📅 ${dateStr} 백업을 복원하시겠습니까?\n\n` +
+      `📊 포함된 데이터:\n` +
+      `  • 거래 내역: ${metadata.transactionCount}건\n` +
+      `  • 저축 계좌: ${metadata.savingsAccountCount}개\n` +
+      `  • 고정 지출: ${metadata.fixedExpenseCount}개\n` +
+      `  • 예산: ${metadata.budgetCount}개\n` +
+      `  • 투자: ${metadata.investmentCount}개\n\n` +
+      `⚠️ 현재 데이터가 모두 삭제됩니다.`
+    )) {
+      return;
+    }
+    
+    // 데이터 복원 수행
+    await performDataRestore(importData);
+    
+  } catch (error) {
+    console.error('백업 복원 오류:', error);
+    alert('백업 복원 중 오류가 발생했습니다.');
+  }
+}
+
+async function handleImportData(event) {
+  event.preventDefault();
+  
+  const fileInput = event.target.importFile;
+  if (!fileInput.files.length) {
+    alert('파일을 선택해주세요.');
+    return;
+  }
+  
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+  
+  reader.onload = async (e) => {
+    try {
+      const importData = JSON.parse(e.target.result);
+      
+      // 데이터 유효성 검사
+      if (!importData.version || !importData.exportDate) {
+        alert('올바른 백업 파일이 아닙니다.');
+        return;
+      }
+      
+      // 확인 메시지
+      const exportDate = new Date(importData.exportDate);
+      const dateStr = exportDate.toLocaleString('ko-KR');
+      
+      if (!confirm(`📅 ${dateStr} 백업 데이터를 불러오시겠습니까?\n\n⚠️ 현재 데이터가 모두 삭제됩니다.`)) {
+        return;
+      }
+      
+      // 데이터 복원 수행
+      await performDataRestore(importData);
+      
+    } catch (error) {
+      console.error('파일 불러오기 오류:', error);
+      alert('데이터 불러오기 중 오류가 발생했습니다. 파일 형식을 확인해주세요.');
+    }
+  };
+  
+  reader.onerror = () => {
+    alert('파일 읽기 중 오류가 발생했습니다.');
+  };
+  
+  reader.readAsText(file);
+}
+
+// 데이터 복원 공통 로직 (LocalStorage 백업과 파일 백업 모두 사용)
+async function performDataRestore(importData) {
+  try {
+    // 1단계: 기존 데이터 삭제
+    console.log('기존 데이터 삭제 중...');
+    
+    // 기존 거래 삭제
+    if (state.transactions && state.transactions.length > 0) {
+      for (const t of state.transactions) {
+        try {
+          await axios.delete(`/api/transactions/${t.id}`);
+        } catch (error) {
+          console.error('거래 삭제 오류:', error);
+        }
+      }
+    }
+    
+    // 기존 저축 계좌 삭제
+    if (state.savingsAccounts && state.savingsAccounts.length > 0) {
+      for (const sa of state.savingsAccounts) {
+        try {
+          await axios.delete(`/api/savings-accounts/${sa.id}`);
+        } catch (error) {
+          console.error('저축 계좌 삭제 오류:', error);
+        }
+      }
+    }
+    
+    // 기존 고정지출 삭제
+    if (state.fixedExpenses && state.fixedExpenses.length > 0) {
+      for (const fe of state.fixedExpenses) {
+        try {
+          await axios.delete(`/api/fixed-expenses/${fe.id}`);
+        } catch (error) {
+          console.error('고정지출 삭제 오류:', error);
+        }
+      }
+    }
+    
+    // 기존 예산 삭제
+    if (state.budgets && state.budgets.length > 0) {
+      for (const b of state.budgets) {
+        try {
+          await axios.delete(`/api/budgets/${encodeURIComponent(b.category)}`);
+        } catch (error) {
+          console.error('예산 삭제 오류:', error);
+        }
+      }
+    }
+    
+    // 기존 투자 삭제
+    if (state.investments && state.investments.length > 0) {
+      for (const inv of state.investments) {
+        try {
+          await axios.delete(`/api/investments/${inv.id}`);
+        } catch (error) {
+          console.error('투자 삭제 오류:', error);
+        }
+      }
+    }
+    
+    console.log('기존 데이터 삭제 완료');
+    
+    // 2단계: 새 데이터 복원
+    console.log('새 데이터 복원 중...');
+    
+    // 설정 복원
+    if (importData.settings) {
+      await axios.put('/api/settings', importData.settings);
+    }
+    
+    // 저축 계좌 먼저 복원 (거래가 참조할 수 있음)
+    if (importData.savingsAccounts && importData.savingsAccounts.length > 0) {
+      for (const sa of importData.savingsAccounts) {
+        try {
+          await axios.post('/api/savings-accounts', { name: sa.name });
+        } catch (error) {
+          console.error('저축 계좌 복원 오류:', error);
+        }
+      }
+    }
+    
+    // 거래 내역 복원
+    if (importData.transactions && importData.transactions.length > 0) {
+      for (const t of importData.transactions) {
+        try {
+          // savings_account_id가 null이나 undefined면 제외
+          const transactionData = {
+            type: t.type,
+            category: t.category,
+            amount: t.amount,
+            description: t.description,
+            date: t.date,
+            payment_method: t.payment_method || 'card'
+          };
+          
+          // savings_account_id가 유효한 경우만 추가
+          if (t.savings_account_id !== null && t.savings_account_id !== undefined) {
+            transactionData.savings_account_id = t.savings_account_id;
+          }
+          
+          await axios.post('/api/transactions', transactionData);
+        } catch (error) {
+          console.error('거래 복원 오류:', error);
+        }
+      }
+    }
+    
+    // 고정지출 복원
+    if (importData.fixedExpenses && importData.fixedExpenses.length > 0) {
+      for (const fe of importData.fixedExpenses) {
+        try {
+          await axios.post('/api/fixed-expenses', {
+            name: fe.name,
+            category: fe.category,
+            amount: fe.amount,
+            frequency: fe.frequency,
+            week_of_month: fe.week_of_month,
+            day_of_week: fe.day_of_week,
+            payment_day: fe.payment_day
+          });
+        } catch (error) {
+          console.error('고정지출 복원 오류:', error);
+        }
+      }
+    }
+    
+    // 예산 복원
+    if (importData.budgets && importData.budgets.length > 0) {
+      for (const b of importData.budgets) {
+        try {
+          await axios.put(`/api/budgets/${encodeURIComponent(b.category)}`, {
+            monthly_budget: b.monthly_budget
+          });
+        } catch (error) {
+          console.error('예산 복원 오류:', error);
+        }
+      }
+    }
+    
+    // 투자 복원
+    if (importData.investments && importData.investments.length > 0) {
+      for (const inv of importData.investments) {
+        try {
+          await axios.post('/api/investments', {
+            symbol: inv.symbol,
+            name: inv.name,
+            quantity: inv.quantity,
+            purchase_price: inv.purchase_price,
+            purchase_date: inv.purchase_date,
+            notes: inv.notes
+          });
+        } catch (error) {
+          console.error('투자 복원 오류:', error);
+        }
+      }
+    }
+    
+    console.log('데이터 복원 완료');
+    
+    closeModal();
+    alert('✅ 데이터가 성공적으로 복원되었습니다!');
+    location.reload();
+    
+  } catch (error) {
+    console.error('데이터 복원 오류:', error);
+    alert('❌ 데이터 복원 중 오류가 발생했습니다: ' + error.message);
+    throw error;
+  }
+}
+
 // 초기화
-// =============================================================================
 
 async function init() {
+  applyDarkMode();
   await fetchSettings();
   await switchView('month');
   
@@ -999,9 +3686,186 @@ async function init() {
   document.getElementById('tab-savings').onclick = () => switchView('savings');
   document.getElementById('tab-fixed-expenses').onclick = () => switchView('fixed-expenses');
   document.getElementById('tab-budgets').onclick = () => switchView('budgets');
+  document.getElementById('tab-investments').onclick = () => switchView('investments');
+  document.getElementById('tab-reports').onclick = () => switchView('reports');
   document.getElementById('tab-settings').onclick = () => switchView('settings');
 }
 
 // 앱 시작
 init();
 
+
+// ========== 고정지출 & 저축 통장 수정 기능 ==========
+
+// 고정지출 수정 모달 열기
+function openEditFixedExpenseModal(expenseData) {
+  const modalContainer = document.getElementById('modal-container');
+  
+  const frequencyOptions = [
+    { value: 'monthly_day', label: '매월 (특정 일자)', selected: expenseData.frequency === 'monthly_day' },
+    { value: 'monthly', label: '매월 (특정 주/요일)', selected: expenseData.frequency === 'monthly' },
+    { value: 'weekly', label: '매주', selected: expenseData.frequency === 'weekly' }
+  ];
+  
+  modalContainer.innerHTML = `
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
+      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
+        <h3 class="text-xl font-bold mb-4">고정지출 수정</h3>
+        <form onsubmit="handleEditFixedExpense(event, ${expenseData.id})" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">항목명</label>
+            <input type="text" name="name" value="${expenseData.name}" required class="w-full px-4 py-2 border rounded">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">카테고리</label>
+            <select name="category" required class="w-full px-4 py-2 border rounded">
+              ${categories.expense.map(cat => `<option value="${cat}" ${cat === expenseData.category ? 'selected' : ''}>${cat}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">금액 (${CURRENCIES[state.settings.currency]?.symbol || '₩'})</label>
+            <input type="number" name="amount" value="${expenseData.amount}" required min="0" step="1000" class="w-full px-4 py-2 border rounded">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">주기</label>
+            <select name="frequency" required class="w-full px-4 py-2 border rounded" onchange="toggleFixedExpenseFields(this.value, 'edit')">
+              ${frequencyOptions.map(opt => `<option value="${opt.value}" ${opt.selected ? 'selected' : ''}>${opt.label}</option>`).join('')}
+            </select>
+          </div>
+          <div id="edit-monthly-day-field" style="display: ${expenseData.frequency === 'monthly_day' ? 'block' : 'none'}">
+            <label class="block text-sm font-medium mb-1">일자</label>
+            <input type="number" name="payment_day" value="${expenseData.payment_day || ''}" min="1" max="31" class="w-full px-4 py-2 border rounded">
+          </div>
+          <div id="edit-monthly-fields" style="display: ${expenseData.frequency === 'monthly' ? 'block' : 'none'}" class="space-y-2">
+            <div>
+              <label class="block text-sm font-medium mb-1">주차</label>
+              <select name="week_of_month" class="w-full px-4 py-2 border rounded">
+                <option value="1" ${expenseData.week_of_month === 1 ? 'selected' : ''}>첫째 주</option>
+                <option value="2" ${expenseData.week_of_month === 2 ? 'selected' : ''}>둘째 주</option>
+                <option value="3" ${expenseData.week_of_month === 3 ? 'selected' : ''}>셋째 주</option>
+                <option value="4" ${expenseData.week_of_month === 4 ? 'selected' : ''}>넷째 주</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">요일</label>
+              <select name="day_of_week_monthly" class="w-full px-4 py-2 border rounded">
+                ${['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'].map((day, idx) => `<option value="${idx}" ${expenseData.day_of_week === idx ? 'selected' : ''}>${day}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div id="edit-weekly-field" style="display: ${expenseData.frequency === 'weekly' ? 'block' : 'none'}">
+            <label class="block text-sm font-medium mb-1">요일</label>
+            <select name="day_of_week_weekly" class="w-full px-4 py-2 border rounded">
+              ${['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'].map((day, idx) => `<option value="${idx}" ${expenseData.day_of_week === idx ? 'selected' : ''}>${day}</option>`).join('')}
+            </select>
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="flex-1 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
+              수정
+            </button>
+            <button type="button" onclick="closeModal()" class="flex-1 py-3 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 font-medium">
+              취소
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+// 고정지출 수정 처리
+async function handleEditFixedExpense(event, id) {
+  event.preventDefault();
+  
+  const formData = new FormData(event.target);
+  const frequency = formData.get('frequency');
+  
+  const data = {
+    name: formData.get('name'),
+    category: formData.get('category'),
+    amount: parseInt(formData.get('amount')),
+    frequency: frequency
+  };
+  
+  // 주기에 따라 필요한 필드 추가
+  if (frequency === 'monthly_day') {
+    const paymentDay = parseInt(formData.get('payment_day'));
+    const paymentDayValidation = validateInteger(paymentDay, 1, 31, '결제일');
+    if (!paymentDayValidation.valid) {
+      showValidationError(paymentDayValidation.error);
+      return;
+    }
+    data.payment_day = paymentDayValidation.value;
+  } else if (frequency === 'monthly') {
+    data.week_of_month = parseInt(formData.get('week_of_month'));
+    data.day_of_week = parseInt(formData.get('day_of_week_monthly'));
+  } else if (frequency === 'weekly') {
+    data.day_of_week = parseInt(formData.get('day_of_week_weekly'));
+  }
+  
+  // 금액 검증
+  const amountValidation = validateNumber(data.amount, 0, 10000000000, '금액');
+  if (!amountValidation.valid) {
+    showValidationError(amountValidation.error);
+    return;
+  }
+  
+  try {
+    const response = await axios.put(`/api/fixed-expenses/${id}`, data);
+    if (response.data.success) {
+      closeModal();
+      renderFixedExpensesView();
+    }
+  } catch (error) {
+    alert(error.response?.data?.error || '고정지출 수정 중 오류가 발생했습니다.');
+  }
+}
+
+// 저축 통장 이름 수정 모달 열기
+function openEditSavingsAccountModal(id, name) {
+  const modalContainer = document.getElementById('modal-container');
+  modalContainer.innerHTML = `
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
+      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
+        <h3 class="text-xl font-bold mb-4">저축 통장 이름 수정</h3>
+        <form onsubmit="handleEditSavingsAccount(event, ${id})" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">통장 이름</label>
+            <input type="text" name="name" value="${name}" required class="w-full px-4 py-2 border rounded">
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="flex-1 py-3 bg-green-500 text-white rounded hover:bg-green-600 font-medium">
+              수정
+            </button>
+            <button type="button" onclick="closeModal()" class="flex-1 py-3 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 font-medium">
+              취소
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+// 저축 통장 이름 수정 처리
+async function handleEditSavingsAccount(event, id) {
+  event.preventDefault();
+  
+  const formData = new FormData(event.target);
+  const name = formData.get('name').trim();
+  
+  if (!name) {
+    alert('통장 이름을 입력해주세요.');
+    return;
+  }
+  
+  try {
+    const response = await axios.put(`/api/savings-accounts/${id}`, { name });
+    if (response.data.success) {
+      closeModal();
+      renderSavingsView();
+    }
+  } catch (error) {
+    alert(error.response?.data?.error || '저축 통장 수정 중 오류가 발생했습니다.');
+  }
+}
