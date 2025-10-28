@@ -3505,29 +3505,75 @@ async function handleImportData(event) {
 // 데이터 복원 공통 로직 (LocalStorage 백업과 파일 백업 모두 사용)
 async function performDataRestore(importData) {
   try {
-    // 데이터 복원
-    if (importData.settings) {
-      await axios.put('/api/settings', importData.settings);
-    }
+    // 1단계: 기존 데이터 삭제
+    console.log('기존 데이터 삭제 중...');
     
-    if (importData.transactions && importData.transactions.length > 0) {
-      for (const t of importData.transactions) {
+    // 기존 거래 삭제
+    if (state.transactions && state.transactions.length > 0) {
+      for (const t of state.transactions) {
         try {
-          await axios.post('/api/transactions', {
-            type: t.type,
-            category: t.category,
-            amount: t.amount,
-            description: t.description,
-            date: t.date,
-            payment_method: t.payment_method || 'card',
-            savings_account_id: t.savings_account_id
-          });
+          await axios.delete(`/api/transactions/${t.id}`);
         } catch (error) {
-          console.error('거래 복원 오류:', error);
+          console.error('거래 삭제 오류:', error);
         }
       }
     }
     
+    // 기존 저축 계좌 삭제
+    if (state.savingsAccounts && state.savingsAccounts.length > 0) {
+      for (const sa of state.savingsAccounts) {
+        try {
+          await axios.delete(`/api/savings-accounts/${sa.id}`);
+        } catch (error) {
+          console.error('저축 계좌 삭제 오류:', error);
+        }
+      }
+    }
+    
+    // 기존 고정지출 삭제
+    if (state.fixedExpenses && state.fixedExpenses.length > 0) {
+      for (const fe of state.fixedExpenses) {
+        try {
+          await axios.delete(`/api/fixed-expenses/${fe.id}`);
+        } catch (error) {
+          console.error('고정지출 삭제 오류:', error);
+        }
+      }
+    }
+    
+    // 기존 예산 삭제
+    if (state.budgets && state.budgets.length > 0) {
+      for (const b of state.budgets) {
+        try {
+          await axios.delete(`/api/budgets/${encodeURIComponent(b.category)}`);
+        } catch (error) {
+          console.error('예산 삭제 오류:', error);
+        }
+      }
+    }
+    
+    // 기존 투자 삭제
+    if (state.investments && state.investments.length > 0) {
+      for (const inv of state.investments) {
+        try {
+          await axios.delete(`/api/investments/${inv.id}`);
+        } catch (error) {
+          console.error('투자 삭제 오류:', error);
+        }
+      }
+    }
+    
+    console.log('기존 데이터 삭제 완료');
+    
+    // 2단계: 새 데이터 복원
+    console.log('새 데이터 복원 중...');
+    
+    // 설정 복원
+    if (importData.settings) {
+      await axios.put('/api/settings', importData.settings);
+    }
+    
+    // 저축 계좌 먼저 복원 (거래가 참조할 수 있음)
     if (importData.savingsAccounts && importData.savingsAccounts.length > 0) {
       for (const sa of importData.savingsAccounts) {
         try {
@@ -3538,6 +3584,33 @@ async function performDataRestore(importData) {
       }
     }
     
+    // 거래 내역 복원
+    if (importData.transactions && importData.transactions.length > 0) {
+      for (const t of importData.transactions) {
+        try {
+          // savings_account_id가 null이나 undefined면 제외
+          const transactionData = {
+            type: t.type,
+            category: t.category,
+            amount: t.amount,
+            description: t.description,
+            date: t.date,
+            payment_method: t.payment_method || 'card'
+          };
+          
+          // savings_account_id가 유효한 경우만 추가
+          if (t.savings_account_id !== null && t.savings_account_id !== undefined) {
+            transactionData.savings_account_id = t.savings_account_id;
+          }
+          
+          await axios.post('/api/transactions', transactionData);
+        } catch (error) {
+          console.error('거래 복원 오류:', error);
+        }
+      }
+    }
+    
+    // 고정지출 복원
     if (importData.fixedExpenses && importData.fixedExpenses.length > 0) {
       for (const fe of importData.fixedExpenses) {
         try {
@@ -3556,10 +3629,11 @@ async function performDataRestore(importData) {
       }
     }
     
+    // 예산 복원
     if (importData.budgets && importData.budgets.length > 0) {
       for (const b of importData.budgets) {
         try {
-          await axios.put(`/api/budgets/${b.category}`, {
+          await axios.put(`/api/budgets/${encodeURIComponent(b.category)}`, {
             monthly_budget: b.monthly_budget
           });
         } catch (error) {
@@ -3568,6 +3642,7 @@ async function performDataRestore(importData) {
       }
     }
     
+    // 투자 복원
     if (importData.investments && importData.investments.length > 0) {
       for (const inv of importData.investments) {
         try {
@@ -3585,12 +3660,15 @@ async function performDataRestore(importData) {
       }
     }
     
+    console.log('데이터 복원 완료');
+    
     closeModal();
     alert('✅ 데이터가 성공적으로 복원되었습니다!');
     location.reload();
     
   } catch (error) {
     console.error('데이터 복원 오류:', error);
+    alert('❌ 데이터 복원 중 오류가 발생했습니다: ' + error.message);
     throw error;
   }
 }
