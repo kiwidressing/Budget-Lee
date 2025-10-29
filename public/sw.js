@@ -1,9 +1,9 @@
 // Budget Lee - Service Worker
-// Version: 1.0.0
+// Version: 2.0.0 - Session 11 Update
 
-const CACHE_VERSION = 'budgetlee-v1';
-const STATIC_CACHE = 'budgetlee-static-v1';
-const DYNAMIC_CACHE = 'budgetlee-dynamic-v1';
+const CACHE_VERSION = 'budgetlee-v2';
+const STATIC_CACHE = 'budgetlee-static-v2';
+const DYNAMIC_CACHE = 'budgetlee-dynamic-v2';
 
 // 오프라인에서도 접근 가능한 정적 파일
 const STATIC_ASSETS = [
