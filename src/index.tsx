@@ -315,8 +315,8 @@ app.post('/api/auth/register', async (c) => {
   
   return c.json({ 
     success: true, 
-    accessToken,
-    refreshToken,
+    access: accessToken,      // 통일: access
+    refresh: refreshToken,    // 통일: refresh
     user: {
       id: userId,
       username,
@@ -386,8 +386,8 @@ app.post('/api/auth/login', async (c) => {
   
   return c.json({ 
     success: true, 
-    accessToken,
-    refreshToken,
+    access: accessToken,      // 통일: access
+    refresh: refreshToken,    // 통일: refresh
     user: {
       id: user.id,
       username: user.username,
@@ -418,7 +418,7 @@ app.post('/api/auth/refresh', async (c) => {
   
   return c.json({
     success: true,
-    accessToken
+    access: accessToken    // 통일: access
   })
 })
 
@@ -1523,7 +1523,7 @@ app.get('/', (c) => {
 
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=2025-10-29-fix"></script>
     <script>
       // PWA Service Worker 등록 (오프라인 지원)
       if ('serviceWorker' in navigator) {

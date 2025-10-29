@@ -1,3 +1,76 @@
+// ===== axios 기본 경로: 같은 오리진 강제 =====
+const API_BASE = location.origin;
+axios.defaults.baseURL = API_BASE;
+
+// ===== 공통: 다양한 토큰 키를 모두 허용하는 파서 =====
+function extractTokens(data) {
+  const access =
+    data?.access ??
+    data?.accessToken ??
+    data?.token ??
+    null;
+
+  const refresh =
+    data?.refresh ??
+    data?.refreshToken ??
+    null;
+
+  return { access, refresh };
+}
+
+// ===== Access 만료(401)시 자동 리프레시 후 재시도 =====
+axios.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    try {
+      const status = error?.response?.status;
+      const orig = error?.config;
+
+      if (status === 401 && !orig?._retry) {
+        const refresh = localStorage.getItem('refresh') || localStorage.getItem('refreshToken');
+        if (!refresh) throw error;
+
+        orig._retry = true;
+        // 리프레시 호출
+        const res = await axios.post('/api/auth/refresh', { refreshToken: refresh });
+        const access =
+          res?.data?.access ??
+          res?.data?.accessToken ??
+          res?.data?.token ??
+          null;
+
+        if (!access) throw error;
+
+        // 새 Access 저장 + 헤더 갱신
+        localStorage.setItem('authToken', access);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+        orig.headers = orig.headers || {};
+        orig.headers['Authorization'] = `Bearer ${access}`;
+
+        // 원 요청 재시도
+        return axios(orig);
+      }
+    } catch (e) {
+      // 리프레시 실패 → 토큰 제거/로그아웃
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('refresh');
+      // 필요 시 로그인 화면으로
+      if (typeof renderLoginScreen === 'function') {
+        renderLoginScreen();
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+// ===== 앱 초기 부팅 시 저장된 토큰을 axios에 장착 =====
+(function attachSavedToken() {
+  const access = localStorage.getItem('authToken');
+  if (access) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+  }
+})();
+
 // 전역 상태 객체
 
 const state = {
@@ -466,21 +539,33 @@ async function handleLogin(event) {
   }
   
   try {
-    const response = await axios.post('/api/auth/login', { username, password });
-    console.log('[Login] Response:', response.data);
+    const res = await axios.post('/api/auth/login', { username, password });
+    console.log('[Login] Response:', res.data);
     
-    if (response.data.success) {
-      console.log('[Login] Setting tokens...');
-      setAuthToken(response.data.accessToken, response.data.refreshToken);
-      state.isAuthenticated = true;
-      state.currentUser = response.data.user;
-      console.log('[Login] State updated:', state);
-      console.log('[Login] Rendering app...');
-      renderApp();
+    // 응답에서 토큰을 유연하게 추출
+    const { access, refresh } = extractTokens(res.data);
+    
+    if (!access) {
+      console.error('No access token in response', res.data);
+      alert('로그인 응답에 토큰이 없습니다.');
+      return;
     }
-  } catch (error) {
-    console.error('[Login] Error:', error);
-    alert(error.response?.data?.error || '로그인에 실패했습니다.');
+    
+    // 로컬 저장 + Authorization 헤더 세팅
+    console.log('[Login] Setting tokens...');
+    localStorage.setItem('authToken', access);
+    if (refresh) localStorage.setItem('refresh', refresh);
+    axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+    
+    // 상태/화면 갱신
+    state.isAuthenticated = true;
+    state.currentUser = res.data.user || null;
+    console.log('[Login] State updated:', state);
+    console.log('[Login] Rendering app...');
+    renderApp();
+  } catch (err) {
+    console.error('[Login] Error:', err);
+    alert(err?.response?.data?.error || '로그인 실패');
   }
 }
 
@@ -514,16 +599,24 @@ async function handleRegister(event) {
   }
   
   try {
-    const response = await axios.post('/api/auth/register', { username, password, name });
+    const res = await axios.post('/api/auth/register', { username, password, name });
+    console.log('[Register] Response:', res.data);
     
-    if (response.data.success) {
-      setAuthToken(response.data.accessToken, response.data.refreshToken);
-      state.isAuthenticated = true;
-      state.currentUser = response.data.user;
-      renderApp();
+    // 응답에서 토큰을 유연하게 추출
+    const { access, refresh } = extractTokens(res.data);
+    
+    if (access) {
+      localStorage.setItem('authToken', access);
+      if (refresh) localStorage.setItem('refresh', refresh);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
     }
-  } catch (error) {
-    alert(error.response?.data?.error || '회원가입에 실패했습니다.');
+    
+    state.isAuthenticated = true;
+    state.currentUser = res.data.user || null;
+    renderApp();
+  } catch (err) {
+    console.error('[Register] Error:', err);
+    alert(err?.response?.data?.error || '회원가입 실패');
   }
 }
 
