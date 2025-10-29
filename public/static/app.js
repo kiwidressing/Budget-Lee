@@ -293,17 +293,14 @@ function clearAuthToken() {
 }
 
 async function checkAuth() {
-  const accessToken = localStorage.getItem('authToken');
-  const refreshToken = localStorage.getItem('refreshToken');
+  const token = localStorage.getItem('authToken');
   
-  if (!accessToken || !refreshToken) {
+  if (!token) {
     return false;
   }
   
   try {
-    // axios 헤더만 설정 (state는 나중에 업데이트)
-    state.authToken = accessToken;
-    axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     
     const response = await axios.get('/api/auth/me');
     
@@ -313,109 +310,35 @@ async function checkAuth() {
       return true;
     }
   } catch (error) {
-    // 401 에러면 인터셉터가 자동으로 토큰 갱신 시도
-    // 그 외 에러는 로그아웃
-    if (error.response?.status !== 401) {
-      clearAuthToken();
-    }
+    console.error('[Auth] Check failed:', error);
+    localStorage.removeItem('authToken');
+    delete axios.defaults.headers.common['Authorization'];
   }
   
   return false;
 }
 
-// axios 인터셉터 설정 (에러 처리 개선)
-// Refresh Token으로 Access Token 갱신
-async function refreshAccessToken() {
-  const refreshToken = localStorage.getItem('refreshToken');
-  
-  if (!refreshToken) {
-    return null;
-  }
-  
-  try {
-    const response = await axios.post('/api/auth/refresh', { refreshToken });
-    
-    if (response.data.success) {
-      const newAccessToken = response.data.accessToken;
-      localStorage.setItem('authToken', newAccessToken);
-      state.authToken = newAccessToken;
-      axios.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
-      return newAccessToken;
-    }
-  } catch (error) {
-    console.error('[Auth] Refresh token failed:', error);
-    return null;
-  }
-  
-  return null;
-}
-
-// 재시도 중인지 플래그
-let isRefreshing = false;
-let failedQueue = [];
-
-const processQueue = (error, token = null) => {
-  failedQueue.forEach(prom => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  
-  failedQueue = [];
-};
-
+// 단순한 axios 인터셉터 (401 시 로그아웃)
 axios.interceptors.response.use(
-  // 성공 응답은 그대로 반환
   (response) => response,
-  
-  // 에러 응답 처리
   async (error) => {
     const status = error?.response?.status;
     const errorMessage = error?.response?.data?.error || error.message;
-    const originalRequest = error.config;
     
-    // 401 인증 오류 - Refresh Token으로 재시도
-    if (status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        // 이미 갱신 중이면 큐에 추가
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then(token => {
-            originalRequest.headers['Authorization'] = 'Bearer ' + token;
-            return axios(originalRequest);
-          })
-          .catch(err => {
-            return Promise.reject(err);
-          });
+    // 401 인증 오류 - 로그아웃
+    if (status === 401) {
+      console.warn('[Auth] 401 Unauthorized - 토큰 만료, 로그아웃 처리');
+      localStorage.removeItem('authToken');
+      delete axios.defaults.headers.common['Authorization'];
+      
+      if (state.isAuthenticated) {
+        alert('세션이 만료되었습니다. 다시 로그인해주세요.');
+        state.isAuthenticated = false;
+        state.currentUser = null;
+        renderLoginScreen();
       }
       
-      originalRequest._retry = true;
-      isRefreshing = true;
-      
-      const newAccessToken = await refreshAccessToken();
-      
-      if (newAccessToken) {
-        console.log('[Auth] Access token refreshed successfully');
-        isRefreshing = false;
-        processQueue(null, newAccessToken);
-        originalRequest.headers['Authorization'] = 'Bearer ' + newAccessToken;
-        return axios(originalRequest);
-      } else {
-        console.warn('[Auth] 401 Unauthorized - Refresh failed, 로그아웃 처리');
-        isRefreshing = false;
-        processQueue(new Error('Token refresh failed'), null);
-        clearAuthToken();
-        
-        if (state.isAuthenticated) {
-          alert('세션이 만료되었습니다. 다시 로그인해주세요.');
-          renderLoginScreen();
-        }
-        
-        return Promise.reject(error);
-      }
+      return Promise.reject(error);
     }
     
     // 403 권한 오류

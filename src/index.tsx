@@ -1371,7 +1371,7 @@ app.get('/', (c) => {
 
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="/static/app.js?v=2025-10-29-simple"></script>
+    <script src="/static/app.js?v=2025-10-29-simple-v2"></script>
     <script>
       // PWA Service Worker 등록 (오프라인 지원)
       if ('serviceWorker' in navigator) {
