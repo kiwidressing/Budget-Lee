@@ -266,10 +266,11 @@ function validateInvestmentPrice(price) {
 
 // 인증 관련 함수
 
-function setAuthToken(token) {
-  state.authToken = token;
-  localStorage.setItem('authToken', token);
-  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+function setAuthToken(accessToken, refreshToken) {
+  state.authToken = accessToken;
+  localStorage.setItem('authToken', accessToken);
+  localStorage.setItem('refreshToken', refreshToken);
+  axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
 }
 
 function clearAuthToken() {
@@ -277,6 +278,7 @@ function clearAuthToken() {
   state.isAuthenticated = false;
   state.currentUser = null;
   localStorage.removeItem('authToken');
+  localStorage.removeItem('refreshToken');
   delete axios.defaults.headers.common['Authorization'];
 }
 
@@ -304,27 +306,98 @@ async function checkAuth() {
 }
 
 // axios 인터셉터 설정 (에러 처리 개선)
+// Refresh Token으로 Access Token 갱신
+async function refreshAccessToken() {
+  const refreshToken = localStorage.getItem('refreshToken');
+  
+  if (!refreshToken) {
+    return null;
+  }
+  
+  try {
+    const response = await axios.post('/api/auth/refresh', { refreshToken });
+    
+    if (response.data.success) {
+      const newAccessToken = response.data.accessToken;
+      localStorage.setItem('authToken', newAccessToken);
+      state.authToken = newAccessToken;
+      axios.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
+      return newAccessToken;
+    }
+  } catch (error) {
+    console.error('[Auth] Refresh token failed:', error);
+    return null;
+  }
+  
+  return null;
+}
+
+// 재시도 중인지 플래그
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  
+  failedQueue = [];
+};
+
 axios.interceptors.response.use(
   // 성공 응답은 그대로 반환
   (response) => response,
   
   // 에러 응답 처리
-  (error) => {
+  async (error) => {
     const status = error?.response?.status;
     const errorMessage = error?.response?.data?.error || error.message;
+    const originalRequest = error.config;
     
-    // 401 인증 오류 - 자동 로그아웃
-    if (status === 401) {
-      console.warn('[Auth] 401 Unauthorized - 로그아웃 처리');
-      clearAuthToken();
-      
-      // 로그인 화면으로 이동 (현재 화면이 로그인이 아닌 경우)
-      if (state.isAuthenticated) {
-        alert('세션이 만료되었습니다. 다시 로그인해주세요.');
-        renderLoginScreen();
+    // 401 인증 오류 - Refresh Token으로 재시도
+    if (status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // 이미 갱신 중이면 큐에 추가
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(token => {
+            originalRequest.headers['Authorization'] = 'Bearer ' + token;
+            return axios(originalRequest);
+          })
+          .catch(err => {
+            return Promise.reject(err);
+          });
       }
       
-      return Promise.reject(error);
+      originalRequest._retry = true;
+      isRefreshing = true;
+      
+      const newAccessToken = await refreshAccessToken();
+      
+      if (newAccessToken) {
+        console.log('[Auth] Access token refreshed successfully');
+        isRefreshing = false;
+        processQueue(null, newAccessToken);
+        originalRequest.headers['Authorization'] = 'Bearer ' + newAccessToken;
+        return axios(originalRequest);
+      } else {
+        console.warn('[Auth] 401 Unauthorized - Refresh failed, 로그아웃 처리');
+        isRefreshing = false;
+        processQueue(new Error('Token refresh failed'), null);
+        clearAuthToken();
+        
+        if (state.isAuthenticated) {
+          alert('세션이 만료되었습니다. 다시 로그인해주세요.');
+          renderLoginScreen();
+        }
+        
+        return Promise.reject(error);
+      }
     }
     
     // 403 권한 오류
@@ -384,7 +457,7 @@ async function handleLogin(event) {
     const response = await axios.post('/api/auth/login', { username, password });
     
     if (response.data.success) {
-      setAuthToken(response.data.token);
+      setAuthToken(response.data.accessToken, response.data.refreshToken);
       state.isAuthenticated = true;
       state.currentUser = response.data.user;
       renderApp();
@@ -427,7 +500,7 @@ async function handleRegister(event) {
     const response = await axios.post('/api/auth/register', { username, password, name });
     
     if (response.data.success) {
-      setAuthToken(response.data.token);
+      setAuthToken(response.data.accessToken, response.data.refreshToken);
       state.isAuthenticated = true;
       state.currentUser = response.data.user;
       renderApp();
@@ -437,10 +510,19 @@ async function handleRegister(event) {
   }
 }
 
-function handleLogout() {
+async function handleLogout() {
   if (confirm('로그아웃 하시겠습니까?')) {
-    clearAuthToken();
-    renderLoginScreen();
+    try {
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (refreshToken) {
+        await axios.post('/api/auth/logout', { refreshToken });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      clearAuthToken();
+      renderLoginScreen();
+    }
   }
 }
 
