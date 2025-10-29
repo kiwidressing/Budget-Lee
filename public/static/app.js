@@ -283,14 +283,18 @@ function clearAuthToken() {
 }
 
 async function checkAuth() {
-  const token = localStorage.getItem('authToken');
+  const accessToken = localStorage.getItem('authToken');
+  const refreshToken = localStorage.getItem('refreshToken');
   
-  if (!token) {
+  if (!accessToken || !refreshToken) {
     return false;
   }
   
   try {
-    setAuthToken(token);
+    // axios 헤더만 설정 (state는 나중에 업데이트)
+    state.authToken = accessToken;
+    axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+    
     const response = await axios.get('/api/auth/me');
     
     if (response.data.success) {
@@ -299,7 +303,11 @@ async function checkAuth() {
       return true;
     }
   } catch (error) {
-    clearAuthToken();
+    // 401 에러면 인터셉터가 자동으로 토큰 갱신 시도
+    // 그 외 에러는 로그아웃
+    if (error.response?.status !== 401) {
+      clearAuthToken();
+    }
   }
   
   return false;
