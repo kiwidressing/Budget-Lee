@@ -267,10 +267,12 @@ function validateInvestmentPrice(price) {
 // 인증 관련 함수
 
 function setAuthToken(accessToken, refreshToken) {
+  console.log('[Auth] Setting tokens - Access:', accessToken?.substring(0, 20) + '...', 'Refresh:', refreshToken?.substring(0, 20) + '...');
   state.authToken = accessToken;
   localStorage.setItem('authToken', accessToken);
   localStorage.setItem('refreshToken', refreshToken);
   axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+  console.log('[Auth] Tokens set successfully');
 }
 
 function clearAuthToken() {
@@ -456,6 +458,8 @@ async function handleLogin(event) {
   const username = formData.get('username');
   const password = formData.get('password');
   
+  console.log('[Login] Attempting login for user:', username);
+  
   if (!username || !password) {
     alert('아이디와 비밀번호를 입력해주세요.');
     return;
@@ -463,14 +467,19 @@ async function handleLogin(event) {
   
   try {
     const response = await axios.post('/api/auth/login', { username, password });
+    console.log('[Login] Response:', response.data);
     
     if (response.data.success) {
+      console.log('[Login] Setting tokens...');
       setAuthToken(response.data.accessToken, response.data.refreshToken);
       state.isAuthenticated = true;
       state.currentUser = response.data.user;
+      console.log('[Login] State updated:', state);
+      console.log('[Login] Rendering app...');
       renderApp();
     }
   } catch (error) {
+    console.error('[Login] Error:', error);
     alert(error.response?.data?.error || '로그인에 실패했습니다.');
   }
 }
