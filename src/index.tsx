@@ -1564,4 +1564,338 @@ app.get('/', (c) => {
 </html>`)
 })
 
+// ========== 계좌(Accounts) API ==========
+
+// 계좌 생성
+app.post('/api/accounts', authMiddleware, async (c) => {
+  const { DB } = c.env
+  const userId = c.get('userId')!
+  const { name, type, balance = 0, currency = 'KRW' } = await c.req.json()
+  
+  // 입력 검증
+  if (!name || !type) {
+    return c.json({ success: false, error: '계좌명과 유형을 입력해주세요.' }, 400)
+  }
+  
+  // 유효한 계좌 유형 확인
+  const validTypes = ['checking', 'savings', 'credit_card', 'cash']
+  if (!validTypes.includes(type)) {
+    return c.json({ success: false, error: '유효하지 않은 계좌 유형입니다.' }, 400)
+  }
+  
+  try {
+    const result = await DB.prepare(`
+      INSERT INTO accounts (user_id, name, type, balance, currency)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(userId, name, type, balance, currency).run()
+    
+    const accountId = result.meta.last_row_id
+    
+    return c.json({
+      success: true,
+      account: {
+        id: accountId,
+        user_id: userId,
+        name,
+        type,
+        balance,
+        currency,
+        is_active: 1
+      }
+    })
+  } catch (error: any) {
+    console.error('[Accounts] Create error:', error)
+    return c.json({ success: false, error: '계좌 생성 실패' }, 500)
+  }
+})
+
+// 사용자의 모든 계좌 조회
+app.get('/api/accounts', authMiddleware, async (c) => {
+  const { DB } = c.env
+  const userId = c.get('userId')!
+  const includeInactive = c.req.query('include_inactive') === 'true'
+  
+  try {
+    let query = `
+      SELECT id, user_id, name, type, balance, currency, is_active, 
+             created_at, updated_at
+      FROM accounts
+      WHERE user_id = ?
+    `
+    
+    if (!includeInactive) {
+      query += ' AND is_active = 1'
+    }
+    
+    query += ' ORDER BY created_at DESC'
+    
+    const result = await DB.prepare(query).bind(userId).all()
+    
+    return c.json({
+      success: true,
+      accounts: result.results || []
+    })
+  } catch (error: any) {
+    console.error('[Accounts] List error:', error)
+    return c.json({ success: false, error: '계좌 조회 실패' }, 500)
+  }
+})
+
+// 특정 계좌 상세 조회
+app.get('/api/accounts/:id', authMiddleware, async (c) => {
+  const { DB } = c.env
+  const userId = c.get('userId')!
+  const accountId = parseInt(c.req.param('id'))
+  
+  try {
+    const account = await DB.prepare(`
+      SELECT id, user_id, name, type, balance, currency, is_active,
+             created_at, updated_at
+      FROM accounts
+      WHERE id = ? AND user_id = ?
+    `).bind(accountId, userId).first()
+    
+    if (!account) {
+      return c.json({ success: false, error: '계좌를 찾을 수 없습니다.' }, 404)
+    }
+    
+    return c.json({
+      success: true,
+      account
+    })
+  } catch (error: any) {
+    console.error('[Accounts] Get error:', error)
+    return c.json({ success: false, error: '계좌 조회 실패' }, 500)
+  }
+})
+
+// 계좌 정보 수정
+app.put('/api/accounts/:id', authMiddleware, async (c) => {
+  const { DB } = c.env
+  const userId = c.get('userId')!
+  const accountId = parseInt(c.req.param('id'))
+  const { name, type, balance, currency, is_active } = await c.req.json()
+  
+  try {
+    // 계좌 소유권 확인
+    const account = await DB.prepare(`
+      SELECT id FROM accounts WHERE id = ? AND user_id = ?
+    `).bind(accountId, userId).first()
+    
+    if (!account) {
+      return c.json({ success: false, error: '계좌를 찾을 수 없습니다.' }, 404)
+    }
+    
+    // 업데이트할 필드 동적 생성
+    const updates: string[] = []
+    const values: any[] = []
+    
+    if (name !== undefined) {
+      updates.push('name = ?')
+      values.push(name)
+    }
+    if (type !== undefined) {
+      const validTypes = ['checking', 'savings', 'credit_card', 'cash']
+      if (!validTypes.includes(type)) {
+        return c.json({ success: false, error: '유효하지 않은 계좌 유형입니다.' }, 400)
+      }
+      updates.push('type = ?')
+      values.push(type)
+    }
+    if (balance !== undefined) {
+      updates.push('balance = ?')
+      values.push(balance)
+    }
+    if (currency !== undefined) {
+      updates.push('currency = ?')
+      values.push(currency)
+    }
+    if (is_active !== undefined) {
+      updates.push('is_active = ?')
+      values.push(is_active ? 1 : 0)
+    }
+    
+    if (updates.length === 0) {
+      return c.json({ success: false, error: '업데이트할 필드가 없습니다.' }, 400)
+    }
+    
+    updates.push('updated_at = CURRENT_TIMESTAMP')
+    values.push(accountId, userId)
+    
+    await DB.prepare(`
+      UPDATE accounts
+      SET ${updates.join(', ')}
+      WHERE id = ? AND user_id = ?
+    `).bind(...values).run()
+    
+    return c.json({ success: true, message: '계좌가 수정되었습니다.' })
+  } catch (error: any) {
+    console.error('[Accounts] Update error:', error)
+    return c.json({ success: false, error: '계좌 수정 실패' }, 500)
+  }
+})
+
+// 계좌 삭제 (소프트 삭제 - 비활성화)
+app.delete('/api/accounts/:id', authMiddleware, async (c) => {
+  const { DB } = c.env
+  const userId = c.get('userId')!
+  const accountId = parseInt(c.req.param('id'))
+  
+  try {
+    const result = await DB.prepare(`
+      UPDATE accounts
+      SET is_active = 0, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND user_id = ?
+    `).bind(accountId, userId).run()
+    
+    if (result.meta.changes === 0) {
+      return c.json({ success: false, error: '계좌를 찾을 수 없습니다.' }, 404)
+    }
+    
+    return c.json({ success: true, message: '계좌가 비활성화되었습니다.' })
+  } catch (error: any) {
+    console.error('[Accounts] Delete error:', error)
+    return c.json({ success: false, error: '계좌 삭제 실패' }, 500)
+  }
+})
+
+// ========== 이체(Transfers) API ==========
+
+// 계좌 간 이체 실행
+app.post('/api/transfers', authMiddleware, async (c) => {
+  const { DB } = c.env
+  const userId = c.get('userId')!
+  const { from_account_id, to_account_id, amount, description, transfer_date } = await c.req.json()
+  
+  // 입력 검증
+  if (!from_account_id || !to_account_id || !amount || !transfer_date) {
+    return c.json({ success: false, error: '모든 필드를 입력해주세요.' }, 400)
+  }
+  
+  if (from_account_id === to_account_id) {
+    return c.json({ success: false, error: '동일한 계좌 간 이체는 불가능합니다.' }, 400)
+  }
+  
+  if (amount <= 0) {
+    return c.json({ success: false, error: '이체 금액은 0보다 커야 합니다.' }, 400)
+  }
+  
+  try {
+    // 출금 계좌 확인
+    const fromAccount = await DB.prepare(`
+      SELECT id, balance FROM accounts WHERE id = ? AND user_id = ? AND is_active = 1
+    `).bind(from_account_id, userId).first() as any
+    
+    if (!fromAccount) {
+      return c.json({ success: false, error: '출금 계좌를 찾을 수 없습니다.' }, 404)
+    }
+    
+    // 입금 계좌 확인
+    const toAccount = await DB.prepare(`
+      SELECT id FROM accounts WHERE id = ? AND user_id = ? AND is_active = 1
+    `).bind(to_account_id, userId).first()
+    
+    if (!toAccount) {
+      return c.json({ success: false, error: '입금 계좌를 찾을 수 없습니다.' }, 404)
+    }
+    
+    // 잔액 확인
+    if (fromAccount.balance < amount) {
+      return c.json({ success: false, error: '출금 계좌의 잔액이 부족합니다.' }, 400)
+    }
+    
+    // 트랜잭션 시작 (배치 실행)
+    const batch = [
+      // 이체 기록 삽입
+      DB.prepare(`
+        INSERT INTO transfers (user_id, from_account_id, to_account_id, amount, description, transfer_date)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).bind(userId, from_account_id, to_account_id, amount, description || null, transfer_date),
+      
+      // 출금 계좌 잔액 감소
+      DB.prepare(`
+        UPDATE accounts
+        SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND user_id = ?
+      `).bind(amount, from_account_id, userId),
+      
+      // 입금 계좌 잔액 증가
+      DB.prepare(`
+        UPDATE accounts
+        SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND user_id = ?
+      `).bind(amount, to_account_id, userId)
+    ]
+    
+    const results = await DB.batch(batch)
+    const transferId = results[0].meta.last_row_id
+    
+    return c.json({
+      success: true,
+      transfer: {
+        id: transferId,
+        user_id: userId,
+        from_account_id,
+        to_account_id,
+        amount,
+        description,
+        transfer_date
+      }
+    })
+  } catch (error: any) {
+    console.error('[Transfers] Create error:', error)
+    return c.json({ success: false, error: '이체 실행 실패' }, 500)
+  }
+})
+
+// 이체 내역 조회
+app.get('/api/transfers', authMiddleware, async (c) => {
+  const { DB } = c.env
+  const userId = c.get('userId')!
+  const accountId = c.req.query('account_id')
+  const startDate = c.req.query('start_date')
+  const endDate = c.req.query('end_date')
+  
+  try {
+    let query = `
+      SELECT t.id, t.user_id, t.from_account_id, t.to_account_id, t.amount,
+             t.description, t.transfer_date, t.created_at,
+             fa.name as from_account_name, ta.name as to_account_name
+      FROM transfers t
+      LEFT JOIN accounts fa ON t.from_account_id = fa.id
+      LEFT JOIN accounts ta ON t.to_account_id = ta.id
+      WHERE t.user_id = ?
+    `
+    const params: any[] = [userId]
+    
+    // 특정 계좌 필터링
+    if (accountId) {
+      query += ' AND (t.from_account_id = ? OR t.to_account_id = ?)'
+      params.push(parseInt(accountId), parseInt(accountId))
+    }
+    
+    // 날짜 범위 필터링
+    if (startDate) {
+      query += ' AND t.transfer_date >= ?'
+      params.push(startDate)
+    }
+    if (endDate) {
+      query += ' AND t.transfer_date <= ?'
+      params.push(endDate)
+    }
+    
+    query += ' ORDER BY t.transfer_date DESC, t.created_at DESC'
+    
+    const result = await DB.prepare(query).bind(...params).all()
+    
+    return c.json({
+      success: true,
+      transfers: result.results || []
+    })
+  } catch (error: any) {
+    console.error('[Transfers] List error:', error)
+    return c.json({ success: false, error: '이체 내역 조회 실패' }, 500)
+  }
+})
+
 export default app
