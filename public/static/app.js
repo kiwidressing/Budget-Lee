@@ -266,31 +266,18 @@ function validateInvestmentPrice(price) {
 
 // 인증 관련 함수
 
+// SINGLE USER MODE - Authentication functions disabled
 function setAuthToken(accessToken, refreshToken) {
-  console.log('[Auth] Setting tokens - Access:', accessToken?.substring(0, 20) + '...', 'Refresh:', refreshToken?.substring(0, 20) + '...');
-  state.authToken = accessToken;
-  localStorage.setItem('authToken', accessToken);
-  localStorage.setItem('refreshToken', refreshToken);
-  axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-  console.log('[Auth] Tokens set successfully');
+  // No-op in single user mode
 }
 
 function clearAuthToken() {
-  state.authToken = null;
-  state.isAuthenticated = false;
-  state.currentUser = null;
-  localStorage.removeItem('authToken');
-  localStorage.removeItem('refreshToken');
-  delete axios.defaults.headers.common['Authorization'];
+  // No-op in single user mode
 }
 
 async function checkAuth() {
-  const accessToken = localStorage.getItem('authToken');
-  const refreshToken = localStorage.getItem('refreshToken');
-  
-  if (!accessToken || !refreshToken) {
-    return false;
-  }
+  // Always return true in single user mode
+  return true;
   
   try {
     // axios 헤더만 설정 (state는 나중에 업데이트)
@@ -368,46 +355,10 @@ axios.interceptors.response.use(
     const errorMessage = error?.response?.data?.error || error.message;
     const originalRequest = error.config;
     
-    // 401 인증 오류 - Refresh Token으로 재시도
-    if (status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        // 이미 갱신 중이면 큐에 추가
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then(token => {
-            originalRequest.headers['Authorization'] = 'Bearer ' + token;
-            return axios(originalRequest);
-          })
-          .catch(err => {
-            return Promise.reject(err);
-          });
-      }
-      
-      originalRequest._retry = true;
-      isRefreshing = true;
-      
-      const newAccessToken = await refreshAccessToken();
-      
-      if (newAccessToken) {
-        console.log('[Auth] Access token refreshed successfully');
-        isRefreshing = false;
-        processQueue(null, newAccessToken);
-        originalRequest.headers['Authorization'] = 'Bearer ' + newAccessToken;
-        return axios(originalRequest);
-      } else {
-        console.warn('[Auth] 401 Unauthorized - Refresh failed, 로그아웃 처리');
-        isRefreshing = false;
-        processQueue(new Error('Token refresh failed'), null);
-        clearAuthToken();
-        
-        if (state.isAuthenticated) {
-          alert('세션이 만료되었습니다. 다시 로그인해주세요.');
-          renderLoginScreen();
-        }
-        
-        return Promise.reject(error);
-      }
+    // 401 인증 오류 - DISABLED in single user mode
+    if (status === 401) {
+      console.warn('[Auth] 401 Unauthorized - Ignoring in single user mode');
+      // Just pass through the error
     }
     
     // 403 권한 오류
@@ -698,13 +649,10 @@ function showRegisterForm() {
 }
 
 async function renderApp() {
-  // 인증 확인 후 메인 앱 렌더링
-  const isAuth = await checkAuth();
-  
-  if (!isAuth) {
-    renderLoginScreen();
-    return;
-  }
+  // SINGLE USER MODE - Skip authentication
+  // Always set as authenticated with user_id = 1
+  state.isAuthenticated = true;
+  state.currentUser = { id: 1, username: 'user', name: '사용자' };
   
   // 메인 앱 UI 렌더링
   document.getElementById('app').innerHTML = `

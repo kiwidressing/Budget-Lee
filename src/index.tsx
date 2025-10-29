@@ -239,25 +239,13 @@ async function cleanExpiredSessions(DB: D1Database): Promise<void> {
   `).run()
 }
 
-// 인증 미들웨어
+// 인증 미들웨어 (DISABLED - Single User Mode)
+// All requests use user_id = 1
 const authMiddleware = async (c: any, next: any) => {
-  const authHeader = c.req.header('Authorization')
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return c.json({ success: false, error: '인증이 필요합니다.' }, 401)
-  }
-  
-  const token = authHeader.substring(7)
-  const secret = c.env.JWT_SECRET || 'default-secret-key-change-in-production'
-  
-  try {
-    const payload = await verify(token, secret)
-    c.set('userId', parseInt(payload.sub as string))
-    c.set('username', payload.username as string)
-    await next()
-  } catch (error) {
-    return c.json({ success: false, error: '유효하지 않은 토큰입니다.' }, 401)
-  }
+  // Always set user_id to 1 (single user mode)
+  c.set('userId', 1)
+  c.set('username', 'user')
+  await next()
 }
 
 // ========== 인증 API ==========
