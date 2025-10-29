@@ -1,73 +1,8 @@
-// ===== axios 기본 경로: 같은 오리진 강제 =====
-const API_BASE = location.origin;
-axios.defaults.baseURL = API_BASE;
-
-// ===== 공통: 다양한 토큰 키를 모두 허용하는 파서 =====
-function extractTokens(data) {
-  const access =
-    data?.access ??
-    data?.accessToken ??
-    data?.token ??
-    null;
-
-  const refresh =
-    data?.refresh ??
-    data?.refreshToken ??
-    null;
-
-  return { access, refresh };
-}
-
-// ===== Access 만료(401)시 자동 리프레시 후 재시도 =====
-axios.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    try {
-      const status = error?.response?.status;
-      const orig = error?.config;
-
-      if (status === 401 && !orig?._retry) {
-        const refresh = localStorage.getItem('refresh') || localStorage.getItem('refreshToken');
-        if (!refresh) throw error;
-
-        orig._retry = true;
-        // 리프레시 호출
-        const res = await axios.post('/api/auth/refresh', { refreshToken: refresh });
-        const access =
-          res?.data?.access ??
-          res?.data?.accessToken ??
-          res?.data?.token ??
-          null;
-
-        if (!access) throw error;
-
-        // 새 Access 저장 + 헤더 갱신
-        localStorage.setItem('authToken', access);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
-        orig.headers = orig.headers || {};
-        orig.headers['Authorization'] = `Bearer ${access}`;
-
-        // 원 요청 재시도
-        return axios(orig);
-      }
-    } catch (e) {
-      // 리프레시 실패 → 토큰 제거/로그아웃
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('refresh');
-      // 필요 시 로그인 화면으로
-      if (typeof renderLoginScreen === 'function') {
-        renderLoginScreen();
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
 // ===== 앱 초기 부팅 시 저장된 토큰을 axios에 장착 =====
 (function attachSavedToken() {
-  const access = localStorage.getItem('authToken');
-  if (access) {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+  const token = localStorage.getItem('authToken');
+  if (token) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   }
 })();
 
@@ -542,20 +477,18 @@ async function handleLogin(event) {
     const res = await axios.post('/api/auth/login', { username, password });
     console.log('[Login] Response:', res.data);
     
-    // 응답에서 토큰을 유연하게 추출
-    const { access, refresh } = extractTokens(res.data);
+    const token = res.data.token;
     
-    if (!access) {
-      console.error('No access token in response', res.data);
+    if (!token) {
+      console.error('No token in response', res.data);
       alert('로그인 응답에 토큰이 없습니다.');
       return;
     }
     
     // 로컬 저장 + Authorization 헤더 세팅
-    console.log('[Login] Setting tokens...');
-    localStorage.setItem('authToken', access);
-    if (refresh) localStorage.setItem('refresh', refresh);
-    axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+    console.log('[Login] Setting token...');
+    localStorage.setItem('authToken', token);
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     
     // 상태/화면 갱신
     state.isAuthenticated = true;
@@ -602,13 +535,11 @@ async function handleRegister(event) {
     const res = await axios.post('/api/auth/register', { username, password, name });
     console.log('[Register] Response:', res.data);
     
-    // 응답에서 토큰을 유연하게 추출
-    const { access, refresh } = extractTokens(res.data);
+    const token = res.data.token;
     
-    if (access) {
-      localStorage.setItem('authToken', access);
-      if (refresh) localStorage.setItem('refresh', refresh);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+    if (token) {
+      localStorage.setItem('authToken', token);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
     
     state.isAuthenticated = true;
@@ -620,19 +551,13 @@ async function handleRegister(event) {
   }
 }
 
-async function handleLogout() {
+function handleLogout() {
   if (confirm('로그아웃 하시겠습니까?')) {
-    try {
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (refreshToken) {
-        await axios.post('/api/auth/logout', { refreshToken });
-      }
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      clearAuthToken();
-      renderLoginScreen();
-    }
+    localStorage.removeItem('authToken');
+    delete axios.defaults.headers.common['Authorization'];
+    state.isAuthenticated = false;
+    state.currentUser = null;
+    renderLoginScreen();
   }
 }
 

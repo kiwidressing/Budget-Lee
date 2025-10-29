@@ -102,10 +102,8 @@ app.use('/static/*', serveStatic({ root: './public' }))
 
 // ========== 인증 유틸리티 함수 ==========
 
-// ========== 비밀번호 해싱 ==========
-
-// 레거시 SHA-256 해싱 (기존 사용자 지원용)
-async function hashPasswordSHA256(password: string): Promise<string> {
+// SHA-256 비밀번호 해싱
+async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder()
   const data = encoder.encode(password)
   const hashBuffer = await crypto.subtle.digest('SHA-256', data)
@@ -113,130 +111,15 @@ async function hashPasswordSHA256(password: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-// PBKDF2 해싱 (새로운 보안 표준 - 150,000 iterations)
-async function hashPasswordPBKDF2(password: string, salt: string, iterations: number = 150000): Promise<string> {
-  const encoder = new TextEncoder()
-  const passwordData = encoder.encode(password)
-  const saltData = encoder.encode(salt)
-  
-  // PBKDF2 키 생성
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    passwordData,
-    { name: 'PBKDF2' },
-    false,
-    ['deriveBits']
-  )
-  
-  const derivedBits = await crypto.subtle.deriveBits(
-    {
-      name: 'PBKDF2',
-      salt: saltData,
-      iterations: iterations,
-      hash: 'SHA-256'
-    },
-    keyMaterial,
-    256 // 256 bits = 32 bytes
-  )
-  
-  const hashArray = Array.from(new Uint8Array(derivedBits))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
-// 랜덤 salt 생성 (16 bytes = 32 hex chars)
-function generateSalt(): string {
-  const array = new Uint8Array(16)
-  crypto.getRandomValues(array)
-  return Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
-// 비밀번호 검증 (SHA-256과 PBKDF2 모두 지원)
-async function verifyPassword(
-  password: string, 
-  hash: string, 
-  salt?: string | null, 
-  iterations?: number | null
-): Promise<boolean> {
-  // PBKDF2 검증 (salt와 iterations가 있는 경우)
-  if (salt && iterations) {
-    const passwordHash = await hashPasswordPBKDF2(password, salt, iterations)
-    return passwordHash === hash
-  }
-  
-  // 레거시 SHA-256 검증 (salt가 없는 기존 사용자)
-  const passwordHash = await hashPasswordSHA256(password)
-  return passwordHash === hash
-}
-
-// ========== JWT 토큰 시스템 (Access + Refresh) ==========
-
-// Access Token 생성 (45분)
-async function createAccessToken(userId: number, username: string, secret: string): Promise<string> {
+// JWT 토큰 생성
+async function createToken(userId: number, username: string, secret: string): Promise<string> {
   const payload = {
     sub: userId.toString(),
     username: username,
-    type: 'access',
     iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + (60 * 45) // 45분
+    exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) // 24시간
   }
   return await sign(payload, secret)
-}
-
-// Refresh Token 생성 (30일)
-function generateRefreshToken(): string {
-  const array = new Uint8Array(32) // 32 bytes = 256 bits
-  crypto.getRandomValues(array)
-  return Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
-// Refresh Token 저장
-async function saveRefreshToken(
-  DB: D1Database, 
-  userId: number, 
-  refreshToken: string,
-  userAgent?: string,
-  ipAddress?: string
-): Promise<void> {
-  const expiresAt = new Date(Date.now() + (60 * 60 * 24 * 30 * 1000)) // 30일
-  const expiresAtStr = expiresAt.toISOString().replace('T', ' ').substring(0, 19)
-  
-  await DB.prepare(`
-    INSERT INTO sessions (user_id, refresh_token, expires_at, user_agent, ip_address)
-    VALUES (?, ?, ?, ?, ?)
-  `).bind(userId, refreshToken, expiresAtStr, userAgent || null, ipAddress || null).run()
-}
-
-// Refresh Token 검증 및 조회
-async function verifyRefreshToken(DB: D1Database, refreshToken: string): Promise<any | null> {
-  const session = await DB.prepare(`
-    SELECT s.*, u.username, u.name
-    FROM sessions s
-    JOIN users u ON s.user_id = u.id
-    WHERE s.refresh_token = ? AND s.expires_at > datetime('now')
-  `).bind(refreshToken).first() as any
-  
-  if (!session) return null
-  
-  // 마지막 사용 시간 업데이트
-  await DB.prepare(`
-    UPDATE sessions SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?
-  `).bind(session.id).run()
-  
-  return session
-}
-
-// Refresh Token 삭제 (로그아웃)
-async function deleteRefreshToken(DB: D1Database, refreshToken: string): Promise<void> {
-  await DB.prepare(`
-    DELETE FROM sessions WHERE refresh_token = ?
-  `).bind(refreshToken).run()
-}
-
-// 만료된 세션 정리
-async function cleanExpiredSessions(DB: D1Database): Promise<void> {
-  await DB.prepare(`
-    DELETE FROM sessions WHERE expires_at < datetime('now')
-  `).run()
 }
 
 // 인증 미들웨어
@@ -290,33 +173,24 @@ app.post('/api/auth/register', async (c) => {
     return c.json({ success: false, error: '이미 사용 중인 아이디입니다.' }, 400)
   }
   
-  // PBKDF2 비밀번호 해싱 (새로운 표준)
-  const salt = generateSalt()
-  const iterations = 150000
-  const passwordHash = await hashPasswordPBKDF2(password, salt, iterations)
+  // SHA-256 비밀번호 해싱
+  const passwordHash = await hashPassword(password)
   
   // 사용자 생성
   const result = await DB.prepare(`
-    INSERT INTO users (username, password_hash, name, salt, iterations)
-    VALUES (?, ?, ?, ?, ?)
-  `).bind(username, passwordHash, name, salt, iterations).run()
+    INSERT INTO users (username, password_hash, name)
+    VALUES (?, ?, ?)
+  `).bind(username, passwordHash, name).run()
   
   const userId = result.meta.last_row_id as number
   const secret = c.env.JWT_SECRET || 'default-secret-key-change-in-production'
   
-  // Access Token + Refresh Token 발급
-  const accessToken = await createAccessToken(userId, username, secret)
-  const refreshToken = generateRefreshToken()
-  
-  // Refresh Token 저장
-  const userAgent = c.req.header('user-agent')
-  const ipAddress = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for')
-  await saveRefreshToken(DB, userId, refreshToken, userAgent, ipAddress)
+  // JWT 토큰 발급
+  const token = await createToken(userId, username, secret)
   
   return c.json({ 
     success: true, 
-    access: accessToken,      // 통일: access
-    refresh: refreshToken,    // 통일: refresh
+    token: token,
     user: {
       id: userId,
       username,
@@ -335,35 +209,19 @@ app.post('/api/auth/login', async (c) => {
     return c.json({ success: false, error: '아이디와 비밀번호를 입력해주세요.' }, 400)
   }
   
-  // 사용자 조회 (salt, iterations 포함)
+  // 사용자 조회
   const user = await DB.prepare(`
-    SELECT id, username, password_hash, name, salt, iterations FROM users WHERE username = ?
+    SELECT id, username, password_hash, name FROM users WHERE username = ?
   `).bind(username).first() as any
   
   if (!user) {
     return c.json({ success: false, error: '아이디 또는 비밀번호가 올바르지 않습니다.' }, 401)
   }
   
-  // 비밀번호 검증 (PBKDF2 또는 레거시 SHA-256)
-  const isValid = await verifyPassword(password, user.password_hash, user.salt, user.iterations)
-  
-  if (!isValid) {
+  // 비밀번호 검증
+  const passwordHash = await hashPassword(password)
+  if (passwordHash !== user.password_hash) {
     return c.json({ success: false, error: '아이디 또는 비밀번호가 올바르지 않습니다.' }, 401)
-  }
-  
-  // 자동 마이그레이션: 레거시 SHA-256 사용자를 PBKDF2로 업그레이드
-  if (!user.salt || !user.iterations) {
-    const newSalt = generateSalt()
-    const newIterations = 150000
-    const newHash = await hashPasswordPBKDF2(password, newSalt, newIterations)
-    
-    await DB.prepare(`
-      UPDATE users 
-      SET password_hash = ?, salt = ?, iterations = ?
-      WHERE id = ?
-    `).bind(newHash, newSalt, newIterations, user.id).run()
-    
-    console.log(`[Security] User ${username} password upgraded to PBKDF2`)
   }
   
   // 마지막 로그인 시간 업데이트
@@ -371,23 +229,13 @@ app.post('/api/auth/login', async (c) => {
     UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?
   `).bind(user.id).run()
   
-  // Access Token + Refresh Token 발급
+  // JWT 토큰 발급
   const secret = c.env.JWT_SECRET || 'default-secret-key-change-in-production'
-  const accessToken = await createAccessToken(user.id, user.username, secret)
-  const refreshToken = generateRefreshToken()
-  
-  // Refresh Token 저장
-  const userAgent = c.req.header('user-agent')
-  const ipAddress = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for')
-  await saveRefreshToken(DB, user.id, refreshToken, userAgent, ipAddress)
-  
-  // 만료된 세션 정리 (비동기)
-  cleanExpiredSessions(DB).catch(err => console.error('[Sessions] Cleanup error:', err))
+  const token = await createToken(user.id, user.username, secret)
   
   return c.json({ 
     success: true, 
-    access: accessToken,      // 통일: access
-    refresh: refreshToken,    // 통일: refresh
+    token: token,
     user: {
       id: user.id,
       username: user.username,
@@ -1523,7 +1371,7 @@ app.get('/', (c) => {
 
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="/static/app.js?v=2025-10-29-fix"></script>
+    <script src="/static/app.js?v=2025-10-29-simple"></script>
     <script>
       // PWA Service Worker 등록 (오프라인 지원)
       if ('serviceWorker' in navigator) {
