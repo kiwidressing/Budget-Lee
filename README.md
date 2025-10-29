@@ -10,9 +10,54 @@
 > 배포 상태: ✅ Active (Cloudflare Pages)  
 > 자동 배포: `main` 브랜치에 push 시 자동으로 재배포됩니다
 
-## 🆕 최신 업데이트 (Session 10)
+## 🆕 최신 업데이트 (Session 11)
 
 이번 세션에서 추가된 주요 개선 사항:
+
+### 🔐 보안 강화 (NEW) ⭐ **CRITICAL UPDATE**
+
+#### 1. **PBKDF2 비밀번호 해싱**
+- **150,000 iterations**: 업계 표준 보안 강도
+- **Salt + Hash**: 사용자별 고유 salt로 레인보우 테이블 공격 방어
+- **레거시 지원**: 기존 SHA-256 사용자 자동 마이그레이션
+- **Web Crypto API**: 브라우저 네이티브 암호화 사용
+- **마이그레이션**: 로그인 시 자동으로 PBKDF2로 업그레이드
+
+#### 2. **Access/Refresh Token 듀얼 토큰 시스템**
+- **Access Token**: 45분 수명 (API 요청용)
+- **Refresh Token**: 30일 수명 (토큰 갱신용)
+- **세션 관리**: DB에 Refresh Token 저장 및 추적
+- **보안 정보**: user_agent, ip_address, last_used_at 기록
+- **로그아웃**: Refresh Token 삭제로 완전한 세션 종료
+- **자동 갱신**: `/api/auth/refresh` 엔드포인트
+
+### 🏦 계좌 및 이체 관리 (NEW) ⭐ **MAJOR FEATURE**
+
+#### 1. **다중 계좌 관리**
+- **4가지 계좌 유형**:
+  - 입출금 통장 (checking)
+  - 예금 통장 (savings)
+  - 신용카드 (credit_card)
+  - 현금 (cash)
+- **계좌별 잔액**: 실시간 잔액 추적
+- **활성화/비활성화**: 소프트 삭제로 데이터 보존
+- **다중 통화**: 각 계좌별 통화 설정 가능
+
+#### 2. **계좌 간 이체**
+- **트랜잭션 보장**: DB batch로 원자성 보장 (출금 + 입금 동시 처리)
+- **잔액 검증**: 출금 계좌 잔액 부족 시 거부
+- **이체 내역**: 날짜, 금액, 설명, 계좌명 자동 기록
+- **필터링**: 계좌별, 날짜별 이체 내역 조회
+- **안전 장치**: 동일 계좌 이체 방지
+
+#### 3. **거래-계좌 연동**
+- **account_id 추가**: transactions 테이블에 계좌 정보 연결
+- **계좌별 거래**: 어떤 계좌에서 발생한 거래인지 추적
+- **통합 분석**: 계좌별 수입/지출 분석 가능 (향후 구현)
+
+## 🆕 이전 업데이트 (Session 10)
+
+Session 10에서 추가된 주요 개선 사항:
 
 ### ⚡ 성능 최적화 (NEW)
 
@@ -273,18 +318,22 @@
 
 ## 📊 데이터베이스 설계
 
-### 10개 테이블 구조 ⭐ **+1 NEW (Session 10)**
+### 14개 테이블 구조 ⭐ **+4 NEW (Session 11)**
 
 1. **settings** - 앱 전역 설정
 2. **savings_accounts** - 저축 통장
-3. **transactions** - 거래 내역 (수입/지출/저축)
+3. **transactions** - 거래 내역 (수입/지출/저축) ⭐ **account_id 추가**
 4. **fixed_expenses** - 고정지출 스케줄
 5. **fixed_expense_payments** - 고정지출 지불 기록
 6. **category_budgets** - 카테고리별 예산
-7. **investments** - 투자 종목 (주식/암호화폐) ⭐ **Session 6**
-8. **investment_transactions** - 투자 거래 내역 (매수/매도) ⭐ **Session 6**
-9. **receipts** - 영수증 관리 (사진, 구매처, 금액, 세금공제) ⭐ **Session 7**
-10. **monthly_summary** - 월별 통계 캐시 (성능 최적화) ⭐ **NEW - Session 10**
+7. **investments** - 투자 종목 (주식/암호화폐)
+8. **investment_transactions** - 투자 거래 내역 (매수/매도)
+9. **receipts** - 영수증 관리 (사진, 구매처, 금액, 세금공제)
+10. **monthly_summary** - 월별 통계 캐시 (성능 최적화)
+11. **users** - 사용자 계정 (username, PBKDF2 hash, salt) ⭐ **Session 11**
+12. **sessions** - Refresh Token 세션 관리 ⭐ **Session 11**
+13. **accounts** - 금융 계좌 (입출금, 예금, 신용카드, 현금) ⭐ **NEW - Session 11**
+14. **transfers** - 계좌 간 이체 내역 ⭐ **NEW - Session 11**
 
 ## 🚀 빠른 시작
 
@@ -390,9 +439,12 @@ webapp/
 │   ├── 0001_initial_schema.sql
 │   ├── 0002_add_settings.sql
 │   ├── 0003_add_fixed_expenses_and_budgets.sql
-│   ├── 0004_add_investments.sql           ⭐ **Session 6**
-│   ├── 0005_add_receipts.sql              ⭐ **Session 7**
-│   └── 0015_add_monthly_summary.sql       ⭐ **NEW - Session 10**
+│   ├── 0004_add_investments.sql
+│   ├── 0005_add_receipts.sql
+│   ├── 0015_add_monthly_summary.sql
+│   ├── 0016_add_pbkdf2_support.sql        ⭐ **NEW - Session 11**
+│   ├── 0017_upgrade_sessions_table.sql    ⭐ **NEW - Session 11**
+│   └── 0018_add_accounts_and_transfers.sql ⭐ **NEW - Session 11**
 ├── ecosystem.config.cjs       # PM2 설정
 ├── wrangler.jsonc             # Cloudflare 설정
 ├── package.json
@@ -400,7 +452,24 @@ webapp/
 └── README.md
 ```
 
-## 🔌 API 엔드포인트 (31개) ⭐ **+6 NEW**
+## 🔌 API 엔드포인트 (44개) ⭐ **+13 NEW (Session 11)**
+
+### 인증 (4개) ⭐ **NEW - Session 11**
+- `POST /api/auth/register` - 회원가입 (PBKDF2 해싱)
+- `POST /api/auth/login` - 로그인 (Access + Refresh Token 발급)
+- `POST /api/auth/refresh` - Access Token 갱신
+- `POST /api/auth/logout` - 로그아웃 (Refresh Token 삭제)
+
+### 계좌 (5개) ⭐ **NEW - Session 11**
+- `GET /api/accounts` - 계좌 목록 조회
+- `GET /api/accounts/:id` - 계좌 상세 조회
+- `POST /api/accounts` - 계좌 생성
+- `PUT /api/accounts/:id` - 계좌 수정
+- `DELETE /api/accounts/:id` - 계좌 비활성화
+
+### 이체 (2개) ⭐ **NEW - Session 11**
+- `POST /api/transfers` - 계좌 간 이체 실행
+- `GET /api/transfers` - 이체 내역 조회 (필터링 지원)
 
 ### 저축 통장 (3개)
 - `GET /api/savings-accounts` - 목록 조회
@@ -532,11 +601,21 @@ MIT License
 
 ## 🎉 완료된 기능
 
-### 세션 10 (성능 최적화) ⭐ **LATEST**
+### 세션 11 (보안 및 계좌 관리) ⭐ **LATEST**
+- ✅ **PBKDF2 비밀번호 해싱** - 150,000 iterations 보안 강화
+- ✅ **Access/Refresh Token 시스템** - 듀얼 토큰 인증 (45분/30일)
+- ✅ **세션 관리** - DB 기반 Refresh Token 추적 및 관리
+- ✅ **다중 계좌 관리** - 입출금/예금/신용카드/현금 계좌 지원
+- ✅ **계좌 간 이체** - 트랜잭션 보장 및 잔액 자동 업데이트
+- ✅ **이체 내역 추적** - 날짜별, 계좌별 필터링
+- ✅ **거래-계좌 연동** - transactions 테이블에 account_id 추가
+- ✅ **레거시 마이그레이션** - SHA-256 → PBKDF2 자동 업그레이드
+
+### 세션 10 (성능 최적화)
 - ✅ **PWA 오프라인 지원** - Service Worker로 캐시 전략 구현
 - ✅ **Yahoo Finance 캐시** - 60초 메모리 캐시로 84% 속도 향상
 - ✅ **통합 에러 처리** - axios 인터셉터로 모든 API 에러 자동 처리
-- 🚧 **월별 통계 캐시** - 거래 CRUD 훅 및 캐시 테이블 구현 (테스트 필요)
+- ✅ **월별 통계 캐시** - 거래 CRUD 훅 및 캐시 테이블 구현
 
 ### 세션 9 (품질 개선 및 신규 기능)
 - ✅ **입력 검증 강화** - 10개 검증 함수로 모든 입력 유효성 검사
@@ -578,22 +657,28 @@ MIT License
 ## 🚧 향후 계획
 
 ### 단기 (Next Sprint)
+- [ ] 프론트엔드 인증 UI (로그인/회원가입 페이지)
+- [ ] 계좌 관리 UI (계좌 목록, 이체 화면)
+- [ ] 거래 입력 시 계좌 선택 옵션
 - [ ] 투자 거래 내역 (매수/매도) 완전 구현
 - [ ] 투자 포트폴리오 차트 (파이 차트)
-- [ ] 카테고리별 예산 vs 실제 비교 리포트 확장
 - [x] 데이터 내보내기 (CSV/JSON) ✅ **완료 (Session 9)**
+- [x] 다중 사용자 지원 (인증 시스템) ✅ **완료 (Session 11)**
 
 ### 중기 (Future Releases)
+- [ ] 계좌별 거래 내역 분석 (수입/지출 차트)
+- [ ] 계좌별 월별 통계
 - [ ] 차트 시각화 개선 (더 많은 차트 유형)
-- [ ] 다중 사용자 지원 (인증 시스템)
 - [ ] 알림 기능 (예산 초과, 고정지출 알림)
-- [ ] 영수증 사진 첨부
+- [ ] 2FA (Two-Factor Authentication)
+- [ ] 비밀번호 찾기/재설정
 
 ### 장기 (Vision)
 - [ ] AI 기반 지출 예측
 - [ ] 영수증 OCR 스캔
 - [ ] 자동 카테고리 분류 (머신러닝)
 - [ ] 다국어 지원
+- [ ] 은행 API 연동 (자동 거래 동기화)
 
 ---
 
