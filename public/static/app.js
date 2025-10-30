@@ -4865,7 +4865,7 @@ async function renderReceiptsView() {
 
     const receipts = response.data.receipts || [];
 
-    document.getElementById('content').innerHTML = `
+    document.getElementById('content-area').innerHTML = `
       <div class="bg-white rounded-lg shadow-lg p-6">
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-2xl font-bold text-gray-800">
@@ -4931,7 +4931,7 @@ async function renderReceiptsView() {
     `;
   } catch (error) {
     console.error('[Receipts] Render error:', error);
-    document.getElementById('content').innerHTML = `
+    document.getElementById('content-area').innerHTML = `
       <div class="bg-white rounded-lg shadow-lg p-6">
         <p class="text-red-600">영수증 목록을 불러오는데 실패했습니다.</p>
       </div>
