@@ -4789,74 +4789,20 @@ async function handleReceiptSubmit(event) {
   }
 }
 
-// 3) 저화질 다운로드 (IndexedDB에서)
-async function downloadReceipt(receiptId) {
-  try {
-    const blob = await getImageFromIndexedDB(receiptId);
-    if (!blob) {
-      alert('이미지를 찾을 수 없습니다.');
-      return;
-    }
-    
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `receipt-${receiptId}.webp`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error('[Receipt] Download error:', error);
-    alert('다운로드 실패');
-  }
-}
-
-// 3-1) 영수증 이미지 미리보기 (새 창에 표시)
-async function viewReceipt(receiptId) {
-  try {
-    const blob = await getImageFromIndexedDB(receiptId);
-    if (!blob) {
-      alert('이미지를 찾을 수 없습니다.');
-      return;
-    }
-    
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-  } catch (error) {
-    console.error('[Receipt] View error:', error);
-    alert('이미지 보기 실패');
-  }
-}
-
-// 4) 영수증 삭제 (DB + IndexedDB)
-async function deleteReceipt(receiptId) {
-  if (!confirm('이 영수증을 삭제하시겠습니까?')) return;
-  
-  try {
-    // 1) DB에서 삭제
-    const response = await axios.delete(`/api/receipts/${receiptId}`);
-    if (response.data.success) {
-      // 2) IndexedDB에서 이미지 삭제
-      await deleteImageFromIndexedDB(receiptId);
-      
-      alert('영수증이 삭제되었습니다.');
-      if (typeof renderReceiptsView === 'function') {
-        renderReceiptsView();
-      }
-    }
-  } catch (error) {
-    console.error('[Receipt] Delete error:', error);
-    alert(error.response?.data?.error || '영수증 삭제 실패');
-  }
-}
-
-// 5) 영수증 목록 렌더링
+// 3) 영수증 목록 렌더링 (보기/다운로드/삭제는 하단 전역 바인딩 섹션에서 정의)
 async function renderReceiptsView() {
-  const currentMonth = formatMonth(state.currentMonth);
-  const [year, month] = currentMonth.split('-');
-  const startDate = `${year}-${month}-01`;
-  const endDate = `${year}-${month}-${new Date(year, month, 0).getDate()}`;
+  console.log('[Receipts] renderReceiptsView called');
+  const currentMonth = window.formatMonth(state.currentMonth);
+  const [yStr, mStr] = currentMonth.split('-');
+  const y = Number(yStr);
+  const m = Number(mStr); // 1~12
+  
+  // 시작/끝 날짜 계산 (끝=그 달의 마지막 날)
+  const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
+  const lastDay = new Date(y, m, 0).getDate(); // m(1~12) 그대로 넣으면 '다음달 0일' = 해당월 말일
+  const endDate = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  
+  console.log('[Receipts] Fetching receipts for:', startDate, 'to', endDate);
 
   try {
     const response = await axios.get('/api/receipts', {
@@ -4881,7 +4827,7 @@ async function renderReceiptsView() {
           <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 rounded">
             <i class="fas fa-chevron-left"></i>
           </button>
-          <span class="text-lg font-medium">${year}년 ${month}월</span>
+          <span class="text-lg font-medium">${y}년 ${m}월</span>
           <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 rounded">
             <i class="fas fa-chevron-right"></i>
           </button>
@@ -5050,6 +4996,129 @@ function closeReceiptModal() {
     modal.remove();
   }
 }
+
+// ========== 영수증 전역 바인딩 및 안전 함수 (중요!) ==========
+
+// 1) 안전한 helper 함수 제공 (ReferenceError 방지)
+if (typeof window.formatMonth !== 'function') {
+  window.formatMonth = function formatMonth(date) {
+    const y = date instanceof Date ? date.getFullYear() : Number(String(date).split('-')[0]);
+    const mVal = date instanceof Date ? (date.getMonth() + 1) : Number(String(date).split('-')[1]);
+    const m = String(mVal).padStart(2, '0');
+    return `${y}-${m}`;
+  };
+}
+
+if (typeof window.getCategoryIcon !== 'function') {
+  window.getCategoryIcon = function getCategoryIcon(cat) {
+    const map = {
+      '식비': '🍚', '의복비': '👕', '주거비': '🏠', '교통비': '🚌',
+      '통신비': '📱', '의료비': '💊', '교육비': '🎓', '보험': '🛡️',
+      '문화생활': '🎬', '쇼핑': '🛍️', '기타지출': '🧾'
+    };
+    return map[cat] || '🧾';
+  };
+}
+
+// 2) IndexedDB 안전 가드
+async function ensureReceiptDB() {
+  try {
+    await initReceiptDB();
+    return true;
+  } catch (e) {
+    console.error('[IndexedDB] Init failed:', e);
+    alert('이 브라우저 환경에서는 영수증 로컬 저장소(IndexedDB)를 사용할 수 없습니다.');
+    return false;
+  }
+}
+
+// 3) 안전한 renderReceiptsView 래퍼
+function safeRenderReceiptsView() {
+  console.log('[Receipts] safeRenderReceiptsView called');
+  try {
+    return renderReceiptsView();
+  } catch (err) {
+    console.error('[Receipts] render error:', err);
+    const area = document.getElementById('content-area');
+    if (area) {
+      area.innerHTML = `
+        <div class="bg-white rounded-lg shadow-lg p-6">
+          <p class="text-red-600 font-semibold">영수증 화면 렌더링 중 오류</p>
+          <pre class="mt-2 p-3 bg-red-50 text-xs overflow-auto rounded">${String(err?.message || err)}</pre>
+          <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+            새로고침
+          </button>
+        </div>`;
+    }
+  }
+}
+
+// 4) 월 변경 함수 (전역 바인딩)
+window.changeMonth = function changeMonth(delta) {
+  const d = new Date(state.currentMonth);
+  d.setMonth(d.getMonth() + Number(delta));
+  state.currentMonth = d;
+  safeRenderReceiptsView();
+};
+
+// 5) 영수증 함수들 전역 바인딩 (onclick 인라인 호출 지원)
+window.renderReceiptsView = renderReceiptsView;
+window.safeRenderReceiptsView = safeRenderReceiptsView;
+window.showReceiptUploadModal = showReceiptUploadModal;
+window.closeReceiptModal = closeReceiptModal;
+window.handleReceiptSubmit = handleReceiptSubmit;
+window.viewReceipt = async function(receiptId) {
+  if (!(await ensureReceiptDB())) return;
+  try {
+    const blob = await getImageFromIndexedDB(receiptId);
+    if (!blob) {
+      alert('이미지를 찾을 수 없습니다.');
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  } catch (error) {
+    console.error('[Receipt] View error:', error);
+    alert('이미지 보기 실패');
+  }
+};
+window.downloadReceipt = async function(receiptId) {
+  if (!(await ensureReceiptDB())) return;
+  try {
+    const blob = await getImageFromIndexedDB(receiptId);
+    if (!blob) {
+      alert('이미지를 찾을 수 없습니다.');
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `receipt-${receiptId}.webp`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('[Receipt] Download error:', error);
+    alert('다운로드 실패');
+  }
+};
+window.deleteReceipt = async function(receiptId) {
+  if (!confirm('이 영수증을 삭제하시겠습니까?')) return;
+  try {
+    const response = await axios.delete(`/api/receipts/${receiptId}`);
+    if (response.data.success) {
+      await deleteImageFromIndexedDB(receiptId);
+      alert('영수증이 삭제되었습니다.');
+      safeRenderReceiptsView();
+    }
+  } catch (error) {
+    console.error('[Receipt] Delete error:', error);
+    alert(error.response?.data?.error || '영수증 삭제 실패');
+  }
+};
+
+console.log('[Receipts] Global bindings initialized');
 
 // 앱 초기화 - 페이지 로드 시 인증 확인 후 적절한 화면 렌더링
 renderApp();
