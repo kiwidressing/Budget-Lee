@@ -4622,7 +4622,69 @@ async function handleEditSavingsAccount(event, id) {
   }
 }
 
-// ========== 영수증 관련 함수 ==========
+// ========== 영수증 관련 함수 (IndexedDB 저장) ==========
+
+// IndexedDB 초기화
+let receiptDB;
+async function initReceiptDB() {
+  if (receiptDB) return receiptDB;
+  
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('BudgetLeeReceipts', 1);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      receiptDB = request.result;
+      resolve(receiptDB);
+    };
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('images')) {
+        db.createObjectStore('images', { keyPath: 'id' });
+      }
+    };
+  });
+}
+
+// IndexedDB에 이미지 저장
+async function saveImageToIndexedDB(receiptId, blob) {
+  const db = await initReceiptDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['images'], 'readwrite');
+    const store = transaction.objectStore('images');
+    const request = store.put({ id: receiptId, blob: blob });
+    
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// IndexedDB에서 이미지 가져오기
+async function getImageFromIndexedDB(receiptId) {
+  const db = await initReceiptDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['images'], 'readonly');
+    const store = transaction.objectStore('images');
+    const request = store.get(receiptId);
+    
+    request.onsuccess = () => resolve(request.result?.blob);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// IndexedDB에서 이미지 삭제
+async function deleteImageFromIndexedDB(receiptId) {
+  const db = await initReceiptDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['images'], 'readwrite');
+    const store = transaction.objectStore('images');
+    const request = store.delete(receiptId);
+    
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
 
 // 1) 클라이언트 압축 유틸 (캔버스 사용)
 async function compressImageToWebp(file, maxDim = 1280, quality = 0.6) {
@@ -4660,7 +4722,7 @@ function canvasToBlob(canvas, type, quality) {
   return new Promise(resolve => canvas.toBlob(resolve, type, quality));
 }
 
-// 2) 영수증 업로드 + 메타데이터 저장 + 거래 자동 생성
+// 2) 영수증 업로드 + 메타데이터 저장 + 거래 자동 생성 (IndexedDB 저장)
 async function handleReceiptSubmit(event) {
   event.preventDefault();
 
@@ -4684,28 +4746,12 @@ async function handleReceiptSubmit(event) {
     console.log('[Receipt] Compressing image...');
     const { blob, width, height, mime } = await compressImageToWebp(file, 1280, 0.6);
 
-    // 2) 파일 업로드(API는 R2에 저장)
-    console.log('[Receipt] Uploading to server...');
-    const form = new FormData();
-    form.append('file', new File([blob], `receipt-${Date.now()}.webp`, { type: mime }));
-    const uploadRes = await axios.post('/api/receipts/upload', form, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-
-    if (!uploadRes.data?.success) {
-      console.error('Upload failed', uploadRes.data);
-      alert('영수증 업로드 실패');
-      return;
-    }
-
-    const { key, contentType, size } = uploadRes.data;
-
-    // 3) 메타데이터 저장 + 거래 자동 생성
+    // 2) 메타데이터 저장 + 거래 자동 생성 (이미지는 나중에 저장)
     console.log('[Receipt] Saving metadata...');
     const metaRes = await axios.post('/api/receipts', {
-      key,
-      contentType,
-      size,
+      key: 'local-storage', // R2 대신 로컬 저장 표시
+      contentType: mime,
+      size: blob.size,
       width, 
       height,
       merchant,
@@ -4723,6 +4769,12 @@ async function handleReceiptSubmit(event) {
       return;
     }
 
+    const receiptId = metaRes.data.receipt_id;
+
+    // 3) IndexedDB에 이미지 저장
+    console.log('[Receipt] Saving image to IndexedDB...');
+    await saveImageToIndexedDB(receiptId, blob);
+
     // 완료
     alert('영수증 저장 및 거래내역 생성 완료!');
     event.target.reset();
@@ -4737,32 +4789,57 @@ async function handleReceiptSubmit(event) {
   }
 }
 
-// 3) 저화질 다운로드
-function downloadReceipt(receiptId) {
-  axios.get(`/api/receipts/${receiptId}/download`, { responseType: 'blob' })
-    .then(res => {
-      const url = URL.createObjectURL(res.data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `receipt-${receiptId}.webp`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    })
-    .catch(err => {
-      console.error(err);
-      alert('다운로드 실패');
-    });
+// 3) 저화질 다운로드 (IndexedDB에서)
+async function downloadReceipt(receiptId) {
+  try {
+    const blob = await getImageFromIndexedDB(receiptId);
+    if (!blob) {
+      alert('이미지를 찾을 수 없습니다.');
+      return;
+    }
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `receipt-${receiptId}.webp`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('[Receipt] Download error:', error);
+    alert('다운로드 실패');
+  }
 }
 
-// 4) 영수증 삭제
+// 3-1) 영수증 이미지 미리보기 (새 창에 표시)
+async function viewReceipt(receiptId) {
+  try {
+    const blob = await getImageFromIndexedDB(receiptId);
+    if (!blob) {
+      alert('이미지를 찾을 수 없습니다.');
+      return;
+    }
+    
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  } catch (error) {
+    console.error('[Receipt] View error:', error);
+    alert('이미지 보기 실패');
+  }
+}
+
+// 4) 영수증 삭제 (DB + IndexedDB)
 async function deleteReceipt(receiptId) {
   if (!confirm('이 영수증을 삭제하시겠습니까?')) return;
   
   try {
+    // 1) DB에서 삭제
     const response = await axios.delete(`/api/receipts/${receiptId}`);
     if (response.data.success) {
+      // 2) IndexedDB에서 이미지 삭제
+      await deleteImageFromIndexedDB(receiptId);
+      
       alert('영수증이 삭제되었습니다.');
       if (typeof renderReceiptsView === 'function') {
         renderReceiptsView();
@@ -4837,8 +4914,11 @@ async function renderReceiptsView() {
               ` : ''}
               
               <div class="flex gap-2">
+                <button onclick="viewReceipt(${receipt.id})" class="flex-1 px-3 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm">
+                  <i class="fas fa-eye mr-1"></i>보기
+                </button>
                 <button onclick="downloadReceipt(${receipt.id})" class="flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm">
-                  <i class="fas fa-download mr-1"></i>다운로드
+                  <i class="fas fa-download mr-1"></i>저장
                 </button>
                 <button onclick="deleteReceipt(${receipt.id})" class="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm">
                   <i class="fas fa-trash"></i>

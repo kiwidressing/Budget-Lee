@@ -6,7 +6,6 @@ import { sign, verify } from 'hono/jwt'
 type Bindings = {
   DB: D1Database;
   JWT_SECRET?: string;
-  RECEIPTS_BUCKET?: R2Bucket;
 }
 
 type Variables = {
@@ -1372,7 +1371,7 @@ app.get('/', (c) => {
 
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="/static/app.js?v=2025-10-30-receipts"></script>
+    <script src="/static/app.js?v=2025-10-30-receipts-indexeddb"></script>
     <script>
       // PWA Service Worker 등록 (오프라인 지원)
       if ('serviceWorker' in navigator) {
@@ -1763,33 +1762,7 @@ function mapKoreanPrimaryCategory(input: string): string {
   return norm || '기타지출';
 }
 
-// 1) 파일 업로드 (저화질 blob을 FormData로 전송)
-app.post('/api/receipts/upload', authMiddleware, async (c) => {
-  const userId = c.get('userId');
-  const form = await c.req.formData();
-  const file = form.get('file') as File | null;
-  
-  if (!file) {
-    return c.json({ success: false, error: 'file not provided' }, 400);
-  }
-
-  const contentType = file.type || 'image/webp';
-  const key = `u${userId}/${Date.now()}-${crypto.randomUUID()}.${contentType.includes('jpeg')?'jpg':'webp'}`;
-
-  // R2가 설정되어 있으면 R2에 저장, 아니면 로컬 스토리지 시뮬레이션
-  if (c.env.RECEIPTS_BUCKET) {
-    await c.env.RECEIPTS_BUCKET.put(key, file.stream(), {
-      httpMetadata: { contentType }
-    });
-  }
-
-  return c.json({
-    success: true,
-    key,
-    contentType,
-    size: file.size ?? null
-  });
-});
+// 파일 업로드 엔드포인트는 제거 (클라이언트에서 IndexedDB에 직접 저장)
 
 // 2) 메타데이터 저장 + 거래 자동 생성
 app.post('/api/receipts', authMiddleware, async (c) => {
@@ -1915,40 +1888,9 @@ app.get('/api/receipts/:id', authMiddleware, async (c) => {
   return c.json({ success: true, receipt });
 });
 
-// 5) 저화질 다운로드 (R2에서 바로 바이트 스트림 리턴)
-app.get('/api/receipts/:id/download', authMiddleware, async (c) => {
-  const { DB } = c.env;
-  const userId = c.get('userId');
-  const id = c.req.param('id');
+// 다운로드 엔드포인트는 제거 (클라이언트에서 IndexedDB에서 직접 가져옴)
 
-  const rec = await DB.prepare(`
-    SELECT image_key, image_mime FROM receipts
-    WHERE id = ? AND user_id = ?
-  `).bind(id, String(userId)).first() as any;
-
-  if (!rec?.image_key) {
-    return c.json({ success: false, error: 'Not found' }, 404);
-  }
-
-  // R2가 설정되어 있으면 R2에서 가져오기
-  if (c.env.RECEIPTS_BUCKET) {
-    const obj = await c.env.RECEIPTS_BUCKET.get(rec.image_key);
-    if (!obj) {
-      return c.json({ success: false, error: 'File missing' }, 404);
-    }
-
-    return new Response(obj.body, {
-      headers: {
-        'Content-Type': rec.image_mime || 'image/webp',
-        'Content-Disposition': `inline; filename="${rec.image_key.split('/').pop()}"`
-      }
-    });
-  }
-
-  return c.json({ success: false, error: 'R2 not configured' }, 503);
-});
-
-// 6) 영수증 삭제
+// 6) 영수증 삭제 (DB만, 이미지는 클라이언트에서 삭제)
 app.delete('/api/receipts/:id', authMiddleware, async (c) => {
   const { DB } = c.env;
   const userId = c.get('userId');
@@ -1957,7 +1899,7 @@ app.delete('/api/receipts/:id', authMiddleware, async (c) => {
   try {
     // 영수증 정보 조회
     const rec = await DB.prepare(`
-      SELECT image_key FROM receipts
+      SELECT id FROM receipts
       WHERE id = ? AND user_id = ?
     `).bind(id, String(userId)).first() as any;
 
@@ -1965,12 +1907,7 @@ app.delete('/api/receipts/:id', authMiddleware, async (c) => {
       return c.json({ success: false, error: 'Receipt not found' }, 404);
     }
 
-    // R2에서 파일 삭제
-    if (c.env.RECEIPTS_BUCKET && rec.image_key) {
-      await c.env.RECEIPTS_BUCKET.delete(rec.image_key);
-    }
-
-    // DB에서 영수증 삭제
+    // DB에서 영수증 삭제 (이미지는 클라이언트 IndexedDB에서 삭제)
     await DB.prepare(`
       DELETE FROM receipts WHERE id = ? AND user_id = ?
     `).bind(id, String(userId)).run();
