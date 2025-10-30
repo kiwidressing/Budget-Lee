@@ -6,6 +6,7 @@ import { sign, verify } from 'hono/jwt'
 type Bindings = {
   DB: D1Database;
   JWT_SECRET?: string;
+  RECEIPTS_BUCKET?: R2Bucket;
 }
 
 type Variables = {
@@ -1371,7 +1372,7 @@ app.get('/', (c) => {
 
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="/static/app.js?v=2025-10-29-simple-v2"></script>
+    <script src="/static/app.js?v=2025-10-30-receipts"></script>
     <script>
       // PWA Service Worker 등록 (오프라인 지원)
       if ('serviceWorker' in navigator) {
@@ -1743,5 +1744,242 @@ app.get('/api/transfers', authMiddleware, async (c) => {
     return c.json({ success: false, error: '이체 내역 조회 실패' }, 500)
   }
 })
+
+// ========== 영수증 API (R2 + D1) ==========
+
+// 카테고리 매핑 유틸(의/식/주 같은 1차 분류 → 기존 앱 카테고리로)
+function mapKoreanPrimaryCategory(input: string): string {
+  const norm = (input||'').trim();
+  if (['의','의복','의복비','옷','패션'].includes(norm)) return '의복비';
+  if (['식','식비','음식','외식','식료품'].includes(norm)) return '식비';
+  if (['주','주거','월세','렌트','집'].includes(norm)) return '주거비';
+  if (['교통','대중교통','택시','주유'].includes(norm)) return '교통비';
+  if (['통신','폰','인터넷'].includes(norm)) return '통신비';
+  if (['병원','의료','약','의약'].includes(norm)) return '의료비';
+  if (['교육','수업료','학원'].includes(norm)) return '교육비';
+  if (['보험'].includes(norm)) return '보험';
+  if (['문화','취미','영화'].includes(norm)) return '문화생활';
+  if (['쇼핑'].includes(norm)) return '쇼핑';
+  return norm || '기타지출';
+}
+
+// 1) 파일 업로드 (저화질 blob을 FormData로 전송)
+app.post('/api/receipts/upload', authMiddleware, async (c) => {
+  const userId = c.get('userId');
+  const form = await c.req.formData();
+  const file = form.get('file') as File | null;
+  
+  if (!file) {
+    return c.json({ success: false, error: 'file not provided' }, 400);
+  }
+
+  const contentType = file.type || 'image/webp';
+  const key = `u${userId}/${Date.now()}-${crypto.randomUUID()}.${contentType.includes('jpeg')?'jpg':'webp'}`;
+
+  // R2가 설정되어 있으면 R2에 저장, 아니면 로컬 스토리지 시뮬레이션
+  if (c.env.RECEIPTS_BUCKET) {
+    await c.env.RECEIPTS_BUCKET.put(key, file.stream(), {
+      httpMetadata: { contentType }
+    });
+  }
+
+  return c.json({
+    success: true,
+    key,
+    contentType,
+    size: file.size ?? null
+  });
+});
+
+// 2) 메타데이터 저장 + 거래 자동 생성
+app.post('/api/receipts', authMiddleware, async (c) => {
+  const { DB } = c.env;
+  const userId = c.get('userId');
+  const body = await c.req.json();
+
+  const required = ['key','purchase_date','amount','category'];
+  for (const k of required) {
+    if (!body[k]) {
+      return c.json({ success: false, error: `${k} is required` }, 400);
+    }
+  }
+
+  // 카테고리 매핑(의/식/주 → 내부 카테고리)
+  const mappedCategory = mapKoreanPrimaryCategory(body.category);
+
+  try {
+    // 1) receipts 저장
+    const receiptResult = await DB.prepare(`
+      INSERT INTO receipts
+        (image_key, image_mime, image_size, image_width, image_height,
+         merchant, purchase_date, amount, category,
+         payment_method, notes, is_tax_deductible, user_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).bind(
+      body.key,
+      body.contentType || null,
+      body.size || null,
+      body.width || null,
+      body.height || null,
+      body.merchant || null,
+      body.purchase_date,
+      body.amount,
+      mappedCategory,
+      body.payment_method || null,
+      body.notes || null,
+      body.is_tax_deductible ? 1 : 0,
+      String(userId)
+    ).run();
+
+    const receiptId = receiptResult.meta.last_row_id;
+
+    // 2) 거래 자동 생성 (expense)
+    const tx = await DB.prepare(`
+      INSERT INTO transactions
+        (type, category, amount, description, date, payment_method, user_id, account_id)
+      VALUES ('expense', ?, ?, ?, ?, ?, ?, NULL)
+    `).bind(
+      mappedCategory,
+      body.amount,
+      `${body.merchant || '영수증'} 결제`,
+      body.purchase_date,
+      body.payment_method || 'card',
+      String(userId)
+    ).run();
+
+    const transactionId = tx.meta.last_row_id;
+
+    return c.json({ 
+      success: true, 
+      receipt_id: receiptId, 
+      transaction_id: transactionId 
+    });
+  } catch (error: any) {
+    console.error('[Receipts] Save error:', error);
+    return c.json({ success: false, error: '영수증 저장 실패' }, 500);
+  }
+});
+
+// 3) 영수증 목록 조회
+app.get('/api/receipts', authMiddleware, async (c) => {
+  const { DB } = c.env;
+  const userId = c.get('userId');
+  const startDate = c.req.query('start_date');
+  const endDate = c.req.query('end_date');
+
+  let query = `
+    SELECT 
+      r.id, r.merchant, r.purchase_date, r.amount, r.category,
+      r.payment_method, r.notes, r.is_tax_deductible,
+      r.image_key, r.image_mime, r.image_size,
+      r.created_at
+    FROM receipts r
+    WHERE r.user_id = ?
+  `;
+  const params: any[] = [String(userId)];
+
+  if (startDate) {
+    query += ' AND r.purchase_date >= ?';
+    params.push(startDate);
+  }
+  if (endDate) {
+    query += ' AND r.purchase_date <= ?';
+    params.push(endDate);
+  }
+
+  query += ' ORDER BY r.purchase_date DESC, r.created_at DESC';
+
+  const result = await DB.prepare(query).bind(...params).all();
+
+  return c.json({
+    success: true,
+    receipts: result.results || []
+  });
+});
+
+// 4) 특정 영수증 조회
+app.get('/api/receipts/:id', authMiddleware, async (c) => {
+  const { DB } = c.env;
+  const userId = c.get('userId');
+  const id = c.req.param('id');
+
+  const receipt = await DB.prepare(`
+    SELECT * FROM receipts
+    WHERE id = ? AND user_id = ?
+  `).bind(id, String(userId)).first();
+
+  if (!receipt) {
+    return c.json({ success: false, error: 'Receipt not found' }, 404);
+  }
+
+  return c.json({ success: true, receipt });
+});
+
+// 5) 저화질 다운로드 (R2에서 바로 바이트 스트림 리턴)
+app.get('/api/receipts/:id/download', authMiddleware, async (c) => {
+  const { DB } = c.env;
+  const userId = c.get('userId');
+  const id = c.req.param('id');
+
+  const rec = await DB.prepare(`
+    SELECT image_key, image_mime FROM receipts
+    WHERE id = ? AND user_id = ?
+  `).bind(id, String(userId)).first() as any;
+
+  if (!rec?.image_key) {
+    return c.json({ success: false, error: 'Not found' }, 404);
+  }
+
+  // R2가 설정되어 있으면 R2에서 가져오기
+  if (c.env.RECEIPTS_BUCKET) {
+    const obj = await c.env.RECEIPTS_BUCKET.get(rec.image_key);
+    if (!obj) {
+      return c.json({ success: false, error: 'File missing' }, 404);
+    }
+
+    return new Response(obj.body, {
+      headers: {
+        'Content-Type': rec.image_mime || 'image/webp',
+        'Content-Disposition': `inline; filename="${rec.image_key.split('/').pop()}"`
+      }
+    });
+  }
+
+  return c.json({ success: false, error: 'R2 not configured' }, 503);
+});
+
+// 6) 영수증 삭제
+app.delete('/api/receipts/:id', authMiddleware, async (c) => {
+  const { DB } = c.env;
+  const userId = c.get('userId');
+  const id = c.req.param('id');
+
+  try {
+    // 영수증 정보 조회
+    const rec = await DB.prepare(`
+      SELECT image_key FROM receipts
+      WHERE id = ? AND user_id = ?
+    `).bind(id, String(userId)).first() as any;
+
+    if (!rec) {
+      return c.json({ success: false, error: 'Receipt not found' }, 404);
+    }
+
+    // R2에서 파일 삭제
+    if (c.env.RECEIPTS_BUCKET && rec.image_key) {
+      await c.env.RECEIPTS_BUCKET.delete(rec.image_key);
+    }
+
+    // DB에서 영수증 삭제
+    await DB.prepare(`
+      DELETE FROM receipts WHERE id = ? AND user_id = ?
+    `).bind(id, String(userId)).run();
+
+    return c.json({ success: true });
+  } catch (error: any) {
+    console.error('[Receipts] Delete error:', error);
+    return c.json({ success: false, error: '영수증 삭제 실패' }, 500);
+  }
+});
 
 export default app
