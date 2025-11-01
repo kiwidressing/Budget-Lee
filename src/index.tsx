@@ -1786,13 +1786,13 @@ function mapKoreanPrimaryCategory(input: string): string {
 
 // 파일 업로드 엔드포인트는 제거 (클라이언트에서 IndexedDB에 직접 저장)
 
-// 2) 메타데이터 저장 + 거래 자동 생성
+// 2) 영수증 저장 (Base64 이미지 포함)
 app.post('/api/receipts', authMiddleware, async (c) => {
   const { DB } = c.env;
   const userId = c.get('userId');
   const body = await c.req.json();
 
-  const required = ['key','purchase_date','amount','category'];
+  const required = ['purchase_date','amount','category'];
   for (const k of required) {
     if (!body[k]) {
       return c.json({ success: false, error: `${k} is required` }, 400);
@@ -1803,25 +1803,25 @@ app.post('/api/receipts', authMiddleware, async (c) => {
   const mappedCategory = mapKoreanPrimaryCategory(body.category);
 
   try {
-    // 1) receipts 저장
+    // 1) receipts 저장 (Base64 이미지 데이터 포함)
     const receiptResult = await DB.prepare(`
       INSERT INTO receipts
-        (image_key, image_mime, image_size, image_width, image_height,
-         merchant, purchase_date, amount, category,
-         payment_method, notes, is_tax_deductible, user_id, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        (store_name, purchase_date, amount, category,
+         payment_method, notes, 
+         image_data, image_type,
+         merchant, is_tax_deductible,
+         user_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `).bind(
-      body.key,
-      body.contentType || null,
-      body.size || null,
-      body.width || null,
-      body.height || null,
       body.merchant || null,
       body.purchase_date,
       body.amount,
       mappedCategory,
       body.payment_method || null,
       body.notes || null,
+      body.image_data || null,  // Base64 이미지 데이터
+      body.image_type || null,   // image/webp, image/jpeg 등
+      body.merchant || null,
       body.is_tax_deductible ? 1 : 0,
       String(userId)
     ).run();
@@ -1851,7 +1851,7 @@ app.post('/api/receipts', authMiddleware, async (c) => {
     });
   } catch (error: any) {
     console.error('[Receipts] Save error:', error);
-    return c.json({ success: false, error: '영수증 저장 실패' }, 500);
+    return c.json({ success: false, error: '영수증 저장 실패: ' + error.message }, 500);
   }
 });
 
@@ -1866,7 +1866,7 @@ app.get('/api/receipts', authMiddleware, async (c) => {
     SELECT 
       r.id, r.merchant, r.purchase_date, r.amount, r.category,
       r.payment_method, r.notes, r.is_tax_deductible,
-      r.image_key, r.image_mime, r.image_size,
+      r.image_data, r.image_type,
       r.created_at
     FROM receipts r
     WHERE r.user_id = ?

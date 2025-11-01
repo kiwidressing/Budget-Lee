@@ -16,9 +16,9 @@ CREATE TABLE IF NOT EXISTS settings_new (
   user_id TEXT
 );
 
--- Step 2: Copy existing data
-INSERT INTO settings_new (id, currency, initial_balance, initial_savings, category_colors, created_at, cash_on_hand, user_id)
-SELECT id, currency, initial_balance, initial_savings, category_colors, created_at, cash_on_hand, user_id 
+-- Step 2: Copy existing data (only columns that exist in old table)
+INSERT INTO settings_new (id, currency, initial_balance, initial_savings, category_colors, created_at, user_id)
+SELECT id, currency, initial_balance, initial_savings, category_colors, created_at, user_id 
 FROM settings;
 
 -- Step 3: Drop old table

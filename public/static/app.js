@@ -4751,7 +4751,16 @@ function canvasToBlob(canvas, type, quality) {
   return new Promise(resolve => canvas.toBlob(resolve, type, quality));
 }
 
-// 2) 영수증 업로드 + 메타데이터 저장 + 거래 자동 생성 (IndexedDB 저장)
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+// 2) 영수증 업로드 + 저장 (Base64로 D1에 직접 저장)
 async function handleReceiptSubmit(event) {
   event.preventDefault();
 
@@ -4771,18 +4780,19 @@ async function handleReceiptSubmit(event) {
   }
 
   try {
-    // 1) 저화질로 압축
+    // 1) 저화질로 압축 (최대 800px, 품질 0.5)
     console.log('[Receipt] Compressing image...');
-    const { blob, width, height, mime } = await compressImageToWebp(file, 1280, 0.6);
+    const { blob, width, height, mime } = await compressImageToWebp(file, 800, 0.5);
 
-    // 2) 메타데이터 저장 + 거래 자동 생성 (이미지는 나중에 저장)
-    console.log('[Receipt] Saving metadata...');
-    const metaRes = await axios.post('/api/receipts', {
-      key: 'local-storage', // R2 대신 로컬 저장 표시
-      contentType: mime,
-      size: blob.size,
-      width, 
-      height,
+    // 2) Blob을 Base64로 변환
+    console.log('[Receipt] Converting to Base64...');
+    const base64 = await blobToBase64(blob);
+
+    // 3) 서버에 저장 (Base64 이미지 포함)
+    console.log('[Receipt] Saving to server...');
+    const response = await axios.post('/api/receipts', {
+      image_data: base64,
+      image_type: mime,
       merchant,
       purchase_date,
       amount,
@@ -4792,17 +4802,11 @@ async function handleReceiptSubmit(event) {
       is_tax_deductible
     });
 
-    if (!metaRes.data?.success) {
-      console.error('Receipt meta save failed', metaRes.data);
-      alert('영수증 저장 실패');
+    if (!response.data?.success) {
+      console.error('Receipt save failed', response.data);
+      alert('영수증 저장 실패: ' + (response.data.error || '알 수 없는 오류'));
       return;
     }
-
-    const receiptId = metaRes.data.receipt_id;
-
-    // 3) IndexedDB에 이미지 저장
-    console.log('[Receipt] Saving image to IndexedDB...');
-    await saveImageToIndexedDB(receiptId, blob);
 
     // 완료
     alert('영수증 저장 및 거래내역 생성 완료!');
@@ -5064,19 +5068,7 @@ if (typeof window.getCategoryIcon !== 'function') {
   };
 }
 
-// 2) IndexedDB 안전 가드
-async function ensureReceiptDB() {
-  try {
-    await initReceiptDB();
-    return true;
-  } catch (e) {
-    console.error('[IndexedDB] Init failed:', e);
-    alert('이 브라우저 환경에서는 영수증 로컬 저장소(IndexedDB)를 사용할 수 없습니다.');
-    return false;
-  }
-}
-
-// 3) 안전한 renderReceiptsView 래퍼
+// 2) 안전한 renderReceiptsView 래퍼
 function safeRenderReceiptsView() {
   console.log('[Receipts] safeRenderReceiptsView called');
   try {
@@ -5112,39 +5104,82 @@ window.showReceiptUploadModal = showReceiptUploadModal;
 window.closeReceiptModal = closeReceiptModal;
 window.handleReceiptSubmit = handleReceiptSubmit;
 window.viewReceipt = async function(receiptId) {
-  if (!(await ensureReceiptDB())) return;
   try {
-    const blob = await getImageFromIndexedDB(receiptId);
-    if (!blob) {
-      alert('이미지를 찾을 수 없습니다.');
+    const response = await axios.get(`/api/receipts/${receiptId}`);
+    if (!response.data.success || !response.data.receipt) {
+      alert('영수증을 찾을 수 없습니다.');
       return;
     }
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    
+    const receipt = response.data.receipt;
+    if (!receipt.image_data) {
+      alert('이미지가 없습니다.');
+      return;
+    }
+    
+    // Base64 data URL을 새 창에서 열기
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+      newWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>영수증 이미지 - ${receipt.merchant || receiptId}</title>
+          <style>
+            body { margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; background: #f0f0f0; }
+            img { max-width: 100%; height: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+          </style>
+        </head>
+        <body>
+          <img src="${receipt.image_data}" alt="영수증 이미지" />
+        </body>
+        </html>
+      `);
+      newWindow.document.close();
+    }
   } catch (error) {
     console.error('[Receipt] View error:', error);
-    alert('이미지 보기 실패');
+    alert(error.response?.data?.error || '이미지 보기 실패');
   }
 };
 window.downloadReceipt = async function(receiptId) {
-  if (!(await ensureReceiptDB())) return;
   try {
-    const blob = await getImageFromIndexedDB(receiptId);
-    if (!blob) {
-      alert('이미지를 찾을 수 없습니다.');
+    const response = await axios.get(`/api/receipts/${receiptId}`);
+    if (!response.data.success || !response.data.receipt) {
+      alert('영수증을 찾을 수 없습니다.');
       return;
     }
+    
+    const receipt = response.data.receipt;
+    if (!receipt.image_data) {
+      alert('이미지가 없습니다.');
+      return;
+    }
+    
+    // Base64 data URL을 Blob으로 변환
+    const base64Data = receipt.image_data.split(',')[1];
+    const mimeType = receipt.image_type || 'image/webp';
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: mimeType });
+    
+    // Blob을 다운로드
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `receipt-${receiptId}.webp`;
+    const extension = mimeType.split('/')[1] || 'webp';
+    a.download = `receipt-${receipt.merchant || receiptId}-${receipt.purchase_date}.${extension}`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
   } catch (error) {
     console.error('[Receipt] Download error:', error);
-    alert('다운로드 실패');
+    alert(error.response?.data?.error || '다운로드 실패');
   }
 };
 window.deleteReceipt = async function(receiptId) {
@@ -5152,7 +5187,7 @@ window.deleteReceipt = async function(receiptId) {
   try {
     const response = await axios.delete(`/api/receipts/${receiptId}`);
     if (response.data.success) {
-      await deleteImageFromIndexedDB(receiptId);
+      // 이미지는 DB에 저장되므로 별도 삭제 불필요
       alert('영수증이 삭제되었습니다.');
       safeRenderReceiptsView();
     }
