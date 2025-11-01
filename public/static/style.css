@@ -543,22 +543,23 @@ div.p-3.bg-gray-50.rounded:hover {
   box-shadow: var(--shadow-md);
 }
 
-/* 화살표 버튼 - 밝은 글래스모피즘 */
+/* 화살표 버튼 - 밝은 파란색 글래스모피즘 */
 button[onclick*="changeMonth"],
 button[onclick*="prevMonth"],
 button[onclick*="nextMonth"],
 button[onclick*="changeWeek"],
 .bg-gray-200 {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(240, 240, 250, 0.5)) !important;
+  background: linear-gradient(135deg, rgba(156, 173, 206, 0.7), rgba(123, 143, 176, 0.8)) !important; /* Serenity Blue */
   backdrop-filter: blur(25px) saturate(160%);
   -webkit-backdrop-filter: blur(25px) saturate(160%);
-  border: 2px solid rgba(255, 255, 255, 0.6) !important;
+  border: 2px solid rgba(156, 173, 206, 0.6) !important;
   border-radius: 12px !important;
-  color: #5A6B8C !important;
+  color: white !important;
   font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.1),
-    inset 0 1px 2px rgba(255, 255, 255, 0.5);
+    0 4px 12px rgba(156, 173, 206, 0.3),
+    inset 0 1px 2px rgba(255, 255, 255, 0.4);
   transition: all 0.3s ease;
 }
 
@@ -567,12 +568,12 @@ button[onclick*="prevMonth"]:hover,
 button[onclick*="nextMonth"]:hover,
 button[onclick*="changeWeek"]:hover,
 .bg-gray-200:hover {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(245, 245, 255, 0.6)) !important;
+  background: linear-gradient(135deg, rgba(156, 173, 206, 0.85), rgba(123, 143, 176, 0.95)) !important;
   transform: translateY(-2px) scale(1.08);
   box-shadow: 
-    0 6px 18px rgba(0, 0, 0, 0.15),
-    inset 0 2px 4px rgba(255, 255, 255, 0.6);
-  border-color: rgba(255, 255, 255, 0.8) !important;
+    0 6px 18px rgba(156, 173, 206, 0.4),
+    inset 0 2px 4px rgba(255, 255, 255, 0.5);
+  border-color: rgba(156, 173, 206, 0.8) !important;
 }
 
 /* 거래 추가 버튼 및 아이콘 버튼들 글래스모피즘 + 색상 유지 */
@@ -1036,20 +1037,29 @@ button[onclick*="Modal"],
   color: var(--text-secondary) !important;
 }
 
-/* 다크모드 버튼 */
+/* 다크모드 버튼 - 밝은 파란색 */
 .dark button[onclick*="changeMonth"],
 .dark button[onclick*="changeWeek"],
 .dark .bg-gray-200 {
-  background: linear-gradient(135deg, rgba(60, 65, 80, 0.6), rgba(70, 75, 90, 0.7)) !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
-  color: var(--text-primary) !important;
+  background: linear-gradient(135deg, rgba(156, 173, 206, 0.5), rgba(123, 143, 176, 0.6)) !important;
+  backdrop-filter: blur(25px) saturate(160%);
+  -webkit-backdrop-filter: blur(25px) saturate(160%);
+  border-color: rgba(156, 173, 206, 0.4) !important;
+  color: white !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    inset 0 1px 2px rgba(255, 255, 255, 0.2);
 }
 
 .dark button[onclick*="changeMonth"]:hover,
 .dark button[onclick*="changeWeek"]:hover,
 .dark .bg-gray-200:hover {
-  background: linear-gradient(135deg, rgba(70, 75, 90, 0.7), rgba(80, 85, 100, 0.8)) !important;
-  border-color: rgba(255, 255, 255, 0.25) !important;
+  background: linear-gradient(135deg, rgba(156, 173, 206, 0.65), rgba(123, 143, 176, 0.75)) !important;
+  border-color: rgba(156, 173, 206, 0.5) !important;
+  box-shadow: 
+    0 6px 18px rgba(0, 0, 0, 0.5),
+    inset 0 2px 4px rgba(255, 255, 255, 0.3);
 }
 
 /* 다크모드 달력 */
