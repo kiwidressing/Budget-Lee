@@ -3,37 +3,37 @@
    Beautiful UI with glass effects and soft colors
 ============================================ */
 
-/* 파스텔/팬톤 컬러 팔레트 */
+/* 파스텔/팬톤 컬러 팔레트 - 무난하고 세련된 톤 */
 :root {
-  /* Pantone 2024 - Peach Fuzz & Friends */
-  --primary: #FF8A5B;        /* Vibrant Peach */
-  --primary-light: #FFB088;
-  --primary-dark: #FF6B3D;
+  /* Pantone Soft Palette */
+  --primary: #C9ADA7;        /* Rose Quartz */
+  --primary-light: #E8D5D2;
+  --primary-dark: #A88F89;
   
-  --secondary: #4A90E2;      /* Deep Sky Blue */
-  --secondary-light: #7EB3FF;
-  --secondary-dark: #2E6BB8;
+  --secondary: #9CADCE;      /* Serenity Blue */
+  --secondary-light: #C5D5EA;
+  --secondary-dark: #7B8FB0;
   
-  --accent: #9B59B6;         /* Rich Purple */
-  --accent-light: #C39BD3;
-  --accent-dark: #7D3C98;
+  --accent: #B4A7D6;         /* Lavender Gray */
+  --accent-light: #D4CCE8;
+  --accent-dark: #9488BA;
   
-  --success: #27AE60;        /* Fresh Green */
-  --warning: #F39C12;        /* Amber */
-  --danger: #E74C3C;         /* Vibrant Red */
+  --success: #A8DADC;        /* Mint Cream */
+  --warning: #F1C6A0;        /* Apricot Cream */
+  --danger: #E8B4B8;         /* Dusty Rose */
   
-  /* Glass effect colors - 더 강한 투명도 */
+  /* Glass effect colors */
   --glass-white: rgba(255, 255, 255, 0.15);
   --glass-white-hover: rgba(255, 255, 255, 0.25);
   --glass-border: rgba(255, 255, 255, 0.5);
   
-  /* Background gradients - 더 다채롭고 진한 배경 */
-  --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%);
-  --bg-gradient-2: linear-gradient(135deg, #fa709a 0%, #fee140 50%, #30cfd0 100%);
+  /* Background gradients - 부드럽고 무난한 색감 */
+  --bg-gradient: linear-gradient(135deg, #E8D5D2 0%, #C5D5EA 50%, #D4CCE8 100%);
+  --bg-gradient-2: linear-gradient(135deg, #F8E5E0 0%, #D4E4F7 50%, #E6DDF5 100%);
   
-  /* Text colors - 명확한 대비 */
-  --text-primary: #2C3E50;
-  --text-secondary: #34495E;
+  /* Text colors */
+  --text-primary: #4A5568;
+  --text-secondary: #718096;
   --text-white: #FFFFFF;
   
   /* Shadows */
@@ -45,19 +45,19 @@
 
 /* Dark mode colors */
 .dark {
-  --primary: #FF6B3D;
-  --secondary: #4A90E2;
-  --accent: #9B59B6;
+  --primary: #C9ADA7;
+  --secondary: #9CADCE;
+  --accent: #B4A7D6;
   
-  --glass-white: rgba(20, 20, 30, 0.4);
-  --glass-white-hover: rgba(20, 20, 30, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-white: rgba(30, 35, 45, 0.4);
+  --glass-white-hover: rgba(30, 35, 45, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.15);
   
-  --bg-gradient: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
-  --bg-gradient-2: linear-gradient(135deg, #141e30 0%, #243b55 100%);
+  --bg-gradient: linear-gradient(135deg, #2D3748 0%, #1A365D 50%, #2C394B 100%);
+  --bg-gradient-2: linear-gradient(135deg, #374151 0%, #475569 50%, #3B4252 100%);
   
-  --text-primary: #FFFFFF;
-  --text-secondary: #E2E8F0;
+  --text-primary: #E2E8F0;
+  --text-secondary: #CBD5E0;
   
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -250,8 +250,8 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Soft color buttons with better contrast */
 .bg-blue-100 {
-  background: rgba(74, 144, 226, 0.2) !important;
-  color: var(--secondary-dark) !important;
+  background: rgba(156, 173, 206, 0.3) !important;
+  color: #5A6B8C !important;
   border: 1px solid var(--secondary-light);
 }
 
@@ -261,36 +261,36 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .bg-green-100 {
-  background: rgba(39, 174, 96, 0.2) !important;
-  color: #1E7E45 !important;
+  background: rgba(168, 218, 220, 0.3) !important;
+  color: #5B8F90 !important;
   border: 1px solid var(--success);
 }
 
 .bg-green-700 {
   background: var(--success) !important;
-  color: var(--text-white) !important;
+  color: var(--text-primary) !important;
 }
 
 .bg-red-100 {
-  background: rgba(231, 76, 60, 0.2) !important;
-  color: #C0392B !important;
+  background: rgba(232, 180, 184, 0.3) !important;
+  color: #A86A6E !important;
   border: 1px solid var(--danger);
 }
 
 .bg-red-700 {
   background: var(--danger) !important;
-  color: var(--text-white) !important;
+  color: var(--text-primary) !important;
 }
 
 .bg-yellow-100 {
-  background: rgba(243, 156, 18, 0.2) !important;
-  color: #D68910 !important;
+  background: rgba(241, 198, 160, 0.3) !important;
+  color: #B08860 !important;
   border: 1px solid var(--warning);
 }
 
 .bg-purple-100 {
-  background: rgba(155, 89, 182, 0.2) !important;
-  color: var(--accent-dark) !important;
+  background: rgba(180, 167, 214, 0.3) !important;
+  color: #7B6FA0 !important;
   border: 1px solid var(--accent);
 }
 
