@@ -22,7 +22,11 @@ CREATE TABLE fixed_expenses (
 );
 
 -- 4. 데이터 복원
-INSERT INTO fixed_expenses SELECT * FROM fixed_expenses_backup;
+-- Note: payment_day column was added in migration 0006
+-- The backup table may or may not have payment_day depending on when it was created
+-- We restore all columns that exist in the backup, and payment_day will be NULL if not present
+INSERT INTO fixed_expenses (id, name, category, amount, frequency, week_of_month, day_of_week, is_active, created_at)
+SELECT id, name, category, amount, frequency, week_of_month, day_of_week, is_active, created_at FROM fixed_expenses_backup;
 
 -- 5. 백업 테이블 삭제
 DROP TABLE fixed_expenses_backup;
