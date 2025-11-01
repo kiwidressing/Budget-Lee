@@ -6,34 +6,34 @@
 /* 파스텔/팬톤 컬러 팔레트 */
 :root {
   /* Pantone 2024 - Peach Fuzz & Friends */
-  --primary: #FFBE98;        /* Peach Fuzz */
-  --primary-light: #FFD4B8;
-  --primary-dark: #FF9B6A;
+  --primary: #FF8A5B;        /* Vibrant Peach */
+  --primary-light: #FFB088;
+  --primary-dark: #FF6B3D;
   
-  --secondary: #B5E2FA;      /* Sky Blue */
-  --secondary-light: #D4F1FF;
-  --secondary-dark: #8FC9E8;
+  --secondary: #4A90E2;      /* Deep Sky Blue */
+  --secondary-light: #7EB3FF;
+  --secondary-dark: #2E6BB8;
   
-  --accent: #E5B8F4;         /* Lavender */
-  --accent-light: #F3D9FF;
-  --accent-dark: #D599EA;
+  --accent: #9B59B6;         /* Rich Purple */
+  --accent-light: #C39BD3;
+  --accent-dark: #7D3C98;
   
-  --success: #B8E6CF;        /* Mint Green */
-  --warning: #FFE29D;        /* Soft Yellow */
-  --danger: #FFB4B4;         /* Soft Pink */
+  --success: #27AE60;        /* Fresh Green */
+  --warning: #F39C12;        /* Amber */
+  --danger: #E74C3C;         /* Vibrant Red */
   
-  /* Glass effect colors */
-  --glass-white: rgba(255, 255, 255, 0.7);
-  --glass-white-hover: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.3);
+  /* Glass effect colors - 더 강한 투명도 */
+  --glass-white: rgba(255, 255, 255, 0.15);
+  --glass-white-hover: rgba(255, 255, 255, 0.25);
+  --glass-border: rgba(255, 255, 255, 0.5);
   
-  /* Background gradients */
-  --bg-gradient: linear-gradient(135deg, #FFE5D9 0%, #D4F1FF 50%, #E5DEFF 100%);
-  --bg-gradient-2: linear-gradient(135deg, #FFD4E5 0%, #B5E2FA 50%, #E5B8F4 100%);
+  /* Background gradients - 더 다채롭고 진한 배경 */
+  --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%);
+  --bg-gradient-2: linear-gradient(135deg, #fa709a 0%, #fee140 50%, #30cfd0 100%);
   
-  /* Text colors */
-  --text-primary: #4A5568;
-  --text-secondary: #718096;
+  /* Text colors - 명확한 대비 */
+  --text-primary: #2C3E50;
+  --text-secondary: #34495E;
   --text-white: #FFFFFF;
   
   /* Shadows */
@@ -45,19 +45,19 @@
 
 /* Dark mode colors */
 .dark {
-  --primary: #FF9B6A;
-  --secondary: #6BA5C8;
-  --accent: #B88ED1;
+  --primary: #FF6B3D;
+  --secondary: #4A90E2;
+  --accent: #9B59B6;
   
-  --glass-white: rgba(45, 55, 72, 0.7);
-  --glass-white-hover: rgba(45, 55, 72, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-white: rgba(20, 20, 30, 0.4);
+  --glass-white-hover: rgba(20, 20, 30, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.2);
   
-  --bg-gradient: linear-gradient(135deg, #2D3748 0%, #1A365D 50%, #44337A 100%);
-  --bg-gradient-2: linear-gradient(135deg, #4A5568 0%, #2C5282 50%, #553C9A 100%);
+  --bg-gradient: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+  --bg-gradient-2: linear-gradient(135deg, #141e30 0%, #243b55 100%);
   
-  --text-primary: #E2E8F0;
-  --text-secondary: #CBD5E0;
+  --text-primary: #FFFFFF;
+  --text-secondary: #E2E8F0;
   
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -82,21 +82,23 @@ body {
    Glassmorphism Components
 ============================================ */
 
-/* Glass card base */
+/* Glass card base - 더 강한 효과 */
 .glass-card {
   background: var(--glass-white);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
-  border-radius: 20px;
-  box-shadow: var(--shadow-glass);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 2px solid var(--glass-border);
+  border-radius: 24px;
+  box-shadow: var(--shadow-glass), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.4);
   transition: all 0.3s ease;
 }
 
 .glass-card:hover {
   background: var(--glass-white-hover);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg),
+              inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 /* Glass button */
@@ -170,19 +172,51 @@ body {
 .bg-white,
 .rounded-lg.shadow-lg {
   background: var(--glass-white) !important;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
-  border-radius: 20px !important;
-  box-shadow: var(--shadow-glass) !important;
+  backdrop-filter: blur(40px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+  border: 2px solid var(--glass-border) !important;
+  border-radius: 24px !important;
+  box-shadow: var(--shadow-glass),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+  color: var(--text-primary) !important;
 }
 
 /* Gradient cards */
 .bg-gradient-to-r,
 .bg-gradient-to-br {
   background: var(--bg-gradient-2) !important;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.4);
   box-shadow: var(--shadow-lg) !important;
+  color: var(--text-white) !important;
+}
+
+/* 텍스트 색상 명확하게 */
+.text-gray-800,
+.text-gray-700,
+.text-gray-600 {
+  color: var(--text-primary) !important;
+}
+
+.text-gray-500,
+.text-gray-400 {
+  color: var(--text-secondary) !important;
+}
+
+/* 흰색 배경 카드 내부 텍스트 */
+.bg-white .text-white,
+.rounded-lg .text-white {
+  color: var(--text-primary) !important;
+}
+
+/* h1, h2, h3 텍스트 */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary) !important;
+}
+
+/* 그라디언트 카드 내부는 흰색 텍스트 */
+.bg-gradient-to-r *,
+.bg-gradient-to-br * {
+  color: var(--text-white) !important;
 }
 
 /* ============================================
@@ -214,30 +248,50 @@ body {
   box-shadow: var(--shadow-md);
 }
 
-/* Soft color buttons */
+/* Soft color buttons with better contrast */
 .bg-blue-100 {
-  background: var(--secondary-light) !important;
+  background: rgba(74, 144, 226, 0.2) !important;
   color: var(--secondary-dark) !important;
+  border: 1px solid var(--secondary-light);
+}
+
+.bg-blue-700 {
+  background: var(--secondary) !important;
+  color: var(--text-white) !important;
 }
 
 .bg-green-100 {
+  background: rgba(39, 174, 96, 0.2) !important;
+  color: #1E7E45 !important;
+  border: 1px solid var(--success);
+}
+
+.bg-green-700 {
   background: var(--success) !important;
-  color: #2D7A52 !important;
+  color: var(--text-white) !important;
 }
 
 .bg-red-100 {
+  background: rgba(231, 76, 60, 0.2) !important;
+  color: #C0392B !important;
+  border: 1px solid var(--danger);
+}
+
+.bg-red-700 {
   background: var(--danger) !important;
-  color: #B83E3E !important;
+  color: var(--text-white) !important;
 }
 
 .bg-yellow-100 {
-  background: var(--warning) !important;
-  color: #8B7D3E !important;
+  background: rgba(243, 156, 18, 0.2) !important;
+  color: #D68910 !important;
+  border: 1px solid var(--warning);
 }
 
 .bg-purple-100 {
-  background: var(--accent-light) !important;
+  background: rgba(155, 89, 182, 0.2) !important;
   color: var(--accent-dark) !important;
+  border: 1px solid var(--accent);
 }
 
 /* ============================================
@@ -252,13 +306,14 @@ input[type="date"],
 input[type="time"],
 textarea,
 select {
-  background: var(--glass-white);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 2px solid var(--glass-border);
   border-radius: 12px;
   padding: 0.75rem 1rem;
-  color: var(--text-primary);
+  color: var(--text-primary) !important;
+  font-weight: 500;
   transition: all 0.3s ease;
 }
 
@@ -267,12 +322,14 @@ textarea:focus,
 select:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(255, 190, 152, 0.2);
+  background: rgba(255, 255, 255, 1) !important;
+  box-shadow: 0 0 0 4px rgba(255, 138, 91, 0.2);
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: var(--text-secondary);
+  color: var(--text-secondary) !important;
+  opacity: 0.7;
 }
 
 /* ============================================
@@ -280,21 +337,58 @@ textarea::placeholder {
 ============================================ */
 
 .fixed.inset-0.bg-black {
-  background: rgba(0, 0, 0, 0.3) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.4) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Modal content glass effect */
+.fixed .bg-white {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(40px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+  border: 2px solid rgba(255, 255, 255, 0.5) !important;
 }
 
 /* ============================================
    Calendar & Stats
 ============================================ */
 
+/* 달력 크기 복구 */
+.calendar-cell-compact {
+  height: 80px !important;
+  min-height: 80px !important;
+  position: relative;
+  padding: 8px !important;
+}
+
+.calendar-day-number {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  line-height: 1;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.calendar-dots-container {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+}
+
 .calendar-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   display: block;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .calendar-dot.income {
