@@ -4780,13 +4780,24 @@ async function handleReceiptSubmit(event) {
   }
 
   try {
-    // 1) 저화질로 압축 (최대 800px, 품질 0.5)
+    // 1) 저화질로 압축 (최대 600px, 품질 0.3 - 더 작은 파일 크기)
     console.log('[Receipt] Compressing image...');
-    const { blob, width, height, mime } = await compressImageToWebp(file, 800, 0.5);
+    const { blob, width, height, mime } = await compressImageToWebp(file, 600, 0.3);
 
     // 2) Blob을 Base64로 변환
     console.log('[Receipt] Converting to Base64...');
     const base64 = await blobToBase64(blob);
+    
+    // 크기 확인 (Base64는 원본보다 약 33% 큼)
+    const sizeKB = Math.round(base64.length / 1024);
+    console.log(`[Receipt] Image size: ${sizeKB} KB`);
+    
+    // 200KB 이상이면 경고 (D1 row limit는 1MB)
+    if (sizeKB > 200) {
+      if (!confirm(`이미지 크기가 ${sizeKB}KB로 큽니다. 업로드에 시간이 걸릴 수 있습니다. 계속하시겠습니까?`)) {
+        return;
+      }
+    }
 
     // 3) 서버에 저장 (Base64 이미지 포함)
     console.log('[Receipt] Saving to server...');
@@ -4800,6 +4811,10 @@ async function handleReceiptSubmit(event) {
       payment_method,
       notes,
       is_tax_deductible
+    }, {
+      timeout: 30000,  // 30초 타임아웃
+      maxContentLength: 2 * 1024 * 1024,  // 2MB max
+      maxBodyLength: 2 * 1024 * 1024
     });
 
     if (!response.data?.success) {
