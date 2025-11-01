@@ -1241,36 +1241,44 @@ async function renderMonthView() {
     <div class="space-y-6">
       <!-- 월 네비게이션 -->
       <div class="flex justify-between items-center">
-        <button onclick="changeMonth(-1)" class="w-8 h-8 md:w-10 md:h-10 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center">
+        <button onclick="changeMonth(-1)" class="w-8 h-8 md:w-10 md:h-10 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 flex items-center justify-center">
           <i class="fas fa-chevron-left text-sm"></i>
         </button>
         <h2 class="text-sm md:text-base font-semibold">${state.currentMonth.getFullYear()}년 ${state.currentMonth.getMonth() + 1}월</h2>
-        <button onclick="changeMonth(1)" class="w-8 h-8 md:w-10 md:h-10 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center">
+        <button onclick="changeMonth(1)" class="w-8 h-8 md:w-10 md:h-10 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 flex items-center justify-center">
           <i class="fas fa-chevron-right text-sm"></i>
         </button>
       </div>
       
       <!-- 통계 카드 -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-blue-50 p-4 rounded-lg shadow">
-          <p class="text-blue-600 text-sm font-medium">📈 수입</p>
-          <p class="text-2xl font-bold text-blue-800">${formatCurrency(income)}</p>
-          <p class="text-xs text-blue-600 mt-1">💵 현금: ${formatCurrency(cashIncome)}</p>
+        <div class="bg-gradient-to-br from-blue-500 to-blue-700 text-white p-4 rounded-lg shadow-lg">
+          <p class="text-blue-100 text-sm font-medium flex items-center">
+            <i class="fas fa-arrow-up mr-2"></i>수입
+          </p>
+          <p class="text-2xl font-bold mt-1">${formatCurrency(income)}</p>
+          <p class="text-blue-200 text-xs mt-2">💵 현금: ${formatCurrency(cashIncome)}</p>
         </div>
-        <div class="bg-red-50 p-4 rounded-lg shadow">
-          <p class="text-red-600 text-sm font-medium">📉 지출</p>
-          <p class="text-2xl font-bold text-red-800">${formatCurrency(expense)}</p>
-          <p class="text-xs text-red-600 mt-1">💵 현금: ${formatCurrency(cashExpense)}</p>
+        <div class="bg-gradient-to-br from-red-500 to-red-700 text-white p-4 rounded-lg shadow-lg">
+          <p class="text-red-100 text-sm font-medium flex items-center">
+            <i class="fas fa-arrow-down mr-2"></i>지출
+          </p>
+          <p class="text-2xl font-bold mt-1">${formatCurrency(expense)}</p>
+          <p class="text-red-200 text-xs mt-2">💵 현금: ${formatCurrency(cashExpense)}</p>
         </div>
-        <div class="bg-green-50 p-4 rounded-lg shadow">
-          <p class="text-green-600 text-sm font-medium">💚 저축</p>
-          <p class="text-2xl font-bold text-green-800">${formatCurrency(savings)}</p>
-          <p class="text-xs text-green-600 mt-1">💵 현금: ${formatCurrency(cashSavings)}</p>
+        <div class="bg-gradient-to-br from-green-500 to-green-700 text-white p-4 rounded-lg shadow-lg">
+          <p class="text-green-100 text-sm font-medium flex items-center">
+            <i class="fas fa-piggy-bank mr-2"></i>저축
+          </p>
+          <p class="text-2xl font-bold mt-1">${formatCurrency(savings)}</p>
+          <p class="text-green-200 text-xs mt-2">💵 현금: ${formatCurrency(cashSavings)}</p>
         </div>
-        <div class="bg-gray-50 p-4 rounded-lg shadow">
-          <p class="text-gray-600 text-sm font-medium">💰 잔액</p>
-          <p class="text-2xl font-bold text-gray-800">${formatCurrency(balance)}</p>
-          <p class="text-xs text-gray-600 mt-1">💵 현금: ${formatCurrency(cashBalance)}</p>
+        <div class="bg-gradient-to-br from-purple-500 to-purple-700 text-white p-4 rounded-lg shadow-lg">
+          <p class="text-purple-100 text-sm font-medium flex items-center">
+            <i class="fas fa-wallet mr-2"></i>잔액
+          </p>
+          <p class="text-2xl font-bold mt-1">${formatCurrency(balance)}</p>
+          <p class="text-purple-200 text-xs mt-2">💵 현금: ${formatCurrency(cashBalance)}</p>
         </div>
       </div>
       
@@ -1704,30 +1712,36 @@ async function renderWeekView() {
   contentArea.innerHTML = `
     <div class="space-y-6">
       <div class="flex justify-between items-center">
-        <button onclick="changeWeek(-1)" class="w-8 h-8 md:w-10 md:h-10 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center">
+        <button onclick="changeWeek(-1)" class="w-8 h-8 md:w-10 md:h-10 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 flex items-center justify-center">
           <i class="fas fa-chevron-left text-sm"></i>
         </button>
         <h2 class="text-xs md:text-sm font-semibold">${getDateString(state.currentWeekStart)} ~ ${getDateString(weekEnd)}</h2>
-        <button onclick="changeWeek(1)" class="w-8 h-8 md:w-10 md:h-10 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center">
+        <button onclick="changeWeek(1)" class="w-8 h-8 md:w-10 md:h-10 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 flex items-center justify-center">
           <i class="fas fa-chevron-right text-sm"></i>
         </button>
       </div>
       
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-blue-50 p-4 rounded-lg shadow">
-          <p class="text-blue-600 text-sm font-medium">📈 수입</p>
-          <p class="text-2xl font-bold text-blue-800">${formatCurrency(income)}</p>
-          <p class="text-xs text-blue-600 mt-1">💵 현금: ${formatCurrency(cashIncome)}</p>
+        <div class="bg-gradient-to-br from-blue-500 to-blue-700 text-white p-4 rounded-lg shadow-lg">
+          <p class="text-blue-100 text-sm font-medium flex items-center">
+            <i class="fas fa-arrow-up mr-2"></i>수입
+          </p>
+          <p class="text-2xl font-bold mt-1">${formatCurrency(income)}</p>
+          <p class="text-blue-200 text-xs mt-2">💵 현금: ${formatCurrency(cashIncome)}</p>
         </div>
-        <div class="bg-red-50 p-4 rounded-lg shadow">
-          <p class="text-red-600 text-sm font-medium">📉 지출</p>
-          <p class="text-2xl font-bold text-red-800">${formatCurrency(expense)}</p>
-          <p class="text-xs text-red-600 mt-1">💵 현금: ${formatCurrency(cashExpense)}</p>
+        <div class="bg-gradient-to-br from-red-500 to-red-700 text-white p-4 rounded-lg shadow-lg">
+          <p class="text-red-100 text-sm font-medium flex items-center">
+            <i class="fas fa-arrow-down mr-2"></i>지출
+          </p>
+          <p class="text-2xl font-bold mt-1">${formatCurrency(expense)}</p>
+          <p class="text-red-200 text-xs mt-2">💵 현금: ${formatCurrency(cashExpense)}</p>
         </div>
-        <div class="bg-green-50 p-4 rounded-lg shadow">
-          <p class="text-green-600 text-sm font-medium">💚 저축</p>
-          <p class="text-2xl font-bold text-green-800">${formatCurrency(savings)}</p>
-          <p class="text-xs text-green-600 mt-1">💵 현금: ${formatCurrency(cashSavings)}</p>
+        <div class="bg-gradient-to-br from-green-500 to-green-700 text-white p-4 rounded-lg shadow-lg">
+          <p class="text-green-100 text-sm font-medium flex items-center">
+            <i class="fas fa-piggy-bank mr-2"></i>저축
+          </p>
+          <p class="text-2xl font-bold mt-1">${formatCurrency(savings)}</p>
+          <p class="text-green-200 text-xs mt-2">💵 현금: ${formatCurrency(cashSavings)}</p>
         </div>
       </div>
       
