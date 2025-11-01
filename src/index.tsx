@@ -122,12 +122,18 @@ async function createToken(userId: number, username: string, secret: string): Pr
   return await sign(payload, secret)
 }
 
-// 인증 미들웨어
+// 인증 미들웨어 (임시로 비활성화 - 프론트엔드 로그인 UI 구현 전까지)
 const authMiddleware = async (c: any, next: any) => {
   const authHeader = c.req.header('Authorization')
   
+  // 임시: 인증 없이 기본 사용자로 처리 (프론트엔드 로그인 UI 구현 전까지)
+  // TODO: 프론트엔드 로그인/회원가입 UI 구현 후 이 부분 제거
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return c.json({ success: false, error: '인증이 필요합니다.' }, 401)
+    // 기본 사용자 ID 1로 설정 (임시)
+    c.set('userId', 1)
+    c.set('username', 'default_user')
+    await next()
+    return
   }
   
   const token = authHeader.substring(7)
@@ -139,7 +145,10 @@ const authMiddleware = async (c: any, next: any) => {
     c.set('username', payload.username as string)
     await next()
   } catch (error) {
-    return c.json({ success: false, error: '유효하지 않은 토큰입니다.' }, 401)
+    // 토큰이 유효하지 않아도 기본 사용자로 처리 (임시)
+    c.set('userId', 1)
+    c.set('username', 'default_user')
+    await next()
   }
 }
 
