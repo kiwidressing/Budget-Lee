@@ -181,13 +181,75 @@ body {
   color: var(--text-primary) !important;
 }
 
-/* Gradient cards */
-.bg-gradient-to-r,
-.bg-gradient-to-br {
-  background: var(--bg-gradient-2) !important;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  box-shadow: var(--shadow-lg) !important;
-  color: var(--text-white) !important;
+/* Gradient cards - 기본 (보라색 - 총 자산) */
+.bg-gradient-to-br.from-purple-500 {
+  background: linear-gradient(135deg, rgba(180, 167, 214, 0.75), rgba(148, 136, 186, 0.85)) !important;
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border: 2px solid rgba(180, 167, 214, 0.5) !important;
+  box-shadow: var(--shadow-lg),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  color: white !important;
+}
+
+/* 파란색 카드 (수입) */
+.bg-gradient-to-br.from-blue-500 {
+  background: linear-gradient(135deg, rgba(156, 173, 206, 0.75), rgba(123, 143, 176, 0.85)) !important;
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border: 2px solid rgba(156, 173, 206, 0.5) !important;
+  box-shadow: var(--shadow-lg),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  color: white !important;
+}
+
+/* 빨간색 카드 (지출) */
+.bg-gradient-to-br.from-red-500 {
+  background: linear-gradient(135deg, rgba(232, 180, 184, 0.75), rgba(208, 148, 152, 0.85)) !important;
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border: 2px solid rgba(232, 180, 184, 0.5) !important;
+  box-shadow: var(--shadow-lg),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  color: white !important;
+}
+
+/* 초록색 카드 (저축) */
+.bg-gradient-to-br.from-green-500 {
+  background: linear-gradient(135deg, rgba(168, 218, 220, 0.75), rgba(134, 198, 200, 0.85)) !important;
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border: 2px solid rgba(168, 218, 220, 0.5) !important;
+  box-shadow: var(--shadow-lg),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  color: white !important;
+}
+
+/* 그라디언트 카드 내부 텍스트 - 흰색 강제 + 그림자로 가독성 확보 */
+.bg-gradient-to-br * {
+  color: white !important;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* 특히 작은 텍스트들 */
+.bg-gradient-to-br .text-purple-100,
+.bg-gradient-to-br .text-purple-200,
+.bg-gradient-to-br .text-blue-100,
+.bg-gradient-to-br .text-blue-200,
+.bg-gradient-to-br .text-red-100,
+.bg-gradient-to-br .text-red-200,
+.bg-gradient-to-br .text-green-100,
+.bg-gradient-to-br .text-green-200 {
+  color: rgba(255, 255, 255, 0.95) !important;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  font-weight: 500;
+}
+
+/* 큰 숫자들 */
+.bg-gradient-to-br .text-3xl {
+  color: white !important;
+  text-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+  font-weight: 700;
 }
 
 /* 텍스트 색상 명확하게 */
@@ -211,12 +273,6 @@ body {
 /* h1, h2, h3 텍스트 */
 h1, h2, h3, h4, h5, h6 {
   color: var(--text-primary) !important;
-}
-
-/* 그라디언트 카드 내부는 흰색 텍스트 */
-.bg-gradient-to-r *,
-.bg-gradient-to-br * {
-  color: var(--text-white) !important;
 }
 
 /* ============================================
@@ -342,6 +398,25 @@ input::placeholder,
 textarea::placeholder {
   color: var(--text-secondary) !important;
   opacity: 0.7;
+}
+
+/* 폼 레이블 텍스트 색상 강제 */
+label,
+label * {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+}
+
+/* 일반 텍스트 색상 보장 */
+p, span, div {
+  color: inherit;
+}
+
+/* 특정 텍스트 클래스 색상 강제 */
+.text-gray-700,
+.text-gray-600,
+.text-gray-800 {
+  color: var(--text-primary) !important;
 }
 
 /* ============================================
