@@ -1831,8 +1831,8 @@ app.post('/api/receipts', authMiddleware, async (c) => {
     // 2) 거래 자동 생성 (expense)
     const tx = await DB.prepare(`
       INSERT INTO transactions
-        (type, category, amount, description, date, payment_method, user_id, account_id)
-      VALUES ('expense', ?, ?, ?, ?, ?, ?, NULL)
+        (type, category, amount, description, date, payment_method, user_id)
+      VALUES ('expense', ?, ?, ?, ?, ?, ?)
     `).bind(
       mappedCategory,
       body.amount,
