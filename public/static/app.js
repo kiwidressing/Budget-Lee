@@ -4891,9 +4891,19 @@ async function renderReceiptsView() {
     `;
   } catch (error) {
     console.error('[Receipts] Render error:', error);
+    const errorMsg = error?.response?.data?.error || error?.message || '알 수 없는 오류';
     document.getElementById('content-area').innerHTML = `
       <div class="bg-white rounded-lg shadow-lg p-6">
-        <p class="text-red-600">영수증 목록을 불러오는데 실패했습니다.</p>
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">
+          <i class="fas fa-receipt mr-2 text-blue-600"></i>영수증 관리
+        </h2>
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p class="text-red-600 font-medium mb-2">영수증 목록을 불러오는데 실패했습니다.</p>
+          <p class="text-sm text-red-500">오류: ${errorMsg}</p>
+          <button onclick="safeRenderReceiptsView()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+            <i class="fas fa-redo mr-2"></i>다시 시도
+          </button>
+        </div>
       </div>
     `;
   }
@@ -5026,9 +5036,14 @@ if (typeof window.formatMonth !== 'function') {
 if (typeof window.getCategoryIcon !== 'function') {
   window.getCategoryIcon = function getCategoryIcon(cat) {
     const map = {
+      // 긴 형식
       '식비': '🍚', '의복비': '👕', '주거비': '🏠', '교통비': '🚌',
       '통신비': '📱', '의료비': '💊', '교육비': '🎓', '보험': '🛡️',
-      '문화생활': '🎬', '쇼핑': '🛍️', '기타지출': '🧾'
+      '문화생활': '🎬', '쇼핑': '🛍️', '기타지출': '🧾',
+      // 짧은 형식 (영수증용)
+      '식': '🍚', '의': '👕', '주': '🏠', '교통': '🚌',
+      '통신': '📱', '의료': '💊', '교육': '🎓',
+      '문화': '🎬', '기타': '🧾'
     };
     return map[cat] || '🧾';
   };
