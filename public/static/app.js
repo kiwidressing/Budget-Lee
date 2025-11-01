@@ -4838,11 +4838,11 @@ async function renderReceiptsView() {
 
         <!-- 월 선택 -->
         <div class="flex items-center gap-4 mb-6">
-          <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 rounded">
+          <button onclick="changeReceiptMonth(-1)" class="p-2 hover:bg-gray-100 rounded">
             <i class="fas fa-chevron-left"></i>
           </button>
           <span class="text-lg font-medium">${y}년 ${m}월</span>
-          <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 rounded">
+          <button onclick="changeReceiptMonth(1)" class="p-2 hover:bg-gray-100 rounded">
             <i class="fas fa-chevron-right"></i>
           </button>
         </div>
@@ -5067,8 +5067,8 @@ function safeRenderReceiptsView() {
   }
 }
 
-// 4) 월 변경 함수 (전역 바인딩)
-window.changeMonth = function changeMonth(delta) {
+// 4) 영수증용 월 변경 함수 (전역 바인딩)
+window.changeReceiptMonth = function changeReceiptMonth(delta) {
   const d = new Date(state.currentMonth);
   d.setMonth(d.getMonth() + Number(delta));
   state.currentMonth = d;
