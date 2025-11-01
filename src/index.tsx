@@ -1813,7 +1813,7 @@ app.post('/api/receipts', authMiddleware, async (c) => {
          user_id, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `).bind(
-      body.merchant || null,
+      body.merchant || '미지정',  // store_name은 NOT NULL이므로 기본값 제공
       body.purchase_date,
       body.amount,
       mappedCategory,
@@ -1821,7 +1821,7 @@ app.post('/api/receipts', authMiddleware, async (c) => {
       body.notes || null,
       body.image_data || null,  // Base64 이미지 데이터
       body.image_type || null,   // image/webp, image/jpeg 등
-      body.merchant || null,
+      body.merchant || '미지정',  // merchant도 동일하게
       body.is_tax_deductible ? 1 : 0,
       String(userId)
     ).run();

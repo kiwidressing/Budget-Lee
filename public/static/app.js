@@ -4833,7 +4833,23 @@ async function handleReceiptSubmit(event) {
     }
   } catch (error) {
     console.error('[Receipt] Error:', error);
-    alert(error.response?.data?.error || '영수증 처리 중 오류가 발생했습니다.');
+    let errorMsg = '영수증 처리 중 오류가 발생했습니다.';
+    
+    if (error.response) {
+      // 서버 응답이 있는 경우
+      errorMsg = error.response.data?.error || `서버 오류 (${error.response.status})`;
+      console.error('[Receipt] Server error:', error.response.status, error.response.data);
+    } else if (error.request) {
+      // 요청은 보냈지만 응답이 없는 경우
+      errorMsg = '서버 응답 없음. 네트워크를 확인해주세요.';
+      console.error('[Receipt] No response:', error.request);
+    } else {
+      // 요청 설정 중 에러
+      errorMsg = error.message || errorMsg;
+      console.error('[Receipt] Request error:', error.message);
+    }
+    
+    alert(errorMsg);
   }
 }
 
