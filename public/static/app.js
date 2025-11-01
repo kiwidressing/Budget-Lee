@@ -964,11 +964,11 @@ async function renderHomeView() {
       <!-- 환영 메시지 -->
       <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-lg shadow-lg">
         <h2 class="text-2xl md:text-3xl font-bold mb-2">
-          <i class="fas fa-smile-beam mr-2"></i>
-          안녕하세요, ${state.currentUser?.name || '사용자'}님! 👋
+          <i class="fas fa-chart-line mr-2"></i>
+          안녕하세요, ${state.currentUser?.name || '사용자'}님! 💼
         </h2>
         <p class="text-blue-100 text-sm md:text-base">
-          ${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월의 재정 현황을 확인하세요
+          ${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월의 재정 현황을 확인하세요 📊
         </p>
       </div>
       

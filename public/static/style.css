@@ -49,20 +49,20 @@
   --secondary: #9CADCE;
   --accent: #B4A7D6;
   
-  --glass-white: rgba(30, 35, 45, 0.4);
-  --glass-white-hover: rgba(30, 35, 45, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.15);
+  --glass-white: rgba(40, 45, 60, 0.5);
+  --glass-white-hover: rgba(50, 55, 70, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.2);
   
-  --bg-gradient: linear-gradient(135deg, #2D3748 0%, #1A365D 50%, #2C394B 100%);
-  --bg-gradient-2: linear-gradient(135deg, #374151 0%, #475569 50%, #3B4252 100%);
+  --bg-gradient: linear-gradient(135deg, #1a1f2e 0%, #0f1419 50%, #1a1f2e 100%);
+  --bg-gradient-2: linear-gradient(135deg, #2a2f3e 0%, #1f242e 50%, #2a2f3e 100%);
   
-  --text-primary: #E2E8F0;
-  --text-secondary: #CBD5E0;
+  --text-primary: #E8EEF5;
+  --text-secondary: #B8C5D0;
   
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.7);
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
 }
 
 /* ============================================
@@ -543,29 +543,36 @@ div.p-3.bg-gray-50.rounded:hover {
   box-shadow: var(--shadow-md);
 }
 
-/* 화살표 버튼 및 모든 추가 버튼 글래스모피즘 + 색상 */
+/* 화살표 버튼 - 밝은 글래스모피즘 */
 button[onclick*="changeMonth"],
 button[onclick*="prevMonth"],
 button[onclick*="nextMonth"],
+button[onclick*="changeWeek"],
 .bg-gray-200 {
-  background: var(--glass-white) !important;
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
-  border: 2px solid var(--glass-border) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(240, 240, 250, 0.5)) !important;
+  backdrop-filter: blur(25px) saturate(160%);
+  -webkit-backdrop-filter: blur(25px) saturate(160%);
+  border: 2px solid rgba(255, 255, 255, 0.6) !important;
   border-radius: 12px !important;
-  color: var(--text-primary) !important;
-  font-weight: 600;
-  box-shadow: var(--shadow-md);
+  color: #5A6B8C !important;
+  font-weight: 700;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.1),
+    inset 0 1px 2px rgba(255, 255, 255, 0.5);
   transition: all 0.3s ease;
 }
 
 button[onclick*="changeMonth"]:hover,
 button[onclick*="prevMonth"]:hover,
 button[onclick*="nextMonth"]:hover,
+button[onclick*="changeWeek"]:hover,
 .bg-gray-200:hover {
-  background: var(--glass-white-hover) !important;
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: var(--shadow-lg);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(245, 245, 255, 0.6)) !important;
+  transform: translateY(-2px) scale(1.08);
+  box-shadow: 
+    0 6px 18px rgba(0, 0, 0, 0.15),
+    inset 0 2px 4px rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.8) !important;
 }
 
 /* 거래 추가 버튼 및 아이콘 버튼들 글래스모피즘 + 색상 유지 */
@@ -959,23 +966,109 @@ button[onclick*="Modal"],
   background: var(--bg-gradient);
 }
 
+/* 다크모드 글래스 카드 */
 .dark .bg-white,
 .dark .rounded-lg.shadow-lg {
   background: var(--glass-white) !important;
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 2px solid var(--glass-border) !important;
+  box-shadow: var(--shadow-glass),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
   color: var(--text-primary);
 }
 
+/* 다크모드 그라디언트 카드 - 더 어두운 투명도 */
+.dark .bg-gradient-to-br.from-purple-500 {
+  background: linear-gradient(135deg, rgba(180, 167, 214, 0.4), rgba(148, 136, 186, 0.5)) !important;
+  border-color: rgba(180, 167, 214, 0.3) !important;
+}
+
+.dark .bg-gradient-to-br.from-blue-500 {
+  background: linear-gradient(135deg, rgba(156, 173, 206, 0.4), rgba(123, 143, 176, 0.5)) !important;
+  border-color: rgba(156, 173, 206, 0.3) !important;
+}
+
+.dark .bg-gradient-to-br.from-red-500 {
+  background: linear-gradient(135deg, rgba(232, 180, 184, 0.4), rgba(208, 148, 152, 0.5)) !important;
+  border-color: rgba(232, 180, 184, 0.3) !important;
+}
+
+.dark .bg-gradient-to-br.from-green-500 {
+  background: linear-gradient(135deg, rgba(168, 218, 220, 0.4), rgba(134, 198, 200, 0.5)) !important;
+  border-color: rgba(168, 218, 220, 0.3) !important;
+}
+
+/* 다크모드 텍스트 색상 */
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6 {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-gray-800,
+.dark .text-gray-700,
+.dark .text-gray-600 {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-gray-500,
+.dark .text-gray-400 {
+  color: var(--text-secondary) !important;
+}
+
+/* 다크모드 인풋 */
 .dark input,
 .dark textarea,
 .dark select {
-  background: var(--glass-white);
-  color: var(--text-primary);
-  border-color: var(--glass-border);
+  background: rgba(50, 55, 70, 0.7) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--glass-border) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .dark input::placeholder,
 .dark textarea::placeholder {
-  color: var(--text-secondary);
+  color: var(--text-secondary) !important;
+}
+
+/* 다크모드 버튼 */
+.dark button[onclick*="changeMonth"],
+.dark button[onclick*="changeWeek"],
+.dark .bg-gray-200 {
+  background: linear-gradient(135deg, rgba(60, 65, 80, 0.6), rgba(70, 75, 90, 0.7)) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark button[onclick*="changeMonth"]:hover,
+.dark button[onclick*="changeWeek"]:hover,
+.dark .bg-gray-200:hover {
+  background: linear-gradient(135deg, rgba(70, 75, 90, 0.7), rgba(80, 85, 100, 0.8)) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* 다크모드 달력 */
+.dark .border-gray-300,
+.dark table.w-full.border-collapse {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  background: rgba(40, 45, 60, 0.5) !important;
+}
+
+.dark .calendar-cell-compact,
+.dark td.border {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  background: rgba(50, 55, 70, 0.3) !important;
+}
+
+.dark .calendar-cell-compact:hover,
+.dark td.border:hover {
+  background: rgba(60, 65, 80, 0.5) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
 }
 
 /* ============================================
