@@ -1,134 +1,322 @@
-/* 다크모드 CSS 변수 */
+/* ============================================
+   🎨 Glassmorphism & Pastel/Pantone Design
+   Beautiful UI with glass effects and soft colors
+============================================ */
+
+/* 파스텔/팬톤 컬러 팔레트 */
 :root {
-  --bg-primary: #F3F4F6;
-  --bg-secondary: #FFFFFF;
-  --bg-card: #FFFFFF;
-  --text-primary: #111827;
-  --text-secondary: #6B7280;
-  --border-color: #E5E7EB;
+  /* Pantone 2024 - Peach Fuzz & Friends */
+  --primary: #FFBE98;        /* Peach Fuzz */
+  --primary-light: #FFD4B8;
+  --primary-dark: #FF9B6A;
+  
+  --secondary: #B5E2FA;      /* Sky Blue */
+  --secondary-light: #D4F1FF;
+  --secondary-dark: #8FC9E8;
+  
+  --accent: #E5B8F4;         /* Lavender */
+  --accent-light: #F3D9FF;
+  --accent-dark: #D599EA;
+  
+  --success: #B8E6CF;        /* Mint Green */
+  --warning: #FFE29D;        /* Soft Yellow */
+  --danger: #FFB4B4;         /* Soft Pink */
+  
+  /* Glass effect colors */
+  --glass-white: rgba(255, 255, 255, 0.7);
+  --glass-white-hover: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  
+  /* Background gradients */
+  --bg-gradient: linear-gradient(135deg, #FFE5D9 0%, #D4F1FF 50%, #E5DEFF 100%);
+  --bg-gradient-2: linear-gradient(135deg, #FFD4E5 0%, #B5E2FA 50%, #E5B8F4 100%);
+  
+  /* Text colors */
+  --text-primary: #4A5568;
+  --text-secondary: #718096;
+  --text-white: #FFFFFF;
+  
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
 }
 
+/* Dark mode colors */
 .dark {
-  --bg-primary: #111827;
-  --bg-secondary: #1F2937;
-  --bg-card: #374151;
-  --text-primary: #F9FAFB;
-  --text-secondary: #D1D5DB;
-  --border-color: #4B5563;
+  --primary: #FF9B6A;
+  --secondary: #6BA5C8;
+  --accent: #B88ED1;
+  
+  --glass-white: rgba(45, 55, 72, 0.7);
+  --glass-white-hover: rgba(45, 55, 72, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  
+  --bg-gradient: linear-gradient(135deg, #2D3748 0%, #1A365D 50%, #44337A 100%);
+  --bg-gradient-2: linear-gradient(135deg, #4A5568 0%, #2C5282 50%, #553C9A 100%);
+  
+  --text-primary: #E2E8F0;
+  --text-secondary: #CBD5E0;
+  
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 }
 
-.dark body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-}
+/* ============================================
+   Global Styles
+============================================ */
 
-.dark .bg-white {
-  background-color: var(--bg-card) !important;
-  color: var(--text-primary);
-}
-
-.dark .bg-gray-50 {
-  background-color: var(--bg-secondary) !important;
-}
-
-.dark .bg-gray-100 {
-  background-color: var(--bg-secondary) !important;
-}
-
-.dark .text-gray-600,
-.dark .text-gray-700,
-.dark .text-gray-800 {
-  color: var(--text-secondary) !important;
-}
-
-.dark .border-gray-200,
-.dark .border {
-  border-color: var(--border-color) !important;
-}
-
-/* 다크모드에서 흰색 배경 입력창의 텍스트는 검정색으로 */
-.dark input[type="text"],
-.dark input[type="number"],
-.dark input[type="email"],
-.dark input[type="password"],
-.dark input[type="date"],
-.dark input[type="time"],
-.dark textarea,
-.dark select {
-  color: #111827 !important;
-}
-
-/* 다크모드에서 placeholder도 어둡게 */
-.dark input::placeholder,
-.dark textarea::placeholder {
-  color: #6B7280 !important;
-}
-
-/* 기본 스타일 */
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
   font-size: 14px;
-  transition: background-color 0.3s, color 0.3s;
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  transition: all 0.3s ease;
 }
 
-/* 반응형 글씨 크기 */
-@media (max-width: 640px) {
-  body {
-    font-size: 13px;
-  }
-  h1 {
-    font-size: 1.25rem !important;
-  }
-  h2 {
-    font-size: 1.125rem !important;
-  }
-  h3 {
-    font-size: 1rem !important;
-  }
+/* ============================================
+   Glassmorphism Components
+============================================ */
+
+/* Glass card base */
+.glass-card {
+  background: var(--glass-white);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  box-shadow: var(--shadow-glass);
+  transition: all 0.3s ease;
 }
 
-@media (min-width: 641px) and (max-width: 1024px) {
-  body {
-    font-size: 14px;
-  }
+.glass-card:hover {
+  background: var(--glass-white-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
 }
 
-@media (min-width: 1025px) {
-  body {
-    font-size: 15px;
-  }
+/* Glass button */
+.glass-button {
+  background: var(--glass-white);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 0.75rem 1.5rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  transition: all 0.3s ease;
+  cursor: pointer;
 }
 
-/* 탭 버튼 호버 효과 */
+.glass-button:hover {
+  background: var(--glass-white-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Primary glass button with gradient */
+.glass-button-primary {
+  background: linear-gradient(135deg, var(--primary-light), var(--primary));
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: var(--text-white);
+  box-shadow: var(--shadow-md);
+}
+
+.glass-button-primary:hover {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ============================================
+   Tab Navigation
+============================================ */
+
+.tab-button {
+  position: relative;
+  padding: 1rem 1.5rem;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+}
+
 .tab-button:hover {
-  background-color: rgba(59, 130, 246, 0.1);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
 }
 
-/* 스크롤바 스타일 */
-::-webkit-scrollbar {
+.tab-button.border-blue-600 {
+  background: var(--glass-white);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 3px solid var(--primary);
+  color: var(--primary);
+  border-radius: 12px 12px 0 0;
+}
+
+/* ============================================
+   Cards & Containers
+============================================ */
+
+.bg-white,
+.rounded-lg.shadow-lg {
+  background: var(--glass-white) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px !important;
+  box-shadow: var(--shadow-glass) !important;
+}
+
+/* Gradient cards */
+.bg-gradient-to-r,
+.bg-gradient-to-br {
+  background: var(--bg-gradient-2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* ============================================
+   Buttons
+============================================ */
+
+.bg-blue-600 {
+  background: linear-gradient(135deg, var(--primary-light), var(--primary)) !important;
+  border: none;
+  box-shadow: var(--shadow-md);
+  transition: all 0.3s ease;
+}
+
+.bg-blue-600:hover {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark)) !important;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.bg-green-600 {
+  background: linear-gradient(135deg, #B8E6CF, #91D5B5) !important;
+  border: none;
+  box-shadow: var(--shadow-md);
+}
+
+.bg-red-600 {
+  background: linear-gradient(135deg, #FFB4B4, #FF8C8C) !important;
+  border: none;
+  box-shadow: var(--shadow-md);
+}
+
+/* Soft color buttons */
+.bg-blue-100 {
+  background: var(--secondary-light) !important;
+  color: var(--secondary-dark) !important;
+}
+
+.bg-green-100 {
+  background: var(--success) !important;
+  color: #2D7A52 !important;
+}
+
+.bg-red-100 {
+  background: var(--danger) !important;
+  color: #B83E3E !important;
+}
+
+.bg-yellow-100 {
+  background: var(--warning) !important;
+  color: #8B7D3E !important;
+}
+
+.bg-purple-100 {
+  background: var(--accent-light) !important;
+  color: var(--accent-dark) !important;
+}
+
+/* ============================================
+   Forms
+============================================ */
+
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="time"],
+textarea,
+select {
+  background: var(--glass-white);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  color: var(--text-primary);
+  transition: all 0.3s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(255, 190, 152, 0.2);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-secondary);
+}
+
+/* ============================================
+   Modals
+============================================ */
+
+.fixed.inset-0.bg-black {
+  background: rgba(0, 0, 0, 0.3) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ============================================
+   Calendar & Stats
+============================================ */
+
+.calendar-dot {
   width: 8px;
   height: 8px;
+  border-radius: 50%;
+  display: block;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
+.calendar-dot.income {
+  background: var(--secondary);
 }
 
-::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 10px;
+.calendar-dot.expense {
+  background: var(--danger);
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #555;
+.calendar-dot.savings {
+  background: var(--success);
 }
 
-/* 애니메이션 */
+/* ============================================
+   Animations
+============================================ */
+
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
@@ -136,113 +324,127 @@ body {
   }
 }
 
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes glassShine {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
 .fade-in {
-  animation: fadeIn 0.3s ease-in-out;
+  animation: fadeIn 0.5s ease-out;
 }
 
-/* 카드 호버 효과 */
+.slide-in {
+  animation: slideIn 0.5s ease-out;
+}
+
+/* Glass shine effect */
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s ease;
+}
+
+.glass-card:hover::before {
+  left: 100%;
+}
+
+/* ============================================
+   Scrollbar
+============================================ */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-dark);
+}
+
+/* ============================================
+   Hover Effects
+============================================ */
+
 .hover\:shadow-lg:hover {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  transition: box-shadow 0.2s ease-in-out;
+  box-shadow: var(--shadow-lg) !important;
+  transform: translateY(-4px);
+  transition: all 0.3s ease;
 }
 
-/* 반응형 그리드 */
+.hover\:shadow-md:hover {
+  box-shadow: var(--shadow-md) !important;
+  transform: translateY(-2px);
+  transition: all 0.3s ease;
+}
+
+/* ============================================
+   Responsive Design
+============================================ */
+
 @media (max-width: 640px) {
-  .container {
-    padding: 0.75rem;
+  body {
+    font-size: 13px;
   }
   
-  .tab-button {
-    font-size: 0.75rem;
-    padding: 0.5rem 0.75rem;
+  h1 {
+    font-size: 1.25rem !important;
   }
-}
-
-/* 달력 점 스타일 */
-.calendar-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: block;
-}
-
-.calendar-dot.income {
-  background-color: #3B82F6;
-}
-
-.calendar-dot.expense {
-  background-color: #EF4444;
-}
-
-.calendar-dot.savings {
-  background-color: #10B981;
-}
-
-/* 달력 셀 컴팩트 모드 - 간단한 레이아웃 */
-.calendar-cell-compact {
-  height: 60px;
-  position: relative;
-  padding: 4px;
-}
-
-/* 날짜는 왼쪽 상단 */
-.calendar-day-number {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  line-height: 1;
-}
-
-/* 점 컨테이너 - 하단 중앙 가로 배치 */
-.calendar-dots-container {
-  position: absolute;
-  bottom: 4px;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 4px;
-}
-
-/* 버튼 아이콘 전용 스타일 */
-.btn-icon-only {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-@media (max-width: 640px) {
-  .btn-icon-only {
-    width: 32px;
-    height: 32px;
+  
+  h2 {
+    font-size: 1.125rem !important;
   }
-}
-
-/* 모바일 반응형 개선 */
-@media (max-width: 640px) {
-  /* 컨테이너 패딩 조정 */
+  
+  h3 {
+    font-size: 1rem !important;
+  }
+  
   .container {
     padding: 0.5rem !important;
   }
   
-  /* 카드 패딩 축소 */
   .bg-white,
   .bg-gray-50,
-  .bg-gradient-to-r,
-  .bg-gradient-to-br {
+  .rounded-lg {
     padding: 1rem !important;
+    border-radius: 16px !important;
   }
   
-  /* 환영 메시지 작게 */
-  .bg-gradient-to-r h2 {
-    font-size: 1.25rem !important;
+  .tab-button {
+    font-size: 0.75rem;
+    padding: 0.75rem 1rem;
   }
   
-  /* 통계 카드 텍스트 크기 */
   .text-3xl {
     font-size: 1.5rem !important;
   }
@@ -255,36 +457,12 @@ body {
     font-size: 1.125rem !important;
   }
   
-  /* 그리드 간격 축소 */
-  .gap-4 {
-    gap: 0.75rem !important;
+  input,
+  select,
+  textarea {
+    font-size: 16px !important; /* iOS zoom 방지 */
   }
   
-  .gap-6 {
-    gap: 1rem !important;
-  }
-  
-  /* space-y 간격 축소 */
-  .space-y-6 > * + * {
-    margin-top: 1rem !important;
-  }
-  
-  /* 차트 높이 조정 */
-  .h-80 {
-    height: 16rem !important;
-  }
-  
-  .h-64 {
-    height: 14rem !important;
-  }
-  
-  /* 버튼 크기 조정 */
-  button {
-    padding: 0.5rem 1rem !important;
-    font-size: 0.875rem !important;
-  }
-  
-  /* 탭 네비게이션 스크롤 */
   nav.flex {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -294,52 +472,17 @@ body {
   nav.flex::-webkit-scrollbar {
     display: none;
   }
-  
-  /* 탭 버튼 최소 너비 */
-  .tab-button {
-    white-space: nowrap;
-    flex-shrink: 0;
-    min-width: auto;
-  }
-  
-  /* 저축률 바 높이 */
-  .h-8 {
-    height: 1.5rem !important;
-  }
-  
-  /* 입력 필드 */
-  input,
-  select,
-  textarea {
-    font-size: 16px !important; /* iOS zoom 방지 */
-  }
-  
-  /* 모달 크기 */
-  .max-w-2xl,
-  .max-w-xl,
-  .max-w-lg {
-    max-width: calc(100vw - 2rem) !important;
-    margin: 1rem !important;
-  }
-  
-  /* 테이블 스크롤 */
-  .overflow-x-auto {
-    -webkit-overflow-scrolling: touch;
-  }
 }
 
-/* 태블릿 최적화 */
 @media (min-width: 641px) and (max-width: 1024px) {
+  body {
+    font-size: 14px;
+  }
+  
   .container {
     padding: 1rem !important;
   }
   
-  /* 카드 간격 */
-  .gap-4 {
-    gap: 1rem !important;
-  }
-  
-  /* 텍스트 크기 조정 */
   .text-3xl {
     font-size: 1.75rem !important;
   }
@@ -349,15 +492,21 @@ body {
   }
 }
 
-/* 데스크톱 최적화 */
 @media (min-width: 1025px) {
+  body {
+    font-size: 15px;
+  }
+  
   .container {
     max-width: 1280px !important;
     margin: 0 auto !important;
   }
 }
 
-/* Safe area 적용 (iPhone 노치 대응) */
+/* ============================================
+   Safe Area (iPhone Notch)
+============================================ */
+
 @supports (padding: max(0px)) {
   body {
     padding-left: max(0px, env(safe-area-inset-left));
@@ -366,9 +515,11 @@ body {
   }
 }
 
-/* 터치 디바이스 최적화 */
+/* ============================================
+   Touch Device Optimization
+============================================ */
+
 @media (hover: none) and (pointer: coarse) {
-  /* 터치 타겟 크기 증가 */
   button,
   a,
   input[type="button"],
@@ -377,12 +528,80 @@ body {
     min-width: 44px;
   }
   
-  /* 호버 효과 제거 */
-  .hover\:shadow-lg:hover {
-    box-shadow: none;
+  .hover\:shadow-lg:hover,
+  .hover\:shadow-md:hover {
+    box-shadow: var(--shadow-md) !important;
+    transform: none;
   }
   
   .tab-button:hover {
-    background-color: transparent;
+    background: transparent;
   }
+}
+
+/* ============================================
+   Dark Mode Adjustments
+============================================ */
+
+.dark body {
+  background: var(--bg-gradient);
+}
+
+.dark .bg-white,
+.dark .rounded-lg.shadow-lg {
+  background: var(--glass-white) !important;
+  color: var(--text-primary);
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+  background: var(--glass-white);
+  color: var(--text-primary);
+  border-color: var(--glass-border);
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--text-secondary);
+}
+
+/* ============================================
+   Special Effects
+============================================ */
+
+/* Floating animation for cards */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.float-animation {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Pulse animation for important elements */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.pulse-animation {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
