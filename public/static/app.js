@@ -1,8 +1,23 @@
-// ===== 앱 초기 부팅 시 저장된 토큰을 axios에 장착 =====
-(function attachSavedToken() {
-  const token = localStorage.getItem('authToken');
-  if (token) {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+// ===== 앱 초기 부팅 시 세션 ID 생성 및 axios에 장착 =====
+(function initializeSession() {
+  // 1. 세션 ID가 없으면 생성 (브라우저별 고유 ID)
+  let sessionId = localStorage.getItem('sessionId');
+  if (!sessionId) {
+    // UUID 형식의 고유 ID 생성
+    sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+    localStorage.setItem('sessionId', sessionId);
+    console.log('[Session] New session created:', sessionId);
+  } else {
+    console.log('[Session] Existing session loaded:', sessionId);
+  }
+  
+  // 2. axios 기본 헤더에 세션 ID 설정
+  axios.defaults.headers.common['Authorization'] = `Bearer ${sessionId}`;
+  
+  // 3. 기존 authToken도 유지 (향후 로그인 기능용)
+  const authToken = localStorage.getItem('authToken');
+  if (authToken) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
   }
 })();
 

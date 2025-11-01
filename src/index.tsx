@@ -122,34 +122,32 @@ async function createToken(userId: number, username: string, secret: string): Pr
   return await sign(payload, secret)
 }
 
-// 인증 미들웨어 (임시로 비활성화 - 프론트엔드 로그인 UI 구현 전까지)
+// 인증 미들웨어 (간단한 세션 ID 기반 - 각 브라우저마다 고유 사용자)
 const authMiddleware = async (c: any, next: any) => {
   const authHeader = c.req.header('Authorization')
   
-  // 임시: 인증 없이 기본 사용자로 처리 (프론트엔드 로그인 UI 구현 전까지)
-  // TODO: 프론트엔드 로그인/회원가입 UI 구현 후 이 부분 제거
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    // 기본 사용자 ID 1로 설정 (임시)
-    c.set('userId', 1)
-    c.set('username', 'default_user')
+  // 1. Authorization 헤더가 있으면 세션 ID로 사용
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const sessionId = authHeader.substring(7)
+    
+    // 세션 ID를 해싱해서 user_id로 사용 (1~999999 범위)
+    let hash = 0
+    for (let i = 0; i < sessionId.length; i++) {
+      hash = ((hash << 5) - hash) + sessionId.charCodeAt(i)
+      hash = hash & hash // Convert to 32bit integer
+    }
+    const userId = Math.abs(hash % 999999) + 1
+    
+    c.set('userId', userId)
+    c.set('username', `user_${userId}`)
     await next()
     return
   }
   
-  const token = authHeader.substring(7)
-  const secret = c.env.JWT_SECRET || 'default-secret-key-change-in-production'
-  
-  try {
-    const payload = await verify(token, secret)
-    c.set('userId', parseInt(payload.sub as string))
-    c.set('username', payload.username as string)
-    await next()
-  } catch (error) {
-    // 토큰이 유효하지 않아도 기본 사용자로 처리 (임시)
-    c.set('userId', 1)
-    c.set('username', 'default_user')
-    await next()
-  }
+  // 2. 헤더가 없으면 기본 사용자 (테스트용)
+  c.set('userId', 1)
+  c.set('username', 'guest')
+  await next()
 }
 
 // ========== 인증 API ==========
