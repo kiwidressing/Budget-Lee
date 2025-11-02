@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Icon Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body style="margin: 0; padding: 20px; font-family: Arial, sans-serif;">
+    <h1>가계부 앱 아이콘 생성기</h1>
+    <p>아래 아이콘을 마우스 오른쪽 클릭 → "이미지로 저장"하여 사용하세요.</p>
+    
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+        <!-- 192x192 아이콘 -->
+        <div>
+            <h3>192x192</h3>
+            <canvas id="icon-192" width="192" height="192" style="border: 1px solid #ccc;"></canvas>
+            <br>
+            <button onclick="downloadIcon('icon-192', 'icon-192x192.png')">다운로드</button>
+        </div>
+        
+        <!-- 512x512 아이콘 -->
+        <div>
+            <h3>512x512</h3>
+            <canvas id="icon-512" width="512" height="512" style="border: 1px solid #ccc;"></canvas>
+            <br>
+            <button onclick="downloadIcon('icon-512', 'icon-512x512.png')">다운로드</button>
+        </div>
+    </div>
+
+    <script>
+        function drawIcon(canvasId, size) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // 배경 그라디언트
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#3B82F6');
+            gradient.addColorStop(1, '#8B5CF6');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // 지갑 아이콘 그리기
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${size * 0.5}px "Font Awesome 6 Free"`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('💰', size / 2, size / 2);
+            
+            // 원 테두리 (선택사항)
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = size * 0.05;
+            ctx.beginPath();
+            ctx.arc(size / 2, size / 2, size * 0.4, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        
+        function downloadIcon(canvasId, filename) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // 페이지 로드 시 아이콘 그리기
+        drawIcon('icon-192', 192);
+        drawIcon('icon-512', 512);
+    </script>
+</body>
+</html>

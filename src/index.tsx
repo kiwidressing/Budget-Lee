@@ -98,7 +98,7 @@ app.use('/api/*', async (c, next) => {
 })
 
 // 정적 파일 서빙
-app.use('/static/*', serveStatic({ root: './public' }))
+app.use('/static/*', serveStatic({ root: './' }))
 
 // ========== 인증 유틸리티 함수 ==========
 
@@ -164,6 +164,14 @@ const authMiddleware = async (c: any, next: any) => {
   c.set('username', `session_${userId}`)
   await next()
 }
+
+// ========== 정적 파일 라우트 (루트 레벨) ==========
+// PWA 아이콘, 매니페스트, favicon 등을 서빙
+app.get('/*.png', serveStatic({ root: './' }))
+app.get('/*.ico', serveStatic({ root: './' }))
+app.get('/*.svg', serveStatic({ root: './' }))
+app.get('/manifest.json', serveStatic({ root: './' }))
+app.get('/sw.js', serveStatic({ root: './' }))
 
 // ========== 인증 API ==========
 
@@ -1335,6 +1343,13 @@ app.get('/', (c) => {
     <meta name="apple-mobile-web-app-title" content="가계부">
     <title>가계부 앱</title>
     <link rel="manifest" href="/manifest.json">
+    
+    <!-- PWA 아이콘 -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <link href="/static/style.css" rel="stylesheet">
