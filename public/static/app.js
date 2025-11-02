@@ -1308,6 +1308,19 @@ async function renderMonthView() {
       <!-- 예산 vs 지출 그래프 -->
       ${renderBudgetChart(budgetData, '월별')}
       
+      <!-- 저축 목표 진행 상황 -->
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-xl font-bold mb-4">
+          <i class="fas fa-piggy-bank mr-2 text-green-600"></i>저축 목표 달성률
+        </h3>
+        <div id="savings-goals-section" class="space-y-4">
+          <div class="text-center text-gray-500 py-4">
+            <i class="fas fa-spinner fa-spin text-2xl"></i>
+            <p class="mt-2">로딩 중...</p>
+          </div>
+        </div>
+      </div>
+      
       <!-- 달력 -->
       <div class="bg-white p-6 rounded-lg shadow">
         <h3 class="text-xl font-bold mb-4">월간 달력</h3>
@@ -1355,6 +1368,9 @@ async function renderMonthView() {
   
   // 파이차트 그리기
   setTimeout(() => drawPieChart('month-pie-chart', income, expense, savings), 100);
+  
+  // 저축 목표 렌더링
+  setTimeout(() => renderSavingsGoalsProgress(), 100);
 }
 
 // 파이차트 그리기
@@ -1410,6 +1426,133 @@ function drawPieChart(canvasId, income, expense, savings) {
       }
     }
   });
+}
+
+// 저축 목표 진행 상황 렌더링
+async function renderSavingsGoalsProgress() {
+  const container = document.getElementById('savings-goals-section');
+  if (!container) return;
+  
+  try {
+    // 저축 계좌 정보 가져오기
+    await fetchSavingsAccounts();
+    
+    if (!state.savingsAccounts || state.savingsAccounts.length === 0) {
+      container.innerHTML = `
+        <div class="text-center text-gray-500 py-8">
+          <i class="fas fa-piggy-bank text-4xl mb-3 opacity-20"></i>
+          <p>등록된 저축 계좌가 없습니다.</p>
+          <button onclick="switchView('savings')" class="mt-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+            <i class="fas fa-plus mr-2"></i>저축 계좌 추가
+          </button>
+        </div>
+      `;
+      return;
+    }
+    
+    // 목표가 있는 계좌만 필터링
+    const accountsWithGoals = state.savingsAccounts.filter(acc => acc.savings_goal && acc.savings_goal > 0);
+    
+    if (accountsWithGoals.length === 0) {
+      container.innerHTML = `
+        <div class="text-center text-gray-500 py-8">
+          <i class="fas fa-bullseye text-4xl mb-3 opacity-20"></i>
+          <p>설정된 저축 목표가 없습니다.</p>
+          <button onclick="switchView('savings')" class="mt-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+            <i class="fas fa-cog mr-2"></i>저축 목표 설정
+          </button>
+        </div>
+      `;
+      return;
+    }
+    
+    // 각 계좌별 진행률 표시
+    let html = '<div class="space-y-4">';
+    
+    accountsWithGoals.forEach(account => {
+      const current = account.balance || 0;
+      const goal = account.savings_goal || 0;
+      const percentage = goal > 0 ? Math.min((current / goal) * 100, 100) : 0;
+      const remaining = Math.max(goal - current, 0);
+      
+      // 진행률에 따른 색상 결정
+      let colorClass = 'bg-red-500';
+      if (percentage >= 75) colorClass = 'bg-green-500';
+      else if (percentage >= 50) colorClass = 'bg-yellow-500';
+      else if (percentage >= 25) colorClass = 'bg-orange-500';
+      
+      html += `
+        <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
+          <div class="flex justify-between items-start mb-2">
+            <div>
+              <h4 class="font-semibold text-lg">${account.name}</h4>
+              <p class="text-sm text-gray-500">현재: ${formatCurrency(current)} / 목표: ${formatCurrency(goal)}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-2xl font-bold ${percentage >= 100 ? 'text-green-600' : 'text-blue-600'}">
+                ${percentage.toFixed(1)}%
+              </p>
+              ${percentage < 100 ? `<p class="text-xs text-gray-500">잔여: ${formatCurrency(remaining)}</p>` : ''}
+            </div>
+          </div>
+          
+          <!-- 진행바 -->
+          <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+            <div class="${colorClass} h-full rounded-full transition-all duration-500 flex items-center justify-center text-white text-xs font-bold"
+                 style="width: ${percentage}%">
+              ${percentage >= 10 ? `${percentage.toFixed(0)}%` : ''}
+            </div>
+          </div>
+          
+          ${percentage >= 100 ? `
+            <div class="mt-2 flex items-center text-green-600 text-sm font-medium">
+              <i class="fas fa-check-circle mr-2"></i>목표 달성! 🎉
+            </div>
+          ` : ''}
+        </div>
+      `;
+    });
+    
+    // 전체 저축 목표 요약
+    const totalCurrent = accountsWithGoals.reduce((sum, acc) => sum + (acc.balance || 0), 0);
+    const totalGoal = accountsWithGoals.reduce((sum, acc) => sum + (acc.savings_goal || 0), 0);
+    const totalPercentage = totalGoal > 0 ? (totalCurrent / totalGoal) * 100 : 0;
+    
+    html += `
+      </div>
+      
+      <!-- 전체 요약 -->
+      <div class="mt-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
+        <div class="flex justify-between items-center">
+          <div>
+            <p class="text-sm text-gray-600 font-medium">전체 저축 목표 달성률</p>
+            <p class="text-xl font-bold text-green-700 mt-1">${formatCurrency(totalCurrent)} / ${formatCurrency(totalGoal)}</p>
+          </div>
+          <div class="text-right">
+            <p class="text-3xl font-bold ${totalPercentage >= 100 ? 'text-green-600' : 'text-blue-600'}">
+              ${totalPercentage.toFixed(1)}%
+            </p>
+          </div>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-3 mt-3 overflow-hidden">
+          <div class="bg-gradient-to-r from-green-500 to-blue-500 h-full rounded-full transition-all duration-500"
+               style="width: ${Math.min(totalPercentage, 100)}%">
+          </div>
+        </div>
+      </div>
+    `;
+    
+    container.innerHTML = html;
+    
+  } catch (error) {
+    console.error('[Savings Goals] Render error:', error);
+    container.innerHTML = `
+      <div class="text-center text-red-500 py-4">
+        <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
+        <p>저축 목표를 불러오는데 실패했습니다.</p>
+      </div>
+    `;
+  }
 }
 
 // 달력 렌더링 (토요일 파란색, 일요일 빨간색)
@@ -1771,6 +1914,19 @@ async function renderWeekView() {
       <!-- 주간 예산 vs 지출 그래프 -->
       ${renderBudgetChart(budgetData, '주별')}
       
+      <!-- 저축 목표 진행 상황 -->
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-xl font-bold mb-4">
+          <i class="fas fa-piggy-bank mr-2 text-green-600"></i>저축 목표 달성률
+        </h3>
+        <div id="savings-goals-section" class="space-y-4">
+          <div class="text-center text-gray-500 py-4">
+            <i class="fas fa-spinner fa-spin text-2xl"></i>
+            <p class="mt-2">로딩 중...</p>
+          </div>
+        </div>
+      </div>
+      
       <!-- 주간 카테고리별 지출 바 그래프 -->
       ${renderExpenseBarChart(expenseByCategory, '주별')}
       
@@ -1788,6 +1944,9 @@ async function renderWeekView() {
   
   // 파이차트 그리기
   setTimeout(() => drawPieChart('week-pie-chart', income, expense, savings), 100);
+  
+  // 저축 목표 렌더링
+  setTimeout(() => renderSavingsGoalsProgress(), 100);
 }
 
 // 저축 뷰 렌더링
