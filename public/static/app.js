@@ -4747,6 +4747,58 @@ function drawToCanvas(img, maxDim) {
   return { canvas, w, h };
 }
 
+// 이미지 압축 함수
+async function compressImageToWebp(file, maxSize = 600, quality = 0.3) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        // 비율 유지하면서 리사이즈
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > height) {
+          if (width > maxSize) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+        
+        // Canvas에 그리기
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // WebP Blob으로 변환
+        canvas.toBlob(
+          (blob) => {
+            resolve({
+              blob: blob,
+              width: width,
+              height: height,
+              mime: 'image/webp'
+            });
+          },
+          'image/webp',
+          quality
+        );
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function canvasToBlob(canvas, type, quality) {
   return new Promise(resolve => canvas.toBlob(resolve, type, quality));
 }
