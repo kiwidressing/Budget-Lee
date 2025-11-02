@@ -403,6 +403,8 @@ async function handleLogin(event) {
   const formData = new FormData(event.target);
   const username = formData.get('username');
   const password = formData.get('password');
+  const rememberMe = formData.get('rememberMe') === 'on';
+  const saveUsername = formData.get('saveUsername') === 'on';
   
   console.log('[Login] Attempting login for user:', username);
   
@@ -427,6 +429,22 @@ async function handleLogin(event) {
     console.log('[Login] Setting token...');
     localStorage.setItem('authToken', token);
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    
+    // 자동 로그인 설정
+    if (rememberMe) {
+      localStorage.setItem('rememberMe', 'true');
+      console.log('[Login] Auto-login enabled');
+    } else {
+      localStorage.removeItem('rememberMe');
+    }
+    
+    // 아이디 저장 설정
+    if (saveUsername) {
+      localStorage.setItem('savedUsername', username);
+      console.log('[Login] Username saved:', username);
+    } else {
+      localStorage.removeItem('savedUsername');
+    }
     
     // 상태/화면 갱신
     state.isAuthenticated = true;
@@ -492,6 +510,12 @@ async function handleRegister(event) {
 function handleLogout() {
   if (confirm('로그아웃 하시겠습니까?')) {
     localStorage.removeItem('authToken');
+    
+    // "로그인 상태 유지" 옵션도 제거 (로그아웃하면 초기화)
+    localStorage.removeItem('rememberMe');
+    
+    // 참고: "아이디 저장"은 유지됨 (savedUsername은 삭제하지 않음)
+    
     delete axios.defaults.headers.common['Authorization'];
     state.isAuthenticated = false;
     state.currentUser = null;
@@ -500,6 +524,9 @@ function handleLogout() {
 }
 
 function renderLoginScreen() {
+  const savedUsername = localStorage.getItem('savedUsername') || '';
+  const rememberMe = localStorage.getItem('rememberMe') === 'true';
+  
   document.getElementById('app').innerHTML = `
     <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
       <div class="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full mx-4">
@@ -530,6 +557,7 @@ function renderLoginScreen() {
               <input 
                 type="text" 
                 name="username" 
+                id="login-username"
                 required 
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="아이디 입력"
@@ -552,6 +580,34 @@ function renderLoginScreen() {
                 autocomplete="current-password"
               >
             </div>
+            
+            <!-- 자동 로그인 및 아이디 저장 옵션 -->
+            <div class="space-y-2">
+              <label class="flex items-center">
+                <input 
+                  type="checkbox" 
+                  name="saveUsername" 
+                  id="save-username-checkbox"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                >
+                <span class="ml-2 text-sm text-gray-700">
+                  <i class="fas fa-user-check mr-1"></i>아이디 저장
+                </span>
+              </label>
+              
+              <label class="flex items-center">
+                <input 
+                  type="checkbox" 
+                  name="rememberMe" 
+                  id="remember-me-checkbox"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                >
+                <span class="ml-2 text-sm text-gray-700">
+                  <i class="fas fa-check-circle mr-1"></i>로그인 상태 유지
+                </span>
+              </label>
+            </div>
+            
             <button 
               type="submit" 
               class="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
@@ -637,6 +693,26 @@ function renderLoginScreen() {
       </div>
     </div>
   `;
+  
+  // 저장된 아이디와 체크박스 상태 복원
+  setTimeout(() => {
+    const usernameInput = document.getElementById('login-username');
+    const saveUsernameCheckbox = document.getElementById('save-username-checkbox');
+    const rememberMeCheckbox = document.getElementById('remember-me-checkbox');
+    
+    if (usernameInput && savedUsername) {
+      usernameInput.value = savedUsername;
+      console.log('[Login] Restored username:', savedUsername);
+    }
+    
+    if (saveUsernameCheckbox && savedUsername) {
+      saveUsernameCheckbox.checked = true;
+    }
+    
+    if (rememberMeCheckbox && rememberMe) {
+      rememberMeCheckbox.checked = true;
+    }
+  }, 0);
 }
 
 function showLoginForm() {
