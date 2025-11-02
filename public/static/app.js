@@ -4832,9 +4832,9 @@ async function handleReceiptSubmit(event) {
   }
 
   try {
-    // 1) 저화질로 압축 (최대 600px, 품질 0.3 - 더 작은 파일 크기)
+    // 1) 중간 품질로 압축 (최대 1200px, 품질 0.6 - 글씨 가독성 향상)
     console.log('[Receipt] Compressing image...');
-    const { blob, width, height, mime } = await compressImageToWebp(file, 600, 0.3);
+    const { blob, width, height, mime } = await compressImageToWebp(file, 1200, 0.6);
 
     // 2) Blob을 Base64로 변환
     console.log('[Receipt] Converting to Base64...');
@@ -4844,8 +4844,8 @@ async function handleReceiptSubmit(event) {
     const sizeKB = Math.round(base64.length / 1024);
     console.log(`[Receipt] Image size: ${sizeKB} KB`);
     
-    // 200KB 이상이면 경고 (D1 row limit는 1MB)
-    if (sizeKB > 200) {
+    // 500KB 이상이면 경고 (D1 row limit는 1MB)
+    if (sizeKB > 500) {
       if (!confirm(`이미지 크기가 ${sizeKB}KB로 큽니다. 업로드에 시간이 걸릴 수 있습니다. 계속하시겠습니까?`)) {
         return;
       }
