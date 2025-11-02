@@ -2045,10 +2045,14 @@ async function renderSavingsView() {
                 </p>
               </div>
             ` : `
-              <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-center">
-                <p class="text-sm text-blue-700 mb-2">
+              <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p class="text-sm text-blue-700 mb-3 text-center">
                   <i class="fas fa-bullseye mr-1"></i>저축 목표가 설정되지 않았습니다
                 </p>
+                <button onclick="openSavingsGoalModal(${acc.id}, 0)" 
+                        class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium">
+                  <i class="fas fa-plus-circle mr-2"></i>목표 설정하기
+                </button>
                 <button onclick="openSavingsGoalModal(${acc.id}, 0)" 
                         class="w-full px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
                   <i class="fas fa-plus mr-2"></i>목표 설정하기
@@ -5396,31 +5400,237 @@ window.viewReceipt = async function(receiptId) {
       return;
     }
     
-    // Base64 data URL을 새 창에서 열기
-    const newWindow = window.open('', '_blank');
-    if (newWindow) {
-      newWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>영수증 이미지 - ${receipt.merchant || receiptId}</title>
-          <style>
-            body { margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; background: #f0f0f0; }
-            img { max-width: 100%; height: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-          </style>
-        </head>
-        <body>
-          <img src="${receipt.image_data}" alt="영수증 이미지" />
-        </body>
-        </html>
-      `);
-      newWindow.document.close();
-    }
+    // 앱 내에서 모달로 표시
+    const modal = document.createElement('div');
+    modal.id = 'receiptViewModal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+      <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <!-- 헤더 -->
+        <div class="flex justify-between items-center p-4 border-b">
+          <div>
+            <h3 class="text-lg font-bold">${receipt.merchant || '영수증'}</h3>
+            <p class="text-sm text-gray-500">${receipt.purchase_date} · ${formatCurrency(receipt.amount)}</p>
+          </div>
+          <button onclick="closeReceiptViewModal()" class="text-gray-500 hover:text-gray-700 text-2xl">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <!-- 이미지 영역 -->
+        <div class="flex-1 overflow-auto p-4 bg-gray-100 flex items-center justify-center">
+          <img src="${receipt.image_data}" 
+               alt="영수증 이미지" 
+               class="max-w-full h-auto shadow-lg cursor-zoom-in"
+               onclick="this.classList.toggle('scale-150'); this.classList.toggle('cursor-zoom-out'); this.classList.toggle('cursor-zoom-in');"
+               style="transition: transform 0.3s;">
+        </div>
+        
+        <!-- 버튼 영역 -->
+        <div class="p-4 border-t bg-gray-50 flex gap-2 flex-wrap">
+          <button onclick="downloadReceiptFromModal(${receiptId})" 
+                  class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center justify-center gap-2">
+            <i class="fas fa-download"></i>
+            <span>다운로드</span>
+          </button>
+          <button onclick="editReceiptModal(${receiptId})" 
+                  class="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center justify-center gap-2">
+            <i class="fas fa-edit"></i>
+            <span>수정</span>
+          </button>
+          <button onclick="if(confirm('이 영수증을 삭제하시겠습니까?')) { deleteReceipt(${receiptId}); closeReceiptViewModal(); }" 
+                  class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center justify-center gap-2">
+            <i class="fas fa-trash"></i>
+            <span>삭제</span>
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // ESC 키로 닫기
+    const escHandler = (e) => {
+      if (e.key === 'Escape') {
+        closeReceiptViewModal();
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+    modal._escHandler = escHandler;
+    
+    // 배경 클릭으로 닫기
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        closeReceiptViewModal();
+      }
+    });
+    
   } catch (error) {
     console.error('[Receipt] View error:', error);
     alert(error.response?.data?.error || '이미지 보기 실패');
   }
 };
+// 영수증 뷰 모달 닫기
+window.closeReceiptViewModal = function() {
+  const modal = document.getElementById('receiptViewModal');
+  if (modal) {
+    if (modal._escHandler) {
+      document.removeEventListener('keydown', modal._escHandler);
+    }
+    modal.remove();
+  }
+};
+
+// 모달에서 다운로드
+window.downloadReceiptFromModal = async function(receiptId) {
+  await downloadReceipt(receiptId);
+};
+
+// 영수증 수정 모달
+window.editReceiptModal = async function(receiptId) {
+  try {
+    const response = await axios.get(`/api/receipts/${receiptId}`);
+    if (!response.data.success || !response.data.receipt) {
+      alert('영수증을 찾을 수 없습니다.');
+      return;
+    }
+    
+    const receipt = response.data.receipt;
+    
+    // 기존 뷰 모달 닫기
+    closeReceiptViewModal();
+    
+    // 수정 모달 생성
+    const modal = document.createElement('div');
+    modal.id = 'receiptEditModal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+      <div class="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center p-4 border-b">
+          <h3 class="text-xl font-bold">영수증 수정</h3>
+          <button onclick="closeReceiptEditModal()" class="text-gray-500 hover:text-gray-700">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        
+        <form onsubmit="handleReceiptEdit(event, ${receiptId})" class="p-4 space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">상점명</label>
+            <input type="text" name="merchant" value="${receipt.merchant || ''}"
+              class="w-full px-3 py-2 border rounded-lg">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-1">구매 날짜 *</label>
+            <input type="date" name="purchase_date" value="${receipt.purchase_date}" required
+              class="w-full px-3 py-2 border rounded-lg">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-1">금액 *</label>
+            <input type="number" name="amount" value="${receipt.amount}" required min="0"
+              class="w-full px-3 py-2 border rounded-lg">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-1">항목 *</label>
+            <select name="category" required class="w-full px-3 py-2 border rounded-lg">
+              <option value="식" ${receipt.category === '식비' || receipt.category === '식' ? 'selected' : ''}>식 (식비)</option>
+              <option value="의" ${receipt.category === '의복비' || receipt.category === '의' ? 'selected' : ''}>의 (의복비)</option>
+              <option value="주" ${receipt.category === '주거비' || receipt.category === '주' ? 'selected' : ''}>주 (주거비)</option>
+              <option value="교통" ${receipt.category === '교통비' || receipt.category === '교통' ? 'selected' : ''}>교통</option>
+              <option value="통신" ${receipt.category === '통신비' || receipt.category === '통신' ? 'selected' : ''}>통신</option>
+              <option value="문화" ${receipt.category === '문화생활' || receipt.category === '문화' ? 'selected' : ''}>문화</option>
+              <option value="의료" ${receipt.category === '의료비' || receipt.category === '의료' ? 'selected' : ''}>의료</option>
+              <option value="교육" ${receipt.category === '교육비' || receipt.category === '교육' ? 'selected' : ''}>교육</option>
+              <option value="쇼핑" ${receipt.category === '쇼핑' ? 'selected' : ''}>쇼핑</option>
+              <option value="기타" ${receipt.category === '기타지출' || receipt.category === '기타' ? 'selected' : ''}>기타</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-1">결제수단</label>
+            <select name="payment_method" class="w-full px-3 py-2 border rounded-lg">
+              <option value="card" ${receipt.payment_method === 'card' ? 'selected' : ''}>카드</option>
+              <option value="cash" ${receipt.payment_method === 'cash' ? 'selected' : ''}>현금</option>
+              <option value="transfer" ${receipt.payment_method === 'transfer' ? 'selected' : ''}>계좌이체</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-1">메모</label>
+            <textarea name="notes" rows="2" class="w-full px-3 py-2 border rounded-lg">${receipt.notes || ''}</textarea>
+          </div>
+          
+          <div class="flex items-center">
+            <input type="checkbox" name="is_tax_deductible" id="editTaxDeductible" 
+              ${receipt.is_tax_deductible ? 'checked' : ''} class="mr-2">
+            <label for="editTaxDeductible" class="text-sm">세액공제 대상</label>
+          </div>
+          
+          <div class="flex gap-2">
+            <button type="button" onclick="closeReceiptEditModal()" 
+              class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
+              취소
+            </button>
+            <button type="submit" 
+              class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+              저장
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+  } catch (error) {
+    console.error('[Receipt] Edit modal error:', error);
+    alert('영수증 정보를 불러오는데 실패했습니다.');
+  }
+};
+
+// 영수증 수정 모달 닫기
+window.closeReceiptEditModal = function() {
+  const modal = document.getElementById('receiptEditModal');
+  if (modal) {
+    modal.remove();
+  }
+};
+
+// 영수증 수정 처리
+window.handleReceiptEdit = async function(event, receiptId) {
+  event.preventDefault();
+  
+  const fd = new FormData(event.target);
+  const data = {
+    merchant: fd.get('merchant') || '',
+    purchase_date: fd.get('purchase_date'),
+    amount: Number(fd.get('amount')),
+    category: fd.get('category'),
+    payment_method: fd.get('payment_method') || 'card',
+    notes: fd.get('notes') || '',
+    is_tax_deductible: fd.get('is_tax_deductible') === 'on'
+  };
+  
+  try {
+    const response = await axios.put(`/api/receipts/${receiptId}`, data);
+    if (response.data.success) {
+      alert('영수증이 수정되었습니다.');
+      closeReceiptEditModal();
+      // 목록 새로고침
+      if (typeof safeRenderReceiptsView === 'function') {
+        safeRenderReceiptsView();
+      }
+    } else {
+      alert('수정 실패: ' + (response.data.error || '알 수 없는 오류'));
+    }
+  } catch (error) {
+    console.error('[Receipt] Edit error:', error);
+    alert(error.response?.data?.error || '영수증 수정 중 오류가 발생했습니다.');
+  }
+};
+
 window.downloadReceipt = async function(receiptId) {
   try {
     const response = await axios.get(`/api/receipts/${receiptId}`);
