@@ -1450,26 +1450,34 @@ async function renderSavingsGoalsProgress() {
       return;
     }
     
-    // 목표가 있는 계좌만 필터링
-    const accountsWithGoals = state.savingsAccounts.filter(acc => acc.savings_goal && acc.savings_goal > 0);
-    
-    if (accountsWithGoals.length === 0) {
-      container.innerHTML = `
-        <div class="text-center text-gray-500 py-8">
-          <i class="fas fa-bullseye text-4xl mb-3 opacity-20"></i>
-          <p>설정된 저축 목표가 없습니다.</p>
-          <button onclick="switchView('savings')" class="mt-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-            <i class="fas fa-cog mr-2"></i>저축 목표 설정
-          </button>
-        </div>
-      `;
-      return;
-    }
-    
-    // 각 계좌별 진행률 표시
+    // 모든 계좌 표시 (목표 유무 관계없이)
     let html = '<div class="space-y-4">';
     
-    accountsWithGoals.forEach(account => {
+    state.savingsAccounts.forEach(account => {
+      const hasGoal = account.savings_goal && account.savings_goal > 0;
+      
+      if (!hasGoal) {
+        // 목표가 없는 경우
+        html += `
+          <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-blue-400 transition-all">
+            <div class="flex justify-between items-center">
+              <div>
+                <h4 class="font-semibold text-lg">${account.name}</h4>
+                <p class="text-sm text-gray-500">현재 잔액: ${formatCurrency(account.balance || 0)}</p>
+              </div>
+              <button onclick="openSavingsGoalModal(${account.id}, 0)" 
+                      class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2">
+                <i class="fas fa-bullseye"></i>
+                <span>목표 설정</span>
+              </button>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">💡 저축 목표를 설정하고 진행 상황을 추적하세요!</p>
+          </div>
+        `;
+        return;
+      }
+      
+      // 목표가 있는 경우
       const current = account.balance || 0;
       const goal = account.savings_goal || 0;
       const percentage = goal > 0 ? Math.min((current / goal) * 100, 100) : 0;
@@ -1484,8 +1492,15 @@ async function renderSavingsGoalsProgress() {
       html += `
         <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
           <div class="flex justify-between items-start mb-2">
-            <div>
-              <h4 class="font-semibold text-lg">${account.name}</h4>
+            <div class="flex-1">
+              <div class="flex items-center gap-2">
+                <h4 class="font-semibold text-lg">${account.name}</h4>
+                <button onclick="openSavingsGoalModal(${account.id}, ${goal})" 
+                        class="text-xs px-2 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
+                        title="목표 수정">
+                  <i class="fas fa-edit"></i>
+                </button>
+              </div>
               <p class="text-sm text-gray-500">현재: ${formatCurrency(current)} / 목표: ${formatCurrency(goal)}</p>
             </div>
             <div class="text-right">
@@ -1513,34 +1528,38 @@ async function renderSavingsGoalsProgress() {
       `;
     });
     
-    // 전체 저축 목표 요약
+    // 전체 저축 목표 요약 (목표가 있는 계좌만)
+    const accountsWithGoals = state.savingsAccounts.filter(acc => acc.savings_goal && acc.savings_goal > 0);
     const totalCurrent = accountsWithGoals.reduce((sum, acc) => sum + (acc.balance || 0), 0);
     const totalGoal = accountsWithGoals.reduce((sum, acc) => sum + (acc.savings_goal || 0), 0);
     const totalPercentage = totalGoal > 0 ? (totalCurrent / totalGoal) * 100 : 0;
     
-    html += `
-      </div>
-      
-      <!-- 전체 요약 -->
-      <div class="mt-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
-        <div class="flex justify-between items-center">
-          <div>
-            <p class="text-sm text-gray-600 font-medium">전체 저축 목표 달성률</p>
-            <p class="text-xl font-bold text-green-700 mt-1">${formatCurrency(totalCurrent)} / ${formatCurrency(totalGoal)}</p>
+    html += `</div>`;
+    
+    // 전체 요약 (목표가 있는 계좌가 있을 때만)
+    if (accountsWithGoals.length > 0) {
+      html += `
+        <!-- 전체 요약 -->
+        <div class="mt-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
+          <div class="flex justify-between items-center">
+            <div>
+              <p class="text-sm text-gray-600 font-medium">전체 저축 목표 달성률</p>
+              <p class="text-xl font-bold text-green-700 mt-1">${formatCurrency(totalCurrent)} / ${formatCurrency(totalGoal)}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-3xl font-bold ${totalPercentage >= 100 ? 'text-green-600' : 'text-blue-600'}">
+                ${totalPercentage.toFixed(1)}%
+              </p>
+            </div>
           </div>
-          <div class="text-right">
-            <p class="text-3xl font-bold ${totalPercentage >= 100 ? 'text-green-600' : 'text-blue-600'}">
-              ${totalPercentage.toFixed(1)}%
-            </p>
+          <div class="w-full bg-gray-200 rounded-full h-3 mt-3 overflow-hidden">
+            <div class="bg-gradient-to-r from-green-500 to-blue-500 h-full rounded-full transition-all duration-500"
+                 style="width: ${Math.min(totalPercentage, 100)}%">
+            </div>
           </div>
         </div>
-        <div class="w-full bg-gray-200 rounded-full h-3 mt-3 overflow-hidden">
-          <div class="bg-gradient-to-r from-green-500 to-blue-500 h-full rounded-full transition-all duration-500"
-               style="width: ${Math.min(totalPercentage, 100)}%">
-          </div>
-        </div>
-      </div>
-    `;
+      `;
+    }
     
     container.innerHTML = html;
     
@@ -4991,9 +5010,9 @@ async function handleReceiptSubmit(event) {
   }
 
   try {
-    // 1) 중간 품질로 압축 (최대 1200px, 품질 0.6 - 글씨 가독성 향상)
+    // 1) 고품질로 압축 (최대 1600px, 품질 0.75 - 영수증 글씨 선명하게)
     console.log('[Receipt] Compressing image...');
-    const { blob, width, height, mime } = await compressImageToWebp(file, 1200, 0.6);
+    const { blob, width, height, mime } = await compressImageToWebp(file, 1600, 0.75);
 
     // 2) Blob을 Base64로 변환
     console.log('[Receipt] Converting to Base64...');
@@ -5003,8 +5022,8 @@ async function handleReceiptSubmit(event) {
     const sizeKB = Math.round(base64.length / 1024);
     console.log(`[Receipt] Image size: ${sizeKB} KB`);
     
-    // 500KB 이상이면 경고 (D1 row limit는 1MB)
-    if (sizeKB > 500) {
+    // 700KB 이상이면 경고 (D1 row limit는 1MB)
+    if (sizeKB > 700) {
       if (!confirm(`이미지 크기가 ${sizeKB}KB로 큽니다. 업로드에 시간이 걸릴 수 있습니다. 계속하시겠습니까?`)) {
         return;
       }
