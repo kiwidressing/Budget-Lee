@@ -2053,10 +2053,6 @@ async function renderSavingsView() {
                         class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium">
                   <i class="fas fa-plus-circle mr-2"></i>목표 설정하기
                 </button>
-                <button onclick="openSavingsGoalModal(${acc.id}, 0)" 
-                        class="w-full px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                  <i class="fas fa-plus mr-2"></i>목표 설정하기
-                </button>
               </div>
             `}
           </div>
