@@ -1989,8 +1989,19 @@ async function renderSavingsView() {
         </button>
       </div>
       
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        ${state.savingsAccounts.map(acc => {
+      ${state.savingsAccounts.length === 0 ? `
+        <div class="bg-white p-8 rounded-lg shadow text-center">
+          <i class="fas fa-piggy-bank text-6xl text-gray-300 mb-4"></i>
+          <h3 class="text-xl font-semibold text-gray-700 mb-2">저축 계좌가 없습니다</h3>
+          <p class="text-gray-500 mb-6">저축 계좌를 추가하고 목표를 설정해보세요!</p>
+          <button onclick="openSavingsAccountModal()" class="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 inline-flex items-center gap-2">
+            <i class="fas fa-plus"></i>
+            <span>첫 저축 계좌 만들기</span>
+          </button>
+        </div>
+      ` : `
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          ${state.savingsAccounts.map(acc => {
           const savingsGoal = acc.savings_goal || 0;
           const currentSavings = acc.total_savings || 0;
           const progress = savingsGoal > 0 ? Math.min((currentSavings / savingsGoal) * 100, 100) : 0;
@@ -2002,15 +2013,15 @@ async function renderSavingsView() {
               <h4 class="text-lg font-bold">${acc.name}</h4>
               <div class="flex gap-2">
                 <button onclick="openEditSavingsAccountModal(${acc.id}, '${acc.name.replace(/'/g, "\'")}')\" 
-                        class="text-blue-500 hover:text-blue-700" title="이름 수정">
+                        class="text-blue-500 hover:text-blue-700 text-lg" title="이름 수정">
                   <i class="fas fa-edit"></i>
                 </button>
                 <button onclick="openSavingsGoalModal(${acc.id}, ${savingsGoal})" 
-                        class="text-green-500 hover:text-green-700" title="목표 설정">
-                  <i class="fas fa-target"></i>
+                        class="text-green-500 hover:text-green-700 text-lg" title="${savingsGoal > 0 ? '목표 수정' : '목표 설정'}">
+                  <i class="fas fa-${savingsGoal > 0 ? 'bullseye' : 'plus-circle'}"></i>
                 </button>
                 <button onclick="deleteSavingsAccount(${acc.id})" 
-                        class="text-red-500 hover:text-red-700" title="삭제">
+                        class="text-red-500 hover:text-red-700 text-lg" title="삭제">
                   <i class="fas fa-trash"></i>
                 </button>
               </div>
@@ -2034,14 +2045,21 @@ async function renderSavingsView() {
                 </p>
               </div>
             ` : `
-              <p class="text-xs text-gray-500 mt-2">
-                <i class="fas fa-info-circle mr-1"></i>목표를 설정하려면 타겟 아이콘을 클릭하세요
-              </p>
+              <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-center">
+                <p class="text-sm text-blue-700 mb-2">
+                  <i class="fas fa-bullseye mr-1"></i>저축 목표가 설정되지 않았습니다
+                </p>
+                <button onclick="openSavingsGoalModal(${acc.id}, 0)" 
+                        class="w-full px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                  <i class="fas fa-plus mr-2"></i>목표 설정하기
+                </button>
+              </div>
             `}
           </div>
         `;
-        }).join('')}
-      </div>
+          }).join('')}
+        </div>
+      `}
     </div>
   `;
 }
