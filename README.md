@@ -5,11 +5,11 @@
 ## 🌐 실시간 데모
 
 **🚀 프로덕션 URL**: https://budgetlee.pages.dev  
-**🔗 최신 배포**: https://67ceecdc.budgetlee.pages.dev
+**🔗 최신 배포**: https://b93b1d5d.budgetlee.pages.dev
 **📦 GitHub 리포지토리**: https://github.com/kiwidressing/Budget-Lee
 
 > 배포 상태: ✅ Active (Cloudflare Pages)  
-> 마지막 배포: 2025-11-02 14:35 GMT  
+> 마지막 배포: 2025-11-02 22:48 GMT  
 > 데이터베이스: ✅ 모든 22개 마이그레이션 완료  
 > 자동 배포: `main` 브랜치에 push 시 자동으로 재배포됩니다
 
