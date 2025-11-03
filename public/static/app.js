@@ -3744,6 +3744,49 @@ async function renderReportsView() {
         </div>
       </div>
       
+      <!-- 연간 요약 카드 -->
+      <div id="yearly-summary-cards" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-600">연수입</p>
+              <p class="text-2xl font-bold text-blue-600" id="summary-yearly-income">-</p>
+            </div>
+            <i class="fas fa-arrow-down text-3xl text-blue-300"></i>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-600">연지출</p>
+              <p class="text-2xl font-bold text-red-600" id="summary-yearly-expense">-</p>
+            </div>
+            <i class="fas fa-arrow-up text-3xl text-red-300"></i>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-600">연저축</p>
+              <p class="text-2xl font-bold text-green-600" id="summary-yearly-savings">-</p>
+            </div>
+            <i class="fas fa-piggy-bank text-3xl text-green-300"></i>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-600">순수익</p>
+              <p class="text-2xl font-bold text-purple-600" id="summary-yearly-net">-</p>
+            </div>
+            <i class="fas fa-chart-line text-3xl text-purple-300"></i>
+          </div>
+        </div>
+      </div>
+      
       <!-- 차트 영역 -->
       <div class="bg-white rounded-lg shadow p-6">
         <canvas id="report-chart" style="height: 400px;"></canvas>
@@ -3803,6 +3846,11 @@ async function loadYearlyReport() {
   const monthlyData = [];
   const monthLabels = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
   
+  // 연간 합계 계산용 변수
+  let yearlyIncome = 0;
+  let yearlyExpense = 0;
+  let yearlySavings = 0;
+  
   for (let month = 1; month <= 12; month++) {
     const monthStr = `${reportState.year}-${String(month).padStart(2, '0')}`;
     const firstDay = `${monthStr}-01`;
@@ -3813,6 +3861,11 @@ async function loadYearlyReport() {
     
     const total = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
     
+    // 연간 합계 누적
+    yearlyIncome += transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+    yearlyExpense += transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    yearlySavings += transactions.filter(t => t.type === 'savings').reduce((sum, t) => sum + t.amount, 0);
+    
     monthlyData.push({
       month: month,
       monthStr: monthStr,
@@ -3822,6 +3875,13 @@ async function loadYearlyReport() {
   }
   
   reportState.yearlyData = monthlyData;
+  
+  // 연간 요약 카드 업데이트
+  const yearlyNet = yearlyIncome - yearlyExpense - yearlySavings;
+  document.getElementById('summary-yearly-income').textContent = formatCurrency(yearlyIncome);
+  document.getElementById('summary-yearly-expense').textContent = formatCurrency(yearlyExpense);
+  document.getElementById('summary-yearly-savings').textContent = formatCurrency(yearlySavings);
+  document.getElementById('summary-yearly-net').textContent = formatCurrency(yearlyNet);
   
   // 바 차트 그리기
   drawYearlyBarChart(monthlyData);
