@@ -3615,21 +3615,49 @@ async function renderSettingsView() {
         <hr class="my-6">
         
         <div>
-          <h3 class="text-lg font-bold mb-3">데이터 백업/복원</h3>
+          <h3 class="text-lg font-bold mb-3">📚 도움말</h3>
           <p class="text-sm text-gray-600 mb-4">
             <i class="fas fa-info-circle mr-1"></i>
-            모든 데이터를 JSON 파일로 내보내거나 백업 파일에서 복원할 수 있습니다.
+            앱 사용 방법과 주요 기능을 확인하세요.
+          </p>
+          <button onclick="showHelpModal()" 
+                  class="w-full px-4 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
+            <i class="fas fa-question-circle mr-2"></i>사용 방법 보기
+          </button>
+        </div>
+        
+        <hr class="my-6">
+        
+        <div>
+          <h3 class="text-lg font-bold mb-3">📊 데이터 내보내기</h3>
+          <p class="text-sm text-gray-600 mb-4">
+            <i class="fas fa-info-circle mr-1"></i>
+            재무 데이터를 엑셀이나 JSON 형식으로 내보낼 수 있습니다.
           </p>
           <div class="grid grid-cols-2 gap-3">
+            <button onclick="exportToExcel()" 
+                    class="px-4 py-3 bg-green-600 text-white rounded hover:bg-green-700 font-medium">
+              <i class="fas fa-file-excel mr-2"></i>엑셀 (.csv)
+            </button>
             <button onclick="exportData()" 
                     class="px-4 py-3 bg-green-500 text-white rounded hover:bg-green-600 font-medium">
-              <i class="fas fa-download mr-2"></i>내보내기
-            </button>
-            <button onclick="openImportDataModal()" 
-                    class="px-4 py-3 bg-orange-500 text-white rounded hover:bg-orange-600 font-medium">
-              <i class="fas fa-upload mr-2"></i>불러오기
+              <i class="fas fa-download mr-2"></i>JSON
             </button>
           </div>
+        </div>
+        
+        <hr class="my-6">
+        
+        <div>
+          <h3 class="text-lg font-bold mb-3">데이터 복원</h3>
+          <p class="text-sm text-gray-600 mb-4">
+            <i class="fas fa-info-circle mr-1"></i>
+            백업한 JSON 파일에서 데이터를 복원할 수 있습니다.
+          </p>
+          <button onclick="openImportDataModal()" 
+                  class="w-full px-4 py-3 bg-orange-500 text-white rounded hover:bg-orange-600 font-medium">
+            <i class="fas fa-upload mr-2"></i>불러오기
+          </button>
         </div>
         
         <button onclick="saveSettings()" class="w-full px-4 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
@@ -5759,6 +5787,323 @@ window.deleteReceipt = async function(receiptId) {
 };
 
 console.log('[Receipts] Global bindings initialized');
+
+// ========== 사용방법 모달 ==========
+window.showHelpModal = function() {
+  const modal = document.createElement('div');
+  modal.id = 'helpModal';
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+  modal.innerHTML = `
+    <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
+        <h2 class="text-2xl font-bold text-gray-800">
+          <i class="fas fa-book text-blue-600 mr-2"></i>가계부 앱 사용 방법
+        </h2>
+        <button onclick="closeHelpModal()" class="text-gray-500 hover:text-gray-700 text-2xl">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="p-6 space-y-6">
+        <!-- 시작하기 -->
+        <section>
+          <h3 class="text-xl font-bold text-blue-600 mb-3 flex items-center">
+            <i class="fas fa-play-circle mr-2"></i>1. 시작하기
+          </h3>
+          <div class="bg-blue-50 p-4 rounded-lg space-y-2">
+            <p class="text-sm"><strong>📱 앱 설치:</strong> 브라우저 메뉴에서 "홈 화면에 추가"를 선택하면 앱처럼 사용할 수 있습니다.</p>
+            <p class="text-sm"><strong>💰 초기 설정:</strong> 설정 탭에서 통화와 초기 잔액을 입력하세요.</p>
+            <p class="text-sm"><strong>🔐 자동 로그인:</strong> "로그인 상태 유지"를 체크하면 다음에 자동으로 로그인됩니다.</p>
+          </div>
+        </section>
+
+        <!-- 거래 내역 관리 -->
+        <section>
+          <h3 class="text-xl font-bold text-green-600 mb-3 flex items-center">
+            <i class="fas fa-exchange-alt mr-2"></i>2. 거래 내역 관리
+          </h3>
+          <div class="bg-green-50 p-4 rounded-lg space-y-3">
+            <div>
+              <p class="font-semibold text-sm mb-1">💵 수입/지출/저축 입력</p>
+              <p class="text-sm ml-4">• 월별 탭의 달력에서 날짜를 클릭하면 거래를 추가할 수 있습니다.</p>
+              <p class="text-sm ml-4">• 카테고리, 금액, 메모를 입력하세요.</p>
+            </div>
+            <div>
+              <p class="font-semibold text-sm mb-1">✏️ 수정 및 삭제</p>
+              <p class="text-sm ml-4">• 거래 내역 옆의 수정 버튼으로 정보를 변경할 수 있습니다.</p>
+              <p class="text-sm ml-4">• 삭제 버튼으로 거래를 제거할 수 있습니다.</p>
+            </div>
+            <div>
+              <p class="font-semibold text-sm mb-1">🔍 검색 및 필터</p>
+              <p class="text-sm ml-4">• 홈 탭에서 유형, 카테고리, 설명으로 거래를 필터링할 수 있습니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 저축 관리 -->
+        <section>
+          <h3 class="text-xl font-bold text-purple-600 mb-3 flex items-center">
+            <i class="fas fa-piggy-bank mr-2"></i>3. 저축 관리
+          </h3>
+          <div class="bg-purple-50 p-4 rounded-lg space-y-3">
+            <div>
+              <p class="font-semibold text-sm mb-1">💳 저축 통장 추가</p>
+              <p class="text-sm ml-4">• 저축 탭에서 "통장 추가" 버튼으로 새 저축 계좌를 만들 수 있습니다.</p>
+              <p class="text-sm ml-4">• 비상금, 여행 자금 등 목적별로 통장을 분리 관리하세요.</p>
+            </div>
+            <div>
+              <p class="font-semibold text-sm mb-1">🎯 저축 목표 설정</p>
+              <p class="text-sm ml-4">• 각 통장마다 목표 금액을 설정할 수 있습니다.</p>
+              <p class="text-sm ml-4">• 진행률 바로 달성 현황을 한눈에 확인하세요.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 영수증 관리 -->
+        <section>
+          <h3 class="text-xl font-bold text-orange-600 mb-3 flex items-center">
+            <i class="fas fa-receipt mr-2"></i>4. 영수증 관리
+          </h3>
+          <div class="bg-orange-50 p-4 rounded-lg space-y-3">
+            <div>
+              <p class="font-semibold text-sm mb-1">📸 영수증 촬영 및 업로드</p>
+              <p class="text-sm ml-4">• 영수증 탭에서 카메라로 촬영하거나 갤러리에서 선택하세요.</p>
+              <p class="text-sm ml-4">• 구매처, 금액, 카테고리를 입력하세요.</p>
+            </div>
+            <div>
+              <p class="font-semibold text-sm mb-1">🔍 영수증 확인</p>
+              <p class="text-sm ml-4">• 영수증 클릭 시 앱 내에서 확대하여 볼 수 있습니다.</p>
+              <p class="text-sm ml-4">• 다운로드, 수정, 삭제 기능을 이용하세요.</p>
+            </div>
+            <div>
+              <p class="font-semibold text-sm mb-1">💡 세금공제</p>
+              <p class="text-sm ml-4">• 세금공제 대상 영수증을 체크하면 나중에 필터링할 수 있습니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 고정지출 -->
+        <section>
+          <h3 class="text-xl font-bold text-red-600 mb-3 flex items-center">
+            <i class="fas fa-redo mr-2"></i>5. 고정지출 관리
+          </h3>
+          <div class="bg-red-50 p-4 rounded-lg space-y-3">
+            <div>
+              <p class="font-semibold text-sm mb-1">📅 반복 지출 등록</p>
+              <p class="text-sm ml-4">• 월세, 통신비, 구독료 등 정기적인 지출을 등록하세요.</p>
+              <p class="text-sm ml-4">• 매월, 매주 등 반복 주기를 선택할 수 있습니다.</p>
+            </div>
+            <div>
+              <p class="font-semibold text-sm mb-1">✅ 체크박스로 지불 처리</p>
+              <p class="text-sm ml-4">• 고정지출 항목을 체크하면 자동으로 거래 내역에 추가됩니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 예산 및 투자 -->
+        <section>
+          <h3 class="text-xl font-bold text-indigo-600 mb-3 flex items-center">
+            <i class="fas fa-chart-line mr-2"></i>6. 예산 및 투자
+          </h3>
+          <div class="bg-indigo-50 p-4 rounded-lg space-y-3">
+            <div>
+              <p class="font-semibold text-sm mb-1">💰 예산 설정</p>
+              <p class="text-sm ml-4">• 예산 탭에서 카테고리별 월 예산을 설정하세요.</p>
+              <p class="text-sm ml-4">• 예산 대비 실제 지출을 색상으로 확인할 수 있습니다.</p>
+            </div>
+            <div>
+              <p class="font-semibold text-sm mb-1">📈 투자 관리</p>
+              <p class="text-sm ml-4">• 투자 탭에서 주식, 암호화폐 포트폴리오를 관리하세요.</p>
+              <p class="text-sm ml-4">• 실시간 주가가 자동으로 업데이트됩니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 데이터 관리 -->
+        <section>
+          <h3 class="text-xl font-bold text-gray-600 mb-3 flex items-center">
+            <i class="fas fa-database mr-2"></i>7. 데이터 관리
+          </h3>
+          <div class="bg-gray-50 p-4 rounded-lg space-y-3">
+            <div>
+              <p class="font-semibold text-sm mb-1">📊 엑셀 내보내기</p>
+              <p class="text-sm ml-4">• 설정 탭에서 모든 거래 내역을 CSV 파일로 내보낼 수 있습니다.</p>
+              <p class="text-sm ml-4">• 엑셀, 구글 스프레드시트에서 열어 분석하세요.</p>
+            </div>
+            <div>
+              <p class="font-semibold text-sm mb-1">💾 백업 및 복원</p>
+              <p class="text-sm ml-4">• JSON 형식으로 전체 데이터를 백업할 수 있습니다.</p>
+              <p class="text-sm ml-4">• 기기를 바꿔도 백업 파일로 데이터를 복원할 수 있습니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 팁 -->
+        <section>
+          <h3 class="text-xl font-bold text-yellow-600 mb-3 flex items-center">
+            <i class="fas fa-lightbulb mr-2"></i>8. 유용한 팁
+          </h3>
+          <div class="bg-yellow-50 p-4 rounded-lg space-y-2">
+            <p class="text-sm">💡 매일 지출을 입력하면 정확한 재무 현황을 파악할 수 있습니다.</p>
+            <p class="text-sm">💡 영수증은 사진으로 남겨두면 나중에 확인할 때 편리합니다.</p>
+            <p class="text-sm">💡 월별 리포트를 보며 지출 패턴을 분석하고 개선하세요.</p>
+            <p class="text-sm">💡 저축 목표를 설정하면 동기부여가 됩니다.</p>
+            <p class="text-sm">💡 정기적으로 데이터를 백업하는 습관을 들이세요.</p>
+          </div>
+        </section>
+      </div>
+      
+      <div class="sticky bottom-0 bg-white border-t p-4">
+        <button onclick="closeHelpModal()" 
+                class="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+          <i class="fas fa-check mr-2"></i>확인
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // ESC 키로 닫기
+  const escHandler = (e) => {
+    if (e.key === 'Escape') {
+      closeHelpModal();
+    }
+  };
+  document.addEventListener('keydown', escHandler);
+  modal._escHandler = escHandler;
+  
+  // 배경 클릭으로 닫기
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closeHelpModal();
+    }
+  });
+};
+
+window.closeHelpModal = function() {
+  const modal = document.getElementById('helpModal');
+  if (modal) {
+    if (modal._escHandler) {
+      document.removeEventListener('keydown', modal._escHandler);
+    }
+    modal.remove();
+  }
+};
+
+// ========== 엑셀(CSV) 내보내기 ==========
+window.exportToExcel = async function() {
+  try {
+    console.log('[Export] Starting CSV export...');
+    
+    // 모든 데이터 가져오기
+    const [transactionsRes, savingsRes, settingsRes] = await Promise.all([
+      axios.get('/api/transactions', {
+        params: {
+          start: '2020-01-01',
+          end: '2099-12-31'
+        }
+      }),
+      axios.get('/api/savings-accounts'),
+      axios.get('/api/settings')
+    ]);
+    
+    const transactions = transactionsRes.data.transactions || [];
+    const savingsAccounts = savingsRes.data.accounts || [];
+    const settings = settingsRes.data.settings || {};
+    
+    // CSV 헤더
+    const csvRows = [];
+    csvRows.push('가계부 재무 현황 - ' + new Date().toLocaleDateString('ko-KR'));
+    csvRows.push('');
+    
+    // 요약 정보
+    const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+    const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    const totalSavings = transactions.filter(t => t.type === 'savings').reduce((sum, t) => sum + t.amount, 0);
+    const currentBalance = (settings.initial_balance || 0) + totalIncome - totalExpense - totalSavings;
+    
+    csvRows.push('=== 재무 요약 ===');
+    csvRows.push('항목,금액');
+    csvRows.push(\`초기 잔액,\${settings.initial_balance || 0}\`);
+    csvRows.push(\`총 수입,\${totalIncome}\`);
+    csvRows.push(\`총 지출,\${totalExpense}\`);
+    csvRows.push(\`총 저축,\${totalSavings}\`);
+    csvRows.push(\`현재 잔액,\${currentBalance}\`);
+    csvRows.push('');
+    
+    // 저축 계좌 현황
+    if (savingsAccounts.length > 0) {
+      csvRows.push('=== 저축 계좌 현황 ===');
+      csvRows.push('계좌명,잔액,목표 금액,진행률(%)');
+      savingsAccounts.forEach(acc => {
+        const balance = acc.balance || 0;
+        const goal = acc.savings_goal || 0;
+        const progress = goal > 0 ? ((balance / goal) * 100).toFixed(1) : 0;
+        csvRows.push(\`\${acc.name},\${balance},\${goal},\${progress}\`);
+      });
+      csvRows.push('');
+    }
+    
+    // 거래 내역
+    csvRows.push('=== 전체 거래 내역 ===');
+    csvRows.push('날짜,유형,카테고리,금액,설명');
+    
+    // 날짜순 정렬
+    transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    transactions.forEach(t => {
+      const typeLabel = t.type === 'income' ? '수입' : t.type === 'expense' ? '지출' : '저축';
+      const description = (t.description || '').replace(/,/g, ' ').replace(/\\n/g, ' ');
+      csvRows.push(\`\${t.date},\${typeLabel},\${t.category},\${t.amount},\${description}\`);
+    });
+    
+    // 월별 통계
+    csvRows.push('');
+    csvRows.push('=== 월별 통계 ===');
+    csvRows.push('년월,수입,지출,저축,순수익');
+    
+    // 월별 집계
+    const monthlyData = {};
+    transactions.forEach(t => {
+      const yearMonth = t.date.substring(0, 7); // YYYY-MM
+      if (!monthlyData[yearMonth]) {
+        monthlyData[yearMonth] = { income: 0, expense: 0, savings: 0 };
+      }
+      if (t.type === 'income') monthlyData[yearMonth].income += t.amount;
+      else if (t.type === 'expense') monthlyData[yearMonth].expense += t.amount;
+      else if (t.type === 'savings') monthlyData[yearMonth].savings += t.amount;
+    });
+    
+    Object.keys(monthlyData).sort().reverse().forEach(month => {
+      const data = monthlyData[month];
+      const netIncome = data.income - data.expense - data.savings;
+      csvRows.push(\`\${month},\${data.income},\${data.expense},\${data.savings},\${netIncome}\`);
+    });
+    
+    // CSV 파일 생성 및 다운로드
+    const csvContent = csvRows.join('\\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    const filename = \`가계부_\${new Date().toISOString().split('T')[0]}.csv\`;
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    alert(\`✅ CSV 파일이 다운로드되었습니다!\\n\\n파일명: \${filename}\\n\\n엑셀이나 구글 스프레드시트에서 열어서 확인하세요.\`);
+    
+  } catch (error) {
+    console.error('[Export] CSV export error:', error);
+    alert('CSV 내보내기 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'));
+  }
+};
+
+console.log('[Help & Export] Functions initialized');
 
 // 앱 초기화 - 페이지 로드 시 인증 확인 후 적절한 화면 렌더링
 renderApp();
