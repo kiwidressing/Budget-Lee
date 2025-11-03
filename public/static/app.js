@@ -2947,9 +2947,14 @@ async function renderDebtsView() {
         <h2 class="text-2xl font-bold text-gray-800">
           <i class="fas fa-hand-holding-usd mr-2"></i>채무 관리
         </h2>
-        <button onclick="showAddDebtModal()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-          <i class="fas fa-plus mr-2"></i>채무 추가
-        </button>
+        <div class="flex gap-2">
+          <button onclick="showInterestCalculator()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+            <i class="fas fa-calculator mr-2"></i>이자 계산기
+          </button>
+          <button onclick="showAddDebtModal()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            <i class="fas fa-plus mr-2"></i>채무 추가
+          </button>
+        </div>
       </div>
       
       <!-- 통계 카드 -->
@@ -3053,6 +3058,12 @@ function renderDebtCard(debt) {
   const statusIcon = isPaid ? 'check-circle' : (isOverdue ? 'exclamation-triangle' : 'clock');
   const statusText = isPaid ? '상환완료' : (isOverdue ? '연체' : '진행중');
   
+  // 이자 계산 (일할 계산)
+  const startDate = new Date(debt.start_date);
+  const today = new Date();
+  const daysElapsed = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
+  const accruedInterest = debt.remaining_amount * (debt.interest_rate / 100) * (daysElapsed / 365);
+  
   return `
     <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
       <div class="flex justify-between items-start mb-3">
@@ -3092,16 +3103,24 @@ function renderDebtCard(debt) {
           <p class="font-semibold">${formatCurrency(debt.amount)}</p>
         </div>
         <div>
-          <p class="text-xs text-gray-500">남은 금액</p>
+          <p class="text-xs text-gray-500">남은 원금</p>
           <p class="font-semibold text-${statusColor}-600">${formatCurrency(debt.remaining_amount)}</p>
         </div>
         <div>
-          <p class="text-xs text-gray-500">이자율</p>
+          <p class="text-xs text-gray-500">이자율 (연)</p>
           <p class="font-semibold">${debt.interest_rate}%</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500">발생 이자 (${daysElapsed}일)</p>
+          <p class="font-semibold text-orange-600">${formatCurrency(Math.round(accruedInterest))}</p>
         </div>
         <div>
           <p class="text-xs text-gray-500">만기일</p>
           <p class="font-semibold">${debt.due_date || '-'}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500">총 상환 예상액</p>
+          <p class="font-semibold text-red-600">${formatCurrency(Math.round(debt.remaining_amount + accruedInterest))}</p>
         </div>
       </div>
       
@@ -3470,6 +3489,221 @@ window.deletePayment = async function(debtId, paymentId) {
   } catch (error) {
     alert('상환 기록 삭제 실패: ' + (error.response?.data?.error || error.message));
   }
+};
+
+// 이자 계산기 모달
+window.showInterestCalculator = function() {
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+  modal.innerHTML = `
+    <div class="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+      <h3 class="text-xl font-bold mb-4">
+        <i class="fas fa-calculator mr-2"></i>이자 계산기
+      </h3>
+      
+      <!-- 계산기 입력 -->
+      <div class="bg-blue-50 rounded-lg p-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">채무 금액 (${CURRENCIES[state.settings.currency]?.symbol || '₩'})</label>
+            <input type="number" id="calc-amount" min="0" value="10000000"
+                   class="w-full border rounded px-3 py-2">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">연 이자율 (%)</label>
+            <input type="number" id="calc-rate" min="0" max="100" step="0.1" value="5"
+                   class="w-full border rounded px-3 py-2">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">상환 기간 (개월)</label>
+            <input type="number" id="calc-months" min="1" max="360" value="12"
+                   class="w-full border rounded px-3 py-2">
+          </div>
+        </div>
+        
+        <div class="mt-4">
+          <label class="block text-sm font-medium mb-1">상환 방식</label>
+          <select id="calc-method" class="w-full border rounded px-3 py-2">
+            <option value="equal-principal">원금균등상환 (매월 원금 동일)</option>
+            <option value="equal-payment">원리금균등상환 (매월 총액 동일)</option>
+            <option value="maturity">만기일시상환 (만기에 일괄 상환)</option>
+          </select>
+        </div>
+        
+        <button onclick="calculateInterest()" 
+                class="mt-4 w-full bg-purple-500 text-white py-2 rounded hover:bg-purple-600">
+          <i class="fas fa-calculator mr-2"></i>계산하기
+        </button>
+      </div>
+      
+      <!-- 계산 결과 -->
+      <div id="calc-result" class="hidden">
+        <!-- 요약 -->
+        <div class="bg-gray-50 rounded-lg p-4 mb-4">
+          <h4 class="font-bold text-lg mb-3">📊 상환 요약</h4>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <p class="text-xs text-gray-600">총 원금</p>
+              <p class="font-bold text-blue-600" id="summary-principal"></p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-600">총 이자</p>
+              <p class="font-bold text-orange-600" id="summary-interest"></p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-600">총 상환액</p>
+              <p class="font-bold text-red-600" id="summary-total"></p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-600">월 평균 상환액</p>
+              <p class="font-bold text-green-600" id="summary-monthly"></p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 상환 스케줄 -->
+        <div>
+          <h4 class="font-bold text-lg mb-3">📅 상환 일정표</h4>
+          <div class="overflow-x-auto">
+            <table class="min-w-full border-collapse border">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="border px-3 py-2 text-sm">회차</th>
+                  <th class="border px-3 py-2 text-sm">납부액</th>
+                  <th class="border px-3 py-2 text-sm">원금</th>
+                  <th class="border px-3 py-2 text-sm">이자</th>
+                  <th class="border px-3 py-2 text-sm">잔액</th>
+                </tr>
+              </thead>
+              <tbody id="schedule-table" class="text-sm">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      
+      <div class="mt-6">
+        <button onclick="this.closest('.fixed').remove()"
+                class="w-full bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400">
+          닫기
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+};
+
+// 이자 계산 함수
+window.calculateInterest = function() {
+  const amount = parseFloat(document.getElementById('calc-amount').value) || 0;
+  const rate = parseFloat(document.getElementById('calc-rate').value) || 0;
+  const months = parseInt(document.getElementById('calc-months').value) || 0;
+  const method = document.getElementById('calc-method').value;
+  
+  if (amount <= 0 || rate < 0 || months <= 0) {
+    alert('유효한 값을 입력해주세요.');
+    return;
+  }
+  
+  const monthlyRate = rate / 100 / 12;
+  let schedule = [];
+  let totalInterest = 0;
+  let totalPayment = 0;
+  
+  if (method === 'equal-principal') {
+    // 원금균등상환
+    const monthlyPrincipal = amount / months;
+    let remaining = amount;
+    
+    for (let i = 1; i <= months; i++) {
+      const interest = remaining * monthlyRate;
+      const payment = monthlyPrincipal + interest;
+      remaining -= monthlyPrincipal;
+      
+      schedule.push({
+        month: i,
+        payment: Math.round(payment),
+        principal: Math.round(monthlyPrincipal),
+        interest: Math.round(interest),
+        remaining: Math.round(Math.max(0, remaining))
+      });
+      
+      totalInterest += interest;
+      totalPayment += payment;
+    }
+  } else if (method === 'equal-payment') {
+    // 원리금균등상환
+    const monthlyPayment = amount * (monthlyRate * Math.pow(1 + monthlyRate, months)) / 
+                          (Math.pow(1 + monthlyRate, months) - 1);
+    let remaining = amount;
+    
+    for (let i = 1; i <= months; i++) {
+      const interest = remaining * monthlyRate;
+      const principal = monthlyPayment - interest;
+      remaining -= principal;
+      
+      schedule.push({
+        month: i,
+        payment: Math.round(monthlyPayment),
+        principal: Math.round(principal),
+        interest: Math.round(interest),
+        remaining: Math.round(Math.max(0, remaining))
+      });
+      
+      totalInterest += interest;
+      totalPayment += monthlyPayment;
+    }
+  } else {
+    // 만기일시상환
+    const totalInterestAmount = amount * monthlyRate * months;
+    
+    for (let i = 1; i <= months; i++) {
+      const interest = amount * monthlyRate;
+      
+      if (i < months) {
+        schedule.push({
+          month: i,
+          payment: Math.round(interest),
+          principal: 0,
+          interest: Math.round(interest),
+          remaining: Math.round(amount)
+        });
+        totalInterest += interest;
+        totalPayment += interest;
+      } else {
+        schedule.push({
+          month: i,
+          payment: Math.round(amount + interest),
+          principal: Math.round(amount),
+          interest: Math.round(interest),
+          remaining: 0
+        });
+        totalInterest += interest;
+        totalPayment += amount + interest;
+      }
+    }
+  }
+  
+  // 결과 표시
+  document.getElementById('summary-principal').textContent = formatCurrency(Math.round(amount));
+  document.getElementById('summary-interest').textContent = formatCurrency(Math.round(totalInterest));
+  document.getElementById('summary-total').textContent = formatCurrency(Math.round(totalPayment));
+  document.getElementById('summary-monthly').textContent = formatCurrency(Math.round(totalPayment / months));
+  
+  // 스케줄 테이블
+  const tableBody = document.getElementById('schedule-table');
+  tableBody.innerHTML = schedule.map(row => `
+    <tr class="${row.month % 2 === 0 ? 'bg-gray-50' : ''}">
+      <td class="border px-3 py-2 text-center">${row.month}</td>
+      <td class="border px-3 py-2 text-right font-semibold">${formatCurrency(row.payment)}</td>
+      <td class="border px-3 py-2 text-right text-blue-600">${formatCurrency(row.principal)}</td>
+      <td class="border px-3 py-2 text-right text-orange-600">${formatCurrency(row.interest)}</td>
+      <td class="border px-3 py-2 text-right text-gray-600">${formatCurrency(row.remaining)}</td>
+    </tr>
+  `).join('');
+  
+  document.getElementById('calc-result').classList.remove('hidden');
 };
 
 // 연간 지출 리포트 뷰
