@@ -1961,10 +1961,10 @@ app.delete('/api/receipts/:id', authMiddleware, async (c) => {
 // ============================================================
 
 // Get all debts for user
-app.get('/api/debts', async (c) => {
+app.get('/api/debts', authMiddleware, async (c) => {
   try {
     const { DB } = c.env as { DB: D1Database };
-    const userId = await getUserId(c);
+    const userId = c.get('userId');
     
     if (!userId) {
       return c.json({ success: false, error: 'Unauthorized' }, 401);
@@ -1993,10 +1993,10 @@ app.get('/api/debts', async (c) => {
 });
 
 // Create new debt
-app.post('/api/debts', async (c) => {
+app.post('/api/debts', authMiddleware, async (c) => {
   try {
     const { DB } = c.env as { DB: D1Database };
-    const userId = await getUserId(c);
+    const userId = c.get('userId');
     
     if (!userId) {
       return c.json({ success: false, error: 'Unauthorized' }, 401);
@@ -2040,10 +2040,10 @@ app.post('/api/debts', async (c) => {
 });
 
 // Update debt
-app.put('/api/debts/:id', async (c) => {
+app.put('/api/debts/:id', authMiddleware, async (c) => {
   try {
     const { DB } = c.env as { DB: D1Database };
-    const userId = await getUserId(c);
+    const userId = c.get('userId');
     
     if (!userId) {
       return c.json({ success: false, error: 'Unauthorized' }, 401);
@@ -2091,10 +2091,10 @@ app.put('/api/debts/:id', async (c) => {
 });
 
 // Delete debt
-app.delete('/api/debts/:id', async (c) => {
+app.delete('/api/debts/:id', authMiddleware, async (c) => {
   try {
     const { DB } = c.env as { DB: D1Database };
-    const userId = await getUserId(c);
+    const userId = c.get('userId');
     
     if (!userId) {
       return c.json({ success: false, error: 'Unauthorized' }, 401);
@@ -2124,10 +2124,10 @@ app.delete('/api/debts/:id', async (c) => {
 });
 
 // Get payment history for a debt
-app.get('/api/debts/:id/payments', async (c) => {
+app.get('/api/debts/:id/payments', authMiddleware, async (c) => {
   try {
     const { DB } = c.env as { DB: D1Database };
-    const userId = await getUserId(c);
+    const userId = c.get('userId');
     
     if (!userId) {
       return c.json({ success: false, error: 'Unauthorized' }, 401);
@@ -2161,10 +2161,10 @@ app.get('/api/debts/:id/payments', async (c) => {
 });
 
 // Record a payment for a debt
-app.post('/api/debts/:id/payments', async (c) => {
+app.post('/api/debts/:id/payments', authMiddleware, async (c) => {
   try {
     const { DB } = c.env as { DB: D1Database };
-    const userId = await getUserId(c);
+    const userId = c.get('userId');
     
     if (!userId) {
       return c.json({ success: false, error: 'Unauthorized' }, 401);
@@ -2225,10 +2225,10 @@ app.post('/api/debts/:id/payments', async (c) => {
 });
 
 // Delete a payment (refund/correction)
-app.delete('/api/debts/:debtId/payments/:paymentId', async (c) => {
+app.delete('/api/debts/:debtId/payments/:paymentId', authMiddleware, async (c) => {
   try {
     const { DB } = c.env as { DB: D1Database };
-    const userId = await getUserId(c);
+    const userId = c.get('userId');
     
     if (!userId) {
       return c.json({ success: false, error: 'Unauthorized' }, 401);
