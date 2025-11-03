@@ -60,10 +60,35 @@ const BACKGROUND_THEMES = {
     colors: 'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)',
     description: '차가운 파란색/보라색 톤'
   },
+  lightBlue: {
+    name: '연한 파랑',
+    colors: 'linear-gradient(135deg, #e3f2fd 0%, #e1bee7 50%, #f3e5f5 100%)',
+    description: '부드러운 하늘색/라벤더 톤'
+  },
   sunset: {
     name: '노을 (따뜻한 핑크)',
     colors: 'linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)',
     description: '따뜻한 핑크/살구색 톤'
+  },
+  spring: {
+    name: '🌸 봄',
+    colors: 'linear-gradient(135deg, #ffeef8 0%, #ffe5f0 25%, #e8f5e9 75%, #c8e6c9 100%)',
+    description: '벚꽃 핑크와 새싹 초록'
+  },
+  summer: {
+    name: '☀️ 여름',
+    colors: 'linear-gradient(135deg, #e1f5fe 0%, #b3e5fc 25%, #81d4fa 75%, #4fc3f7 100%)',
+    description: '시원한 하늘과 바다 블루'
+  },
+  autumn: {
+    name: '🍂 가을',
+    colors: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 25%, #ffccbc 75%, #ffab91 100%)',
+    description: '단풍 오렌지와 따뜻한 베ージ'
+  },
+  winter: {
+    name: '❄️ 겨울',
+    colors: 'linear-gradient(135deg, #e3f2fd 0%, #e1f5fe 25%, #f1f8f6 75%, #ffffff 100%)',
+    description: '하얀 눈과 차가운 하늘'
   },
   gray: {
     name: '회색 (기본)',
