@@ -3058,11 +3058,19 @@ function renderDebtCard(debt) {
   const statusIcon = isPaid ? 'check-circle' : (isOverdue ? 'exclamation-triangle' : 'clock');
   const statusText = isPaid ? '상환완료' : (isOverdue ? '연체' : '진행중');
   
-  // 이자 계산 (일할 계산)
+  // 이자 계산
   const startDate = new Date(debt.start_date);
   const today = new Date();
   const daysElapsed = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
+  
+  // 일할 계산 (현재까지 발생한 이자)
   const accruedInterest = debt.remaining_amount * (debt.interest_rate / 100) * (daysElapsed / 365);
+  
+  // 연간 이자 (남은 원금 기준)
+  const yearlyInterest = debt.remaining_amount * (debt.interest_rate / 100);
+  
+  // 월간 이자 (남은 원금 기준)
+  const monthlyInterest = debt.remaining_amount * (debt.interest_rate / 100) / 12;
   
   return `
     <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -3111,8 +3119,10 @@ function renderDebtCard(debt) {
           <p class="font-semibold">${debt.interest_rate}%</p>
         </div>
         <div>
-          <p class="text-xs text-gray-500">발생 이자 (${daysElapsed}일)</p>
-          <p class="font-semibold text-orange-600">${formatCurrency(Math.round(accruedInterest))}</p>
+          <p class="text-xs text-gray-500">발생 이자 (연/월)</p>
+          <p class="font-semibold text-orange-600">
+            ${formatCurrency(Math.round(yearlyInterest))}/${formatCurrency(Math.round(monthlyInterest))}
+          </p>
         </div>
         <div>
           <p class="text-xs text-gray-500">만기일</p>
