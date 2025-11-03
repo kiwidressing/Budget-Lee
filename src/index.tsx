@@ -1355,10 +1355,25 @@ app.get('/', (c) => {
     <link href="/static/style.css" rel="stylesheet">
     
     <style>
-        /* 오버스크롤 방지 - 스크롤 시 위아래 공백 제거 */
-        html, body {
-            overscroll-behavior: none;
-            overscroll-behavior-y: none;
+        /* 바운스 시에도 배경색이 보이도록 확장 */
+        html {
+            background-color: #F3F4F6; /* bg-gray-100 */
+            min-height: 100%;
+        }
+        body {
+            background-color: #F3F4F6; /* bg-gray-100 */
+            min-height: 100vh;
+            padding-bottom: 100vh; /* 아래로 스크롤 시 배경 확장 */
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: -100vh;
+            left: 0;
+            right: 0;
+            height: 100vh;
+            background-color: #F3F4F6; /* 위로 스크롤 시 배경 확장 */
+            z-index: -1;
         }
     </style>
 </head>
