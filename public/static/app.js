@@ -6460,11 +6460,17 @@ async function handleReceiptImageSelect(event) {
     if (response.data.success) {
       const extracted = response.data.data;
       
-      // 폼에 자동 입력
+      // 폼에 자동 입력 (name 속성으로 접근)
       const form = document.getElementById('receipt-form');
-      if (extracted.merchant) form.merchant.value = extracted.merchant;
-      if (extracted.date) form.purchase_date.value = extracted.date;
-      if (extracted.amount) form.amount.value = extracted.amount;
+      if (extracted.merchant && form.elements.merchant) {
+        form.elements.merchant.value = extracted.merchant;
+      }
+      if (extracted.date && form.elements.purchase_date) {
+        form.elements.purchase_date.value = extracted.date;
+      }
+      if (extracted.amount && form.elements.amount) {
+        form.elements.amount.value = extracted.amount;
+      }
       
       statusDiv.innerHTML = '<p class="text-green-600 text-sm"><i class="fas fa-check-circle mr-2"></i>정보 추출 완료! 내용을 확인하고 수정하세요.</p>';
     } else {
