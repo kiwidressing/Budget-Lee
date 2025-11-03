@@ -1355,29 +1355,41 @@ app.get('/', (c) => {
     <link href="/static/style.css" rel="stylesheet">
     
     <style>
-        /* 바운스 시에도 배경색이 보이도록 확장 */
+        /* 그라디언트 배경 - 바운스 시에도 예쁘게 */
         html {
-            background-color: #F3F4F6; /* bg-gray-100 */
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%);
+            background-attachment: fixed;
             min-height: 100%;
         }
         body {
-            background-color: #F3F4F6; /* bg-gray-100 */
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%);
+            background-attachment: fixed;
             min-height: 100vh;
-            padding-bottom: 100vh; /* 아래로 스크롤 시 배경 확장 */
+            padding-bottom: 150vh; /* 아래로 스크롤 시 배경 확장 */
         }
         body::before {
             content: '';
             position: fixed;
-            top: -100vh;
+            top: -150vh;
             left: 0;
             right: 0;
-            height: 100vh;
-            background-color: #F3F4F6; /* 위로 스크롤 시 배경 확장 */
+            height: 150vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%);
+            z-index: -1;
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            bottom: -150vh;
+            left: 0;
+            right: 0;
+            height: 150vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%);
             z-index: -1;
         }
     </style>
 </head>
-<body class="bg-gray-100">
+<body>
     <div id="app" class="container mx-auto max-w-7xl p-4">
         <div class="bg-white rounded-lg shadow-lg p-6">
             <h1 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
