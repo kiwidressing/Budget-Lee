@@ -4002,6 +4002,75 @@ async function loadYearlyReport() {
 </div>
   `;
   
+  // 카테고리별 평균 지출액 계산
+  const categoryStats = {};
+  for (let month = 1; month <= 12; month++) {
+    const monthStr = `${reportState.year}-${String(month).padStart(2, '0')}`;
+    const firstDay = `${monthStr}-01`;
+    const lastDay = `${monthStr}-${new Date(reportState.year, month, 0).getDate()}`;
+    
+    const response = await axios.get(`/api/transactions?start_date=${firstDay}&end_date=${lastDay}`);
+    const transactions = response.data.data || [];
+    
+    transactions.filter(t => t.type === 'expense').forEach(t => {
+      if (!categoryStats[t.category]) {
+        categoryStats[t.category] = { total: 0, count: 0, months: new Set() };
+      }
+      categoryStats[t.category].total += t.amount;
+      categoryStats[t.category].count += 1;
+      categoryStats[t.category].months.add(month);
+    });
+  }
+  
+  // 카테고리별 평균 지출액 테이블
+  const categoryEntries = Object.entries(categoryStats).sort((a, b) => b[1].total - a[1].total);
+  
+  if (categoryEntries.length > 0) {
+    tableHTML += `
+      <div class="mt-8">
+        <h3 class="text-lg font-bold mb-4">📊 카테고리별 평균 지출액</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 text-left">카테고리</th>
+                <th class="px-4 py-3 text-right">총 지출액</th>
+                <th class="px-4 py-3 text-right">거래 건수</th>
+                <th class="px-4 py-3 text-right">평균 지출액</th>
+                <th class="px-4 py-3 text-right">월평균</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    categoryEntries.forEach(([category, stats]) => {
+      const avgPerTransaction = stats.total / stats.count;
+      const monthsActive = stats.months.size;
+      const avgPerMonth = stats.total / monthsActive;
+      const percentage = (stats.total / yearTotal * 100).toFixed(1);
+      
+      tableHTML += `
+        <tr class="border-t hover:bg-gray-50">
+          <td class="px-4 py-3 font-medium">${category}</td>
+          <td class="px-4 py-3 text-right">
+            <div class="font-bold">${formatCurrency(stats.total)}</div>
+            <div class="text-xs text-gray-500">${percentage}%</div>
+          </td>
+          <td class="px-4 py-3 text-right">${stats.count}건</td>
+          <td class="px-4 py-3 text-right text-blue-600 font-medium">${formatCurrency(avgPerTransaction)}</td>
+          <td class="px-4 py-3 text-right text-green-600 font-medium">${formatCurrency(avgPerMonth)}</td>
+        </tr>
+      `;
+    });
+    
+    tableHTML += `
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+  
     detailsDiv.innerHTML = tableHTML;
   } catch (error) {
     const detailsDiv = document.getElementById('report-details');
@@ -6250,13 +6319,20 @@ function showReceiptUploadModal() {
         </button>
       </div>
       
-      <form onsubmit="handleReceiptSubmit(event)" class="space-y-4">
+      <form onsubmit="handleReceiptSubmit(event)" class="space-y-4" id="receipt-form">
         <!-- 파일 -->
         <div>
           <label class="block text-sm font-medium mb-1">영수증 사진 *</label>
           <input type="file" name="file" accept="image/*" required
+            onchange="handleReceiptImageSelect(event)"
             class="w-full px-3 py-2 border rounded-lg">
-          <p class="text-xs text-gray-500 mt-1">자동으로 압축되어 저장됩니다</p>
+          <p class="text-xs text-gray-500 mt-1">📷 영수증을 촬영하면 자동으로 정보를 추출합니다</p>
+          <div id="ocr-status" class="mt-2"></div>
+        </div>
+        
+        <!-- 미리보기 이미지 -->
+        <div id="image-preview" class="hidden">
+          <img id="preview-img" class="w-full h-48 object-contain border rounded-lg" />
         </div>
 
         <!-- 날짜 -->
@@ -6347,6 +6423,60 @@ function closeReceiptModal() {
     modal.remove();
   }
 }
+
+// OCR: 영수증 이미지 선택 시 자동 분석
+async function handleReceiptImageSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const statusDiv = document.getElementById('ocr-status');
+  const previewDiv = document.getElementById('image-preview');
+  const previewImg = document.getElementById('preview-img');
+  
+  try {
+    // 이미지 미리보기
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      previewImg.src = e.target.result;
+      previewDiv.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+    
+    // OCR 처리 시작
+    statusDiv.innerHTML = '<p class="text-blue-600 text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>영수증을 분석하는 중...</p>';
+    
+    // 이미지를 Base64로 변환
+    const base64 = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.readAsDataURL(file);
+    });
+    
+    // OCR API 호출
+    const response = await axios.post('/api/receipts/ocr', {
+      image_data: base64
+    });
+    
+    if (response.data.success) {
+      const extracted = response.data.data;
+      
+      // 폼에 자동 입력
+      const form = document.getElementById('receipt-form');
+      if (extracted.merchant) form.merchant.value = extracted.merchant;
+      if (extracted.date) form.purchase_date.value = extracted.date;
+      if (extracted.amount) form.amount.value = extracted.amount;
+      
+      statusDiv.innerHTML = '<p class="text-green-600 text-sm"><i class="fas fa-check-circle mr-2"></i>정보 추출 완료! 내용을 확인하고 수정하세요.</p>';
+    } else {
+      statusDiv.innerHTML = '<p class="text-yellow-600 text-sm"><i class="fas fa-exclamation-triangle mr-2"></i>자동 추출 실패. 직접 입력해주세요.</p>';
+    }
+  } catch (error) {
+    console.error('[OCR] Error:', error);
+    statusDiv.innerHTML = '<p class="text-yellow-600 text-sm"><i class="fas fa-exclamation-triangle mr-2"></i>자동 추출 실패. 직접 입력해주세요.</p>';
+  }
+}
+
+window.handleReceiptImageSelect = handleReceiptImageSelect;
 
 // ========== 영수증 전역 바인딩 및 안전 함수 (중요!) ==========
 

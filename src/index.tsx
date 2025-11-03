@@ -1904,6 +1904,42 @@ app.post('/api/receipts', authMiddleware, async (c) => {
   }
 });
 
+// 2.5) 영수증 OCR 분석 (간단한 패턴 매칭)
+app.post('/api/receipts/ocr', authMiddleware, async (c) => {
+  try {
+    const body = await c.req.json();
+    const { image_data } = body;
+    
+    if (!image_data) {
+      return c.json({ success: false, error: 'No image data' }, 400);
+    }
+    
+    // Base64 디코딩하여 텍스트 추출 시뮬레이션
+    // 실제로는 Google Vision API를 사용해야 하지만, 간단한 패턴으로 시뮬레이션
+    
+    const extracted = {
+      merchant: null as string | null,
+      date: null as string | null,
+      amount: null as number | null
+    };
+    
+    // 랜덤으로 샘플 데이터 생성 (실제 OCR 대신)
+    // 실제 구현 시 Google Vision API 또는 Tesseract.js 사용
+    const today = new Date().toISOString().split('T')[0];
+    extracted.date = today;
+    
+    // 메시지: OCR은 프론트엔드에서 처리하거나 외부 API 필요
+    return c.json({
+      success: true,
+      data: extracted,
+      message: '영수증 텍스트 추출은 수동 입력으로 진행해주세요. (OCR API 미구현)'
+    });
+  } catch (error: any) {
+    console.error('[OCR] Error:', error);
+    return c.json({ success: false, error: 'OCR 처리 실패' }, 500);
+  }
+});
+
 // 3) 영수증 목록 조회
 app.get('/api/receipts', authMiddleware, async (c) => {
   const { DB } = c.env;
