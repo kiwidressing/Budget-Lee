@@ -1917,6 +1917,8 @@ app.post('/api/receipts/ocr', authMiddleware, async (c) => {
     
     const { GOOGLE_VISION_API_KEY } = c.env;
     
+    console.log('[OCR] API Key status:', GOOGLE_VISION_API_KEY ? 'Present' : 'Missing');
+    
     // Google Vision API 키가 없으면 폴백 (데모 모드)
     if (!GOOGLE_VISION_API_KEY || GOOGLE_VISION_API_KEY === 'your-google-vision-api-key-here') {
       console.log('[OCR] Google Vision API key not configured, using demo mode');
@@ -1965,10 +1967,13 @@ app.post('/api/receipts/ocr', authMiddleware, async (c) => {
     });
     
     if (!visionResponse.ok) {
-      throw new Error(`Vision API error: ${visionResponse.status}`);
+      const errorText = await visionResponse.text();
+      console.error('[OCR] Vision API error:', visionResponse.status, errorText);
+      throw new Error(`Vision API error: ${visionResponse.status} - ${errorText}`);
     }
     
     const visionData = await visionResponse.json() as any;
+    console.log('[OCR] Vision API response:', JSON.stringify(visionData).substring(0, 200));
     
     // 텍스트 추출
     const textAnnotations = visionData.responses[0]?.textAnnotations;
