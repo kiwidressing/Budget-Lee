@@ -328,26 +328,16 @@ function clearAuthToken() {
 }
 
 async function checkAuth() {
-  const token = localStorage.getItem('authToken');
-  
-  if (!token) {
-    return false;
-  }
-  
   try {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    
     const response = await axios.get('/api/auth/me');
     
-    if (response.data.success) {
+    if (response.data.success && response.data.user) {
       state.isAuthenticated = true;
       state.currentUser = response.data.user;
       return true;
     }
   } catch (error) {
     console.error('[Auth] Check failed:', error);
-    localStorage.removeItem('authToken');
-    delete axios.defaults.headers.common['Authorization'];
   }
   
   return false;
