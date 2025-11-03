@@ -830,6 +830,7 @@ function setupTabListeners() {
   document.getElementById('tab-budgets').onclick = () => switchView('budgets');
   document.getElementById('tab-investments').onclick = () => switchView('investments');
   document.getElementById('tab-receipts').onclick = () => switchView('receipts');
+  document.getElementById('tab-debts').onclick = () => switchView('debts');
   document.getElementById('tab-reports').onclick = () => switchView('reports');
   document.getElementById('tab-settings').onclick = () => switchView('settings');
 }
