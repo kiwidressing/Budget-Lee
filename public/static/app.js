@@ -2958,7 +2958,7 @@ async function renderDebtsView() {
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm text-gray-600">총 채무액</p>
-              <p class="text-2xl font-bold text-red-600">${totalDebt.toLocaleString()}원</p>
+              <p class="text-2xl font-bold text-red-600">${formatCurrency(totalDebt)}</p>
             </div>
             <i class="fas fa-file-invoice-dollar text-3xl text-red-300"></i>
           </div>
@@ -2968,7 +2968,7 @@ async function renderDebtsView() {
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm text-gray-600">남은 금액</p>
-              <p class="text-2xl font-bold text-orange-600">${totalRemaining.toLocaleString()}원</p>
+              <p class="text-2xl font-bold text-orange-600">${formatCurrency(totalRemaining)}</p>
             </div>
             <i class="fas fa-exclamation-circle text-3xl text-orange-300"></i>
           </div>
@@ -2978,7 +2978,7 @@ async function renderDebtsView() {
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm text-gray-600">상환 완료</p>
-              <p class="text-2xl font-bold text-green-600">${totalPaid.toLocaleString()}원</p>
+              <p class="text-2xl font-bold text-green-600">${formatCurrency(totalPaid)}</p>
             </div>
             <i class="fas fa-check-circle text-3xl text-green-300"></i>
           </div>
@@ -3089,11 +3089,11 @@ function renderDebtCard(debt) {
       <div class="grid grid-cols-2 gap-4 mb-3">
         <div>
           <p class="text-xs text-gray-500">총 채무액</p>
-          <p class="font-semibold">${debt.amount.toLocaleString()}원</p>
+          <p class="font-semibold">${formatCurrency(debt.amount)}</p>
         </div>
         <div>
           <p class="text-xs text-gray-500">남은 금액</p>
-          <p class="font-semibold text-${statusColor}-600">${debt.remaining_amount.toLocaleString()}원</p>
+          <p class="font-semibold text-${statusColor}-600">${formatCurrency(debt.remaining_amount)}</p>
         </div>
         <div>
           <p class="text-xs text-gray-500">이자율</p>
@@ -3146,7 +3146,7 @@ window.showAddDebtModal = function() {
         </div>
         
         <div>
-          <label class="block text-sm font-medium mb-1">채무 금액 *</label>
+          <label class="block text-sm font-medium mb-1">채무 금액 (${CURRENCIES[state.settings.currency]?.symbol || '₩'}) *</label>
           <input type="number" name="amount" required min="0"
                  class="w-full border rounded px-3 py-2"
                  placeholder="0">
@@ -3244,13 +3244,13 @@ window.showEditDebtModal = async function(debtId) {
         </div>
         
         <div>
-          <label class="block text-sm font-medium mb-1">총 채무액 *</label>
+          <label class="block text-sm font-medium mb-1">총 채무액 (${CURRENCIES[state.settings.currency]?.symbol || '₩'}) *</label>
           <input type="number" name="amount" required min="0" value="${debt.amount}"
                  class="w-full border rounded px-3 py-2">
         </div>
         
         <div>
-          <label class="block text-sm font-medium mb-1">남은 금액 *</label>
+          <label class="block text-sm font-medium mb-1">남은 금액 (${CURRENCIES[state.settings.currency]?.symbol || '₩'}) *</label>
           <input type="number" name="remaining_amount" required min="0" value="${debt.remaining_amount}"
                  class="w-full border rounded px-3 py-2">
         </div>
@@ -3351,7 +3351,7 @@ window.showRecordPaymentModal = function(debtId) {
       </h3>
       <form id="record-payment-form" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium mb-1">상환 금액 *</label>
+          <label class="block text-sm font-medium mb-1">상환 금액 (${CURRENCIES[state.settings.currency]?.symbol || '₩'}) *</label>
           <input type="number" name="amount" required min="0"
                  class="w-full border rounded px-3 py-2"
                  placeholder="0">
@@ -3420,7 +3420,7 @@ window.showPaymentHistory = async function(debtId) {
               <div class="border rounded-lg p-4 flex justify-between items-start">
                 <div class="flex-1">
                   <div class="flex items-center gap-3 mb-2">
-                    <span class="font-bold text-lg text-green-600">${payment.amount.toLocaleString()}원</span>
+                    <span class="font-bold text-lg text-green-600">${formatCurrency(payment.amount)}</span>
                     <span class="text-sm text-gray-500">${payment.payment_date}</span>
                   </div>
                   ${payment.notes ? `<p class="text-sm text-gray-600">${payment.notes}</p>` : ''}
@@ -3435,7 +3435,7 @@ window.showPaymentHistory = async function(debtId) {
           <div class="mt-4 pt-4 border-t">
             <div class="flex justify-between font-bold">
               <span>총 상환액:</span>
-              <span class="text-green-600">${payments.reduce((sum, p) => sum + p.amount, 0).toLocaleString()}원</span>
+              <span class="text-green-600">${formatCurrency(payments.reduce((sum, p) => sum + p.amount, 0))}</span>
             </div>
           </div>
         ` : `
