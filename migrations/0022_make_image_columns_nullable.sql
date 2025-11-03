@@ -17,18 +17,25 @@ CREATE TABLE receipts_new (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   user_id TEXT,
-  transaction_id INTEGER,
+  merchant TEXT,
+  is_tax_deductible INTEGER DEFAULT 0,
   image_key TEXT,
   image_mime TEXT,
   image_size INTEGER,
   image_width INTEGER,
-  image_height INTEGER,
-  is_tax_deductible INTEGER DEFAULT 0,
-  merchant TEXT
+  image_height INTEGER
 );
 
--- Copy data from old table
-INSERT INTO receipts_new SELECT * FROM receipts;
+-- Copy data from old table (matching production schema - 21 columns)
+INSERT INTO receipts_new (
+  id, store_name, purchase_date, amount, category, description, payment_method,
+  image_data, image_type, tags, notes, created_at, updated_at, user_id,
+  merchant, is_tax_deductible, image_key, image_mime, image_size, image_width, image_height
+) SELECT 
+  id, store_name, purchase_date, amount, category, description, payment_method,
+  image_data, image_type, tags, notes, created_at, updated_at, user_id,
+  merchant, is_tax_deductible, image_key, image_mime, image_size, image_width, image_height
+FROM receipts;
 
 -- Drop old table
 DROP TABLE receipts;
