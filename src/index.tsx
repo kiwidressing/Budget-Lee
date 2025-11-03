@@ -1904,7 +1904,7 @@ app.post('/api/receipts', authMiddleware, async (c) => {
   }
 });
 
-// 2.5) 영수증 OCR 분석 (간단한 시뮬레이션 - 데모용)
+// 2.5) 영수증 OCR 분석 (Google Vision API)
 app.post('/api/receipts/ocr', authMiddleware, async (c) => {
   try {
     const body = await c.req.json();
@@ -1914,41 +1914,195 @@ app.post('/api/receipts/ocr', authMiddleware, async (c) => {
       return c.json({ success: false, error: 'No image data' }, 400);
     }
     
-    // OCR 시뮬레이션 - 실제로는 Google Vision API, Tesseract.js 등 사용
-    // 현재는 샘플 데이터를 반환하여 자동 입력 기능을 시연
+    const { GOOGLE_VISION_API_KEY } = c.env;
     
-    const merchants = ['스타벅스', 'GS25', '이마트', '올리브영', 'CU편의점', '맥도날드', '버거킹'];
-    const amounts = [5000, 12000, 25000, 38000, 15000, 8500, 42000];
+    // Google Vision API 키가 없으면 폴백 (데모 모드)
+    if (!GOOGLE_VISION_API_KEY || GOOGLE_VISION_API_KEY === 'your-google-vision-api-key-here') {
+      console.log('[OCR] Google Vision API key not configured, using demo mode');
+      
+      // 데모 데이터 반환
+      const merchants = ['스타벅스', 'GS25', '이마트', '올리브영', 'CU편의점', '맥도날드', '버거킹'];
+      const amounts = [5000, 12000, 25000, 38000, 15000, 8500, 42000];
+      
+      const today = new Date();
+      const daysAgo = Math.floor(Math.random() * 7);
+      today.setDate(today.getDate() - daysAgo);
+      
+      return c.json({
+        success: true,
+        data: {
+          merchant: merchants[Math.floor(Math.random() * merchants.length)],
+          date: today.toISOString().split('T')[0],
+          amount: amounts[Math.floor(Math.random() * amounts.length)]
+        },
+        message: '데모 모드: 랜덤 데이터가 생성되었습니다. Google Vision API 키를 설정하면 실제 OCR이 작동합니다.'
+      });
+    }
     
-    const randomMerchant = merchants[Math.floor(Math.random() * merchants.length)];
-    const randomAmount = amounts[Math.floor(Math.random() * amounts.length)];
+    // Base64에서 이미지 데이터만 추출 (data:image/png;base64, 제거)
+    const base64Image = image_data.replace(/^data:image\/\w+;base64,/, '');
     
-    // 오늘 날짜를 기본값으로
-    const today = new Date();
-    // 랜덤하게 최근 7일 이내 날짜 생성
-    const daysAgo = Math.floor(Math.random() * 7);
-    today.setDate(today.getDate() - daysAgo);
-    const dateStr = today.toISOString().split('T')[0];
+    // Google Vision API 호출
+    const visionApiUrl = `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`;
     
-    const extracted = {
-      merchant: randomMerchant,
-      date: dateStr,
-      amount: randomAmount
-    };
+    const visionResponse = await fetch(visionApiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        requests: [{
+          image: {
+            content: base64Image
+          },
+          features: [{
+            type: 'TEXT_DETECTION',
+            maxResults: 1
+          }]
+        }]
+      })
+    });
     
-    // 약간의 지연을 시뮬레이션 (실제 OCR 처리 시간)
-    await new Promise(resolve => setTimeout(resolve, 500));
+    if (!visionResponse.ok) {
+      throw new Error(`Vision API error: ${visionResponse.status}`);
+    }
+    
+    const visionData = await visionResponse.json() as any;
+    
+    // 텍스트 추출
+    const textAnnotations = visionData.responses[0]?.textAnnotations;
+    if (!textAnnotations || textAnnotations.length === 0) {
+      return c.json({
+        success: false,
+        error: '영수증에서 텍스트를 찾을 수 없습니다.'
+      });
+    }
+    
+    // 전체 텍스트 (첫 번째 항목이 전체 텍스트)
+    const fullText = textAnnotations[0].description;
+    console.log('[OCR] Extracted text:', fullText);
+    
+    // 텍스트에서 정보 추출
+    const extracted = extractReceiptInfo(fullText);
     
     return c.json({
       success: true,
       data: extracted,
-      message: '영수증 정보가 자동으로 추출되었습니다. 내용을 확인하고 수정하세요.'
+      message: '영수증 정보가 추출되었습니다. 내용을 확인하고 수정하세요.'
     });
   } catch (error: any) {
     console.error('[OCR] Error:', error);
-    return c.json({ success: false, error: 'OCR 처리 실패' }, 500);
+    return c.json({ 
+      success: false, 
+      error: 'OCR 처리 실패: ' + (error.message || '알 수 없는 오류')
+    }, 500);
   }
 });
+
+// 영수증 텍스트에서 정보 추출하는 헬퍼 함수
+function extractReceiptInfo(text: string) {
+  const extracted: {
+    merchant: string | null;
+    date: string | null;
+    amount: number | null;
+  } = {
+    merchant: null,
+    date: null,
+    amount: null
+  };
+  
+  // 줄바꿈으로 분리
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  
+  // 1. 상점명 추출 (보통 첫 1-3줄에 있음)
+  if (lines.length > 0) {
+    // 회사명, 점포명 등의 키워드가 있는 줄 찾기
+    const merchantKeywords = ['(주)', '주식회사', '상회', '마트', '편의점', 'STORE', 'SHOP', 'CAFE'];
+    for (let i = 0; i < Math.min(5, lines.length); i++) {
+      const line = lines[i];
+      if (merchantKeywords.some(keyword => line.includes(keyword)) || 
+          (line.length > 2 && line.length < 30 && i < 3)) {
+        extracted.merchant = line;
+        break;
+      }
+    }
+    
+    // 상점명을 못 찾았으면 첫 줄 사용
+    if (!extracted.merchant) {
+      extracted.merchant = lines[0];
+    }
+  }
+  
+  // 2. 날짜 추출 (YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD 형식)
+  const datePatterns = [
+    /(\d{4})[-./](\d{1,2})[-./](\d{1,2})/,  // 2024-11-03, 2024/11/03, 2024.11.03
+    /(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/,  // 2024년 11월 03일
+    /(\d{2})[-./](\d{1,2})[-./](\d{1,2})/    // 24-11-03
+  ];
+  
+  for (const pattern of datePatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      let year = match[1];
+      let month = match[2].padStart(2, '0');
+      let day = match[3].padStart(2, '0');
+      
+      // 2자리 연도를 4자리로 변환
+      if (year.length === 2) {
+        year = '20' + year;
+      }
+      
+      extracted.date = `${year}-${month}-${day}`;
+      break;
+    }
+  }
+  
+  // 날짜를 못 찾았으면 오늘 날짜
+  if (!extracted.date) {
+    extracted.date = new Date().toISOString().split('T')[0];
+  }
+  
+  // 3. 금액 추출 (합계, 총액, 결제금액 등의 키워드 근처)
+  const amountKeywords = ['합계', '총액', '결제금액', '합 계', 'TOTAL', 'Total', '카드승인금액', '받을금액'];
+  const numberPattern = /[\d,]+/g;
+  
+  // 금액 키워드가 있는 줄 찾기
+  for (const keyword of amountKeywords) {
+    for (const line of lines) {
+      if (line.includes(keyword)) {
+        // 해당 줄과 다음 줄에서 숫자 찾기
+        const numbers = line.match(numberPattern);
+        if (numbers) {
+          // 쉼표 제거하고 숫자로 변환
+          const amounts = numbers.map(n => parseInt(n.replace(/,/g, '')));
+          // 가장 큰 금액을 선택 (보통 합계가 가장 큼)
+          const maxAmount = Math.max(...amounts.filter(a => !isNaN(a) && a > 0));
+          if (maxAmount > 0 && maxAmount < 10000000) { // 1000만원 미만
+            extracted.amount = maxAmount;
+            break;
+          }
+        }
+      }
+    }
+    if (extracted.amount) break;
+  }
+  
+  // 금액을 못 찾았으면 가장 큰 숫자 사용
+  if (!extracted.amount) {
+    const allNumbers = text.match(numberPattern);
+    if (allNumbers) {
+      const amounts = allNumbers
+        .map(n => parseInt(n.replace(/,/g, '')))
+        .filter(a => !isNaN(a) && a > 100 && a < 10000000); // 100원 ~ 1000만원
+      
+      if (amounts.length > 0) {
+        extracted.amount = Math.max(...amounts);
+      }
+    }
+  }
+  
+  return extracted;
+}
 
 // 3) 영수증 목록 조회
 app.get('/api/receipts', authMiddleware, async (c) => {
