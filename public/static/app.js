@@ -46,10 +46,30 @@ const state = {
   currentTransactionType: 'income',
   investmentPriceRefreshInterval: null,
   darkMode: localStorage.getItem('darkMode') === 'true',
+  backgroundTheme: localStorage.getItem('backgroundTheme') || 'morning',
   // 인증 관련 상태
   isAuthenticated: false,
   currentUser: null,
   authToken: localStorage.getItem('authToken') || null
+};
+
+// 배경 테마 정의
+const BACKGROUND_THEMES = {
+  morning: {
+    name: '오전 (시원한 파랑)',
+    colors: 'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)',
+    description: '차가운 파란색/보라색 톤'
+  },
+  sunset: {
+    name: '노을 (따뜻한 핑크)',
+    colors: 'linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)',
+    description: '따뜻한 핑크/살구색 톤'
+  },
+  gray: {
+    name: '회색 (기본)',
+    colors: '#F3F4F6',
+    description: '심플한 회색 배경'
+  }
 };
 
 // 카테고리 정의
@@ -815,6 +835,9 @@ async function renderApp() {
   
   // 다크모드 적용
   applyDarkMode();
+  
+  // 배경 테마 적용
+  applyBackgroundTheme(state.backgroundTheme);
   
   // 설정 로드 및 초기 뷰 렌더링
   await fetchSettings();
@@ -4464,6 +4487,20 @@ async function renderSettingsView() {
         </div>
         
         <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">🎨 배경 테마</label>
+          <select id="background-theme-select" class="w-full px-4 py-2 border rounded" onchange="previewBackgroundTheme(this.value)">
+            ${Object.keys(BACKGROUND_THEMES).map(key => \`
+              <option value="\${key}" \${state.backgroundTheme === key ? 'selected' : ''}>
+                \${BACKGROUND_THEMES[key].name} - \${BACKGROUND_THEMES[key].description}
+              </option>
+            \`).join('')}
+          </select>
+          <p class="text-xs text-gray-500 mt-1">
+            <i class="fas fa-info-circle mr-1"></i>앱 배경 색상을 선택하세요
+          </p>
+        </div>
+        
+        <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">🌙 다크모드</label>
           <div class="flex items-center gap-3">
             <button onclick="toggleDarkMode()" 
@@ -5022,6 +5059,7 @@ async function saveSettings() {
   const currency = document.getElementById('currency-select').value;
   const initialBalanceValue = document.getElementById('initial-balance').value;
   const cashOnHandValue = document.getElementById('cash-on-hand').value;
+  const backgroundTheme = document.getElementById('background-theme-select').value;
   
   // 초기 잔액 검증
   const balanceValidation = validateNumber(initialBalanceValue, 0, 1000000000000, '초기 잔액');
@@ -5056,6 +5094,13 @@ async function saveSettings() {
     
     if (response.data.success) {
       const previousCurrency = state.settings.currency;
+      const previousTheme = state.backgroundTheme;
+      
+      // 배경 테마 저장 (로컬 스토리지)
+      state.backgroundTheme = backgroundTheme;
+      localStorage.setItem('backgroundTheme', backgroundTheme);
+      applyBackgroundTheme(backgroundTheme);
+      
       await fetchSettings();
       
       // 통화가 변경되었으면 현재 화면을 다시 렌더링
@@ -5112,6 +5157,48 @@ function applyDarkMode() {
   } else {
     document.documentElement.classList.remove('dark');
   }
+}
+
+// 배경 테마 적용
+function applyBackgroundTheme(theme) {
+  const body = document.body;
+  const html = document.documentElement;
+  const themeConfig = BACKGROUND_THEMES[theme];
+  
+  if (!themeConfig) return;
+  
+  // 동적 스타일 생성 또는 업데이트
+  let styleEl = document.getElementById('dynamic-background-style');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'dynamic-background-style';
+    document.head.appendChild(styleEl);
+  }
+  
+  // 테마 적용
+  const bgStyle = themeConfig.colors.includes('gradient') ? themeConfig.colors : themeConfig.colors;
+  
+  styleEl.textContent = `
+    html {
+      background: ${bgStyle} !important;
+      ${themeConfig.colors.includes('gradient') ? 'background-attachment: fixed !important;' : ''}
+    }
+    body {
+      background: ${bgStyle} !important;
+      ${themeConfig.colors.includes('gradient') ? 'background-attachment: fixed !important;' : ''}
+    }
+    body::before {
+      background: ${bgStyle} !important;
+    }
+    body::after {
+      background: ${bgStyle} !important;
+    }
+  `;
+}
+
+// 배경 테마 미리보기 (설정에서 선택 시)
+window.previewBackgroundTheme = function(theme) {
+  applyBackgroundTheme(theme);
 }
 
 // 데이터 내보내기/불러오기

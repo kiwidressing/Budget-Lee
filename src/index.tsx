@@ -1355,15 +1355,13 @@ app.get('/', (c) => {
     <link href="/static/style.css" rel="stylesheet">
     
     <style>
-        /* 회색 배경 - 바운스 시에도 배경 확장 */
+        /* 배경 - 바운스 시에도 배경 확장 */
         html {
-            background-color: #F3F4F6; /* bg-gray-100 */
             min-height: 100%;
         }
         body {
-            background-color: #F3F4F6; /* bg-gray-100 */
             min-height: 100vh;
-            padding-bottom: 150vh; /* 아래로 스크롤 시 배경 확장 */
+            padding-bottom: 150vh;
         }
         body::before {
             content: '';
@@ -1372,7 +1370,6 @@ app.get('/', (c) => {
             left: 0;
             right: 0;
             height: 150vh;
-            background-color: #F3F4F6; /* 위로 스크롤 시 배경 확장 */
             z-index: -1;
         }
         body::after {
@@ -1382,7 +1379,6 @@ app.get('/', (c) => {
             left: 0;
             right: 0;
             height: 150vh;
-            background-color: #F3F4F6; /* 아래로 스크롤 시 배경 확장 */
             z-index: -1;
         }
     </style>
