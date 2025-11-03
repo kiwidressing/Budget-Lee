@@ -5047,58 +5047,6 @@ function drawToCanvas(img, maxDim) {
   return { canvas, w, h };
 }
 
-// 이미지 압축 함수
-async function compressImageToWebp(file, maxSize = 600, quality = 0.3) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        // 비율 유지하면서 리사이즈
-        let width = img.width;
-        let height = img.height;
-        
-        if (width > height) {
-          if (width > maxSize) {
-            height = Math.round((height * maxSize) / width);
-            width = maxSize;
-          }
-        } else {
-          if (height > maxSize) {
-            width = Math.round((width * maxSize) / height);
-            height = maxSize;
-          }
-        }
-        
-        // Canvas에 그리기
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        // WebP Blob으로 변환
-        canvas.toBlob(
-          (blob) => {
-            resolve({
-              blob: blob,
-              width: width,
-              height: height,
-              mime: 'image/webp'
-            });
-          },
-          'image/webp',
-          quality
-        );
-      };
-      img.onerror = reject;
-      img.src = e.target.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 function canvasToBlob(canvas, type, quality) {
   return new Promise(resolve => canvas.toBlob(resolve, type, quality));
 }
@@ -6025,11 +5973,11 @@ window.exportToExcel = async function() {
     
     csvRows.push('=== 재무 요약 ===');
     csvRows.push('항목,금액');
-    csvRows.push(\`초기 잔액,\${settings.initial_balance || 0}\`);
-    csvRows.push(\`총 수입,\${totalIncome}\`);
-    csvRows.push(\`총 지출,\${totalExpense}\`);
-    csvRows.push(\`총 저축,\${totalSavings}\`);
-    csvRows.push(\`현재 잔액,\${currentBalance}\`);
+    csvRows.push(`초기 잔액,${settings.initial_balance || 0}`);
+    csvRows.push(`총 수입,${totalIncome}`);
+    csvRows.push(`총 지출,${totalExpense}`);
+    csvRows.push(`총 저축,${totalSavings}`);
+    csvRows.push(`현재 잔액,${currentBalance}`);
     csvRows.push('');
     
     // 저축 계좌 현황
@@ -6040,7 +5988,7 @@ window.exportToExcel = async function() {
         const balance = acc.balance || 0;
         const goal = acc.savings_goal || 0;
         const progress = goal > 0 ? ((balance / goal) * 100).toFixed(1) : 0;
-        csvRows.push(\`\${acc.name},\${balance},\${goal},\${progress}\`);
+        csvRows.push(`${acc.name},${balance},${goal},${progress}`);
       });
       csvRows.push('');
     }
@@ -6054,8 +6002,8 @@ window.exportToExcel = async function() {
     
     transactions.forEach(t => {
       const typeLabel = t.type === 'income' ? '수입' : t.type === 'expense' ? '지출' : '저축';
-      const description = (t.description || '').replace(/,/g, ' ').replace(/\\n/g, ' ');
-      csvRows.push(\`\${t.date},\${typeLabel},\${t.category},\${t.amount},\${description}\`);
+      const description = (t.description || '').replace(/,/g, ' ').replace(/\n/g, ' ');
+      csvRows.push(`${t.date},${typeLabel},${t.category},${t.amount},${description}`);
     });
     
     // 월별 통계
@@ -6078,16 +6026,16 @@ window.exportToExcel = async function() {
     Object.keys(monthlyData).sort().reverse().forEach(month => {
       const data = monthlyData[month];
       const netIncome = data.income - data.expense - data.savings;
-      csvRows.push(\`\${month},\${data.income},\${data.expense},\${data.savings},\${netIncome}\`);
+      csvRows.push(`${month},${data.income},${data.expense},${data.savings},${netIncome}`);
     });
     
     // CSV 파일 생성 및 다운로드
-    const csvContent = csvRows.join('\\n');
+    const csvContent = csvRows.join('\n');
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     
-    const filename = \`가계부_\${new Date().toISOString().split('T')[0]}.csv\`;
+    const filename = `가계부_${new Date().toISOString().split('T')[0]}.csv`;
     link.setAttribute('href', url);
     link.setAttribute('download', filename);
     link.style.visibility = 'hidden';
@@ -6095,7 +6043,7 @@ window.exportToExcel = async function() {
     link.click();
     document.body.removeChild(link);
     
-    alert(\`✅ CSV 파일이 다운로드되었습니다!\\n\\n파일명: \${filename}\\n\\n엑셀이나 구글 스프레드시트에서 열어서 확인하세요.\`);
+    alert(`✅ CSV 파일이 다운로드되었습니다!\n\n파일명: ${filename}\n\n엑셀이나 구글 스프레드시트에서 열어서 확인하세요.`);
     
   } catch (error) {
     console.error('[Export] CSV export error:', error);
