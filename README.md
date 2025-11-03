@@ -4,16 +4,35 @@
 
 ## 🌐 실시간 데모
 
-**🚀 프로덕션 URL**: https://budgetlee.pages.dev  
-**🔗 최신 배포**: https://9f8b9f3f.budgetlee.pages.dev
+**🚀 프로덕션 URL**: https://budget-lee.pages.dev  
+**🔗 최신 배포**: https://31d88c03.budget-lee.pages.dev
 **📦 GitHub 리포지토리**: https://github.com/kiwidressing/Budget-Lee
 
 > 배포 상태: ✅ Active (Cloudflare Pages)  
-> 마지막 배포: 2025-11-02 23:05 GMT  
-> 데이터베이스: ✅ 모든 22개 마이그레이션 완료  
+> 마지막 배포: 2025-11-03 13:30 GMT  
+> 데이터베이스: ✅ 모든 23개 마이그레이션 완료  
 > 자동 배포: `main` 브랜치에 push 시 자동으로 재배포됩니다
 
-## 🆕 최신 업데이트 (Session 13 - 저축 및 영수증 UX 개선) ⭐ **LATEST**
+## 🆕 최신 업데이트 (Session 14 - 채무 관리 및 엑셀 내보내기 강화) ⭐ **LATEST**
+
+### 💳 채무 관리 시스템 (NEW)
+- ✅ **채무 추가/수정/삭제**: 채권자, 금액, 이자율, 시작일, 만기일 관리
+- ✅ **4가지 카테고리**: 개인, 은행, 카드, 기타로 분류
+- ✅ **상환 기록**: 채무별 상환 내역 추적 및 잔액 자동 계산
+- ✅ **상태 관리**: 진행중/연체/상환완료 자동 분류
+- ✅ **상환 진행률**: 시각적 프로그레스 바와 통계 대시보드
+- ✅ **통계 요약**: 총 채무액, 남은 금액, 상환 완료액, 상환율
+- ✅ **카테고리별 분석**: 카테고리별 채무 현황 및 상환율
+
+### 📊 엑셀 내보내기 강화 (ENHANCED)
+- ✅ **저축 통장별 상세 내역**: 각 통장의 입출금 내역과 총 입금액
+- ✅ **월별 통계 확장**: 수입-지출, 저축률(%) 컬럼 추가
+- ✅ **카테고리별 지출 분석**: 총액, 건수, 평균 금액, 비율
+- ✅ **주별 통계**: 최근 12주간 수입/지출/저축/순수익
+- ✅ **채무 현황 포함**: 채무 목록, 상환 내역, 카테고리별 요약
+- ✅ **종합 재무 리포트**: 모든 재무 데이터를 하나의 CSV 파일로
+
+## 🆕 이전 업데이트 (Session 13 - 저축 및 영수증 UX 개선)
 
 ### 💰 저축 관리 개선
 - ✅ **목표 설정 버튼 추가**: 저축 탭에서 목표가 없는 계좌에 눈에 띄는 "목표 설정하기" 버튼 표시
@@ -333,12 +352,27 @@ Session 10에서 추가된 주요 개선 사항:
 - **키보드/클릭 지원**: ESC 키 또는 배경 클릭으로 모달 닫기 ⭐ **NEW**
 - **Base64 저장**: D1 데이터베이스에 이미지 직접 저장
 
-### 11. ⚙️ 설정 (Settings) ⭐ **ENHANCED**
+### 11. 💳 채무 관리 (Debts) ⭐ **NEW - Session 14**
+- **채무 추가/수정/삭제**: 채권자, 금액, 이자율, 만기일 관리
+- **카테고리 분류**: 개인, 은행, 카드, 기타 4가지 카테고리
+- **상환 기록**: 상환 날짜, 금액, 메모 기록
+- **자동 잔액 계산**: 상환 시 남은 금액 자동 업데이트
+- **상태 자동 분류**: 진행중/연체/상환완료
+- **통계 대시보드**: 
+  - 총 채무액 / 남은 금액 / 상환 완료액 / 상환율
+  - 카테고리별 채무 현황
+  - 상환 진행률 바
+- **상환 내역 조회**: 채무별 상환 히스토리
+- **정렬 기능**: 연체 → 진행중 → 완료 순으로 우선순위 정렬
+
+### 12. ⚙️ 설정 (Settings) ⭐ **ENHANCED**
 - **다중 통화 지원** (KRW ₩, USD $, EUR €, JPY ¥, AUD A$, GBP £)
 - **동적 통화 변경**: 설정 변경 시 모든 화면의 통화 기호 자동 업데이트
 - **실시간 반영**: 통화 변경 후 현재 보고 있는 뷰 자동 새로고침
 - 초기 잔액/저축액 설정
 - 사용자 정의 카테고리 색상
+- **엑셀 내보내기**: 종합 재무 리포트 CSV 다운로드 ⭐ **Session 14 강화**
+- **사용 방법 가이드**: 8개 섹션으로 구성된 도움말
 
 ## 🎨 기술 스택
 
@@ -364,7 +398,7 @@ Session 10에서 추가된 주요 개선 사항:
 
 ## 📊 데이터베이스 설계
 
-### 14개 테이블 구조 ⭐ **+4 NEW (Session 11)**
+### 16개 테이블 구조 ⭐ **+2 NEW (Session 14)**
 
 1. **settings** - 앱 전역 설정
 2. **savings_accounts** - 저축 통장
@@ -376,10 +410,12 @@ Session 10에서 추가된 주요 개선 사항:
 8. **investment_transactions** - 투자 거래 내역 (매수/매도)
 9. **receipts** - 영수증 관리 (사진, 구매처, 금액, 세금공제)
 10. **monthly_summary** - 월별 통계 캐시 (성능 최적화)
-11. **users** - 사용자 계정 (username, PBKDF2 hash, salt) ⭐ **Session 11**
-12. **sessions** - Refresh Token 세션 관리 ⭐ **Session 11**
-13. **accounts** - 금융 계좌 (입출금, 예금, 신용카드, 현금) ⭐ **NEW - Session 11**
-14. **transfers** - 계좌 간 이체 내역 ⭐ **NEW - Session 11**
+11. **users** - 사용자 계정 (username, PBKDF2 hash, salt)
+12. **sessions** - Refresh Token 세션 관리
+13. **accounts** - 금융 계좌 (입출금, 예금, 신용카드, 현금)
+14. **transfers** - 계좌 간 이체 내역
+15. **debts** - 채무 관리 (채권자, 금액, 이자율, 상태) ⭐ **NEW - Session 14**
+16. **debt_payments** - 채무 상환 내역 ⭐ **NEW - Session 14**
 
 ## 🚀 빠른 시작
 
@@ -498,7 +534,7 @@ webapp/
 └── README.md
 ```
 
-## 🔌 API 엔드포인트 (44개) ⭐ **+13 NEW (Session 11)**
+## 🔌 API 엔드포인트 (51개) ⭐ **+7 NEW (Session 14)**
 
 ### 인증 (4개) ⭐ **NEW - Session 11**
 - `POST /api/auth/register` - 회원가입 (PBKDF2 해싱)
@@ -559,6 +595,15 @@ webapp/
 - `DELETE /api/investments/:id` - 종목 삭제
 - `GET /api/investments/price/:symbol` - 실시간 주가 조회 (Yahoo Finance API)
 - `GET /api/investments/:id/transactions` - 종목별 거래 내역 (향후 구현 예정)
+
+### 채무 (7개) ⭐ **NEW - Session 14**
+- `GET /api/debts` - 채무 목록 조회 (상태별 정렬)
+- `POST /api/debts` - 새 채무 추가
+- `PUT /api/debts/:id` - 채무 정보 수정
+- `DELETE /api/debts/:id` - 채무 삭제
+- `GET /api/debts/:id/payments` - 채무별 상환 내역 조회
+- `POST /api/debts/:id/payments` - 상환 기록 추가 (잔액 자동 계산)
+- `DELETE /api/debts/:debtId/payments/:paymentId` - 상환 기록 삭제 (잔액 복원)
 
 ## 💡 핵심 알고리즘
 
