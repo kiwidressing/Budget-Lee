@@ -6,6 +6,7 @@ import { sign, verify } from 'hono/jwt'
 type Bindings = {
   DB: D1Database;
   JWT_SECRET?: string;
+  GOOGLE_VISION_API_KEY?: string;
 }
 
 type Variables = {
