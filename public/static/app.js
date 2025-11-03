@@ -3064,13 +3064,13 @@ function renderDebtCard(debt) {
   const daysElapsed = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
   
   // 일할 계산 (현재까지 발생한 이자)
-  const accruedInterest = debt.remaining_amount * (debt.interest_rate / 100) * (daysElapsed / 365);
+  const accruedInterest = Math.round(debt.remaining_amount * (debt.interest_rate / 100) * (daysElapsed / 365));
   
   // 연간 이자 (남은 원금 기준)
-  const yearlyInterest = debt.remaining_amount * (debt.interest_rate / 100);
+  const yearlyInterest = Math.round(debt.remaining_amount * (debt.interest_rate / 100));
   
   // 월간 이자 (남은 원금 기준)
-  const monthlyInterest = debt.remaining_amount * (debt.interest_rate / 100) / 12;
+  const monthlyInterest = Math.round(debt.remaining_amount * (debt.interest_rate / 100) / 12);
   
   return `
     <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -3121,7 +3121,7 @@ function renderDebtCard(debt) {
         <div>
           <p class="text-xs text-gray-500">발생 이자 (연/월)</p>
           <p class="font-semibold text-orange-600">
-            ${formatCurrency(Math.round(yearlyInterest))}/${formatCurrency(Math.round(monthlyInterest))}
+            ${formatCurrency(yearlyInterest)}/${formatCurrency(monthlyInterest)}
           </p>
         </div>
         <div>
@@ -3130,7 +3130,7 @@ function renderDebtCard(debt) {
         </div>
         <div>
           <p class="text-xs text-gray-500">총 상환 예상액</p>
-          <p class="font-semibold text-red-600">${formatCurrency(Math.round(debt.remaining_amount + accruedInterest))}</p>
+          <p class="font-semibold text-red-600">${formatCurrency(debt.remaining_amount + accruedInterest)}</p>
         </div>
       </div>
       
