@@ -784,6 +784,9 @@ async function renderApp() {
             <button id="tab-receipts" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
               <i class="fas fa-receipt mr-2"></i>영수증
             </button>
+            <button id="tab-debts" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
+              <i class="fas fa-hand-holding-usd mr-2"></i>채무
+            </button>
             <button id="tab-reports" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
               <i class="fas fa-chart-bar mr-2"></i>리포트
             </button>
@@ -957,7 +960,7 @@ async function switchView(view) {
   state.activeView = view;
   
   // 모든 탭 버튼 업데이트
-  const tabs = ['home', 'month', 'week', 'savings', 'fixed-expenses', 'budgets', 'investments', 'receipts', 'reports', 'settings'];
+  const tabs = ['home', 'month', 'week', 'savings', 'fixed-expenses', 'budgets', 'investments', 'receipts', 'debts', 'reports', 'settings'];
   tabs.forEach(tabName => {
     const tab = document.getElementById(`tab-${tabName}`);
     if (tab) {
@@ -994,6 +997,9 @@ async function switchView(view) {
       break;
     case 'receipts':
       await renderReceiptsView();
+      break;
+    case 'debts':
+      await renderDebtsView();
       break;
     case 'reports':
       await renderReportsView();
@@ -2910,6 +2916,560 @@ async function handleEditTransactionSubmit(event, transactionId) {
     alert('거래 수정 중 오류가 발생했습니다.');
   }
 }
+
+// ============================================================
+// 채무 관리 뷰
+// ============================================================
+
+async function renderDebtsView() {
+  const contentArea = document.getElementById('content-area');
+  
+  // 채무 데이터 로드
+  const response = await axios.get('/api/debts');
+  const debts = response.data.debts || [];
+  
+  // 상태별 분류
+  const activeDebts = debts.filter(d => d.status === 'active');
+  const overdueDebts = debts.filter(d => d.status === 'overdue');
+  const paidDebts = debts.filter(d => d.status === 'paid');
+  
+  // 통계 계산
+  const totalDebt = debts.reduce((sum, d) => sum + d.amount, 0);
+  const totalRemaining = debts.reduce((sum, d) => sum + d.remaining_amount, 0);
+  const totalPaid = totalDebt - totalRemaining;
+  const paymentProgress = totalDebt > 0 ? ((totalPaid / totalDebt) * 100).toFixed(1) : 0;
+  
+  contentArea.innerHTML = `
+    <div class="space-y-6">
+      <!-- 헤더 -->
+      <div class="flex justify-between items-center">
+        <h2 class="text-2xl font-bold text-gray-800">
+          <i class="fas fa-hand-holding-usd mr-2"></i>채무 관리
+        </h2>
+        <button onclick="showAddDebtModal()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+          <i class="fas fa-plus mr-2"></i>채무 추가
+        </button>
+      </div>
+      
+      <!-- 통계 카드 -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-600">총 채무액</p>
+              <p class="text-2xl font-bold text-red-600">${totalDebt.toLocaleString()}원</p>
+            </div>
+            <i class="fas fa-file-invoice-dollar text-3xl text-red-300"></i>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-600">남은 금액</p>
+              <p class="text-2xl font-bold text-orange-600">${totalRemaining.toLocaleString()}원</p>
+            </div>
+            <i class="fas fa-exclamation-circle text-3xl text-orange-300"></i>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-600">상환 완료</p>
+              <p class="text-2xl font-bold text-green-600">${totalPaid.toLocaleString()}원</p>
+            </div>
+            <i class="fas fa-check-circle text-3xl text-green-300"></i>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-600">상환율</p>
+              <p class="text-2xl font-bold text-blue-600">${paymentProgress}%</p>
+            </div>
+            <i class="fas fa-percentage text-3xl text-blue-300"></i>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 채무 목록 -->
+      <div class="space-y-4">
+        ${overdueDebts.length > 0 ? `
+          <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-bold text-red-600 mb-4">
+              <i class="fas fa-exclamation-triangle mr-2"></i>연체된 채무
+            </h3>
+            <div class="space-y-3">
+              ${overdueDebts.map(debt => renderDebtCard(debt)).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
+        ${activeDebts.length > 0 ? `
+          <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">
+              <i class="fas fa-clock mr-2"></i>진행 중인 채무
+            </h3>
+            <div class="space-y-3">
+              ${activeDebts.map(debt => renderDebtCard(debt)).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
+        ${paidDebts.length > 0 ? `
+          <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-bold text-green-600 mb-4">
+              <i class="fas fa-check-double mr-2"></i>상환 완료
+            </h3>
+            <div class="space-y-3">
+              ${paidDebts.map(debt => renderDebtCard(debt)).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
+        ${debts.length === 0 ? `
+          <div class="bg-white rounded-lg shadow-md p-12 text-center">
+            <i class="fas fa-hand-holding-usd text-6xl text-gray-300 mb-4"></i>
+            <p class="text-gray-500 mb-6">등록된 채무가 없습니다</p>
+            <button onclick="showAddDebtModal()" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
+              <i class="fas fa-plus mr-2"></i>첫 채무 추가하기
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function renderDebtCard(debt) {
+  const progress = debt.amount > 0 ? ((debt.amount - debt.remaining_amount) / debt.amount * 100).toFixed(1) : 0;
+  const isOverdue = debt.status === 'overdue';
+  const isPaid = debt.status === 'paid';
+  
+  const statusColor = isPaid ? 'green' : (isOverdue ? 'red' : 'orange');
+  const statusIcon = isPaid ? 'check-circle' : (isOverdue ? 'exclamation-triangle' : 'clock');
+  const statusText = isPaid ? '상환완료' : (isOverdue ? '연체' : '진행중');
+  
+  return `
+    <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
+      <div class="flex justify-between items-start mb-3">
+        <div class="flex-1">
+          <div class="flex items-center gap-2 mb-1">
+            <h4 class="font-bold text-lg">${debt.creditor}</h4>
+            <span class="text-xs px-2 py-1 rounded bg-${statusColor}-100 text-${statusColor}-600">
+              <i class="fas fa-${statusIcon} mr-1"></i>${statusText}
+            </span>
+            <span class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600">
+              ${debt.category}
+            </span>
+          </div>
+          ${debt.notes ? `<p class="text-sm text-gray-600">${debt.notes}</p>` : ''}
+        </div>
+        <div class="flex gap-2">
+          ${!isPaid ? `
+            <button onclick="showRecordPaymentModal(${debt.id})" 
+                    class="text-green-500 hover:text-green-700" title="상환 기록">
+              <i class="fas fa-money-bill-wave"></i>
+            </button>
+          ` : ''}
+          <button onclick="showEditDebtModal(${debt.id})" 
+                  class="text-blue-500 hover:text-blue-700" title="수정">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button onclick="deleteDebt(${debt.id})" 
+                  class="text-red-500 hover:text-red-700" title="삭제">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-4 mb-3">
+        <div>
+          <p class="text-xs text-gray-500">총 채무액</p>
+          <p class="font-semibold">${debt.amount.toLocaleString()}원</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500">남은 금액</p>
+          <p class="font-semibold text-${statusColor}-600">${debt.remaining_amount.toLocaleString()}원</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500">이자율</p>
+          <p class="font-semibold">${debt.interest_rate}%</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500">만기일</p>
+          <p class="font-semibold">${debt.due_date || '-'}</p>
+        </div>
+      </div>
+      
+      <!-- 상환 진행률 -->
+      <div class="mb-3">
+        <div class="flex justify-between text-xs text-gray-600 mb-1">
+          <span>상환 진행률</span>
+          <span>${progress}%</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2">
+          <div class="bg-${statusColor}-500 h-2 rounded-full transition-all" 
+               style="width: ${progress}%"></div>
+        </div>
+      </div>
+      
+      <!-- 상환 내역 보기 버튼 -->
+      ${!isPaid ? `
+        <button onclick="showPaymentHistory(${debt.id})" 
+                class="text-sm text-blue-500 hover:text-blue-700">
+          <i class="fas fa-history mr-1"></i>상환 내역 보기
+        </button>
+      ` : ''}
+    </div>
+  `;
+}
+
+// 채무 추가 모달
+window.showAddDebtModal = function() {
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+  modal.innerHTML = `
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+      <h3 class="text-xl font-bold mb-4">
+        <i class="fas fa-plus mr-2"></i>채무 추가
+      </h3>
+      <form id="add-debt-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">채권자 *</label>
+          <input type="text" name="creditor" required
+                 class="w-full border rounded px-3 py-2"
+                 placeholder="예: 김철수, OO은행">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">채무 금액 *</label>
+          <input type="number" name="amount" required min="0"
+                 class="w-full border rounded px-3 py-2"
+                 placeholder="0">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">이자율 (%)</label>
+          <input type="number" name="interest_rate" step="0.1" min="0"
+                 class="w-full border rounded px-3 py-2"
+                 placeholder="0">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">시작일 *</label>
+          <input type="date" name="start_date" required
+                 class="w-full border rounded px-3 py-2"
+                 value="${new Date().toISOString().split('T')[0]}">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">만기일</label>
+          <input type="date" name="due_date"
+                 class="w-full border rounded px-3 py-2">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">카테고리</label>
+          <select name="category" class="w-full border rounded px-3 py-2">
+            <option value="개인">개인</option>
+            <option value="은행">은행</option>
+            <option value="카드">카드</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">메모</label>
+          <textarea name="notes" rows="3"
+                    class="w-full border rounded px-3 py-2"
+                    placeholder="추가 정보를 입력하세요"></textarea>
+        </div>
+        
+        <div class="flex gap-3">
+          <button type="submit" class="flex-1 bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+            추가
+          </button>
+          <button type="button" onclick="this.closest('.fixed').remove()"
+                  class="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400">
+            취소
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  document.getElementById('add-debt-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    
+    try {
+      await axios.post('/api/debts', data);
+      modal.remove();
+      await renderDebtsView();
+    } catch (error) {
+      alert('채무 추가 실패: ' + (error.response?.data?.error || error.message));
+    }
+  });
+};
+
+// 채무 수정 모달
+window.showEditDebtModal = async function(debtId) {
+  const response = await axios.get('/api/debts');
+  const debt = response.data.debts.find(d => d.id === debtId);
+  
+  if (!debt) {
+    alert('채무를 찾을 수 없습니다');
+    return;
+  }
+  
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+  modal.innerHTML = `
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+      <h3 class="text-xl font-bold mb-4">
+        <i class="fas fa-edit mr-2"></i>채무 수정
+      </h3>
+      <form id="edit-debt-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">채권자 *</label>
+          <input type="text" name="creditor" required value="${debt.creditor}"
+                 class="w-full border rounded px-3 py-2">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">총 채무액 *</label>
+          <input type="number" name="amount" required min="0" value="${debt.amount}"
+                 class="w-full border rounded px-3 py-2">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">남은 금액 *</label>
+          <input type="number" name="remaining_amount" required min="0" value="${debt.remaining_amount}"
+                 class="w-full border rounded px-3 py-2">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">이자율 (%)</label>
+          <input type="number" name="interest_rate" step="0.1" min="0" value="${debt.interest_rate}"
+                 class="w-full border rounded px-3 py-2">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">시작일 *</label>
+          <input type="date" name="start_date" required value="${debt.start_date}"
+                 class="w-full border rounded px-3 py-2">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">만기일</label>
+          <input type="date" name="due_date" value="${debt.due_date || ''}"
+                 class="w-full border rounded px-3 py-2">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">상태</label>
+          <select name="status" class="w-full border rounded px-3 py-2">
+            <option value="active" ${debt.status === 'active' ? 'selected' : ''}>진행중</option>
+            <option value="overdue" ${debt.status === 'overdue' ? 'selected' : ''}>연체</option>
+            <option value="paid" ${debt.status === 'paid' ? 'selected' : ''}>상환완료</option>
+          </select>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">카테고리</label>
+          <select name="category" class="w-full border rounded px-3 py-2">
+            <option value="개인" ${debt.category === '개인' ? 'selected' : ''}>개인</option>
+            <option value="은행" ${debt.category === '은행' ? 'selected' : ''}>은행</option>
+            <option value="카드" ${debt.category === '카드' ? 'selected' : ''}>카드</option>
+            <option value="기타" ${debt.category === '기타' ? 'selected' : ''}>기타</option>
+          </select>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">메모</label>
+          <textarea name="notes" rows="3"
+                    class="w-full border rounded px-3 py-2">${debt.notes || ''}</textarea>
+        </div>
+        
+        <div class="flex gap-3">
+          <button type="submit" class="flex-1 bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+            저장
+          </button>
+          <button type="button" onclick="this.closest('.fixed').remove()"
+                  class="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400">
+            취소
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  document.getElementById('edit-debt-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    
+    try {
+      await axios.put(`/api/debts/${debtId}`, data);
+      modal.remove();
+      await renderDebtsView();
+    } catch (error) {
+      alert('채무 수정 실패: ' + (error.response?.data?.error || error.message));
+    }
+  });
+};
+
+// 채무 삭제
+window.deleteDebt = async function(debtId) {
+  if (!confirm('이 채무를 삭제하시겠습니까?')) return;
+  
+  try {
+    await axios.delete(`/api/debts/${debtId}`);
+    await renderDebtsView();
+  } catch (error) {
+    alert('채무 삭제 실패: ' + (error.response?.data?.error || error.message));
+  }
+};
+
+// 상환 기록 모달
+window.showRecordPaymentModal = function(debtId) {
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+  modal.innerHTML = `
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+      <h3 class="text-xl font-bold mb-4">
+        <i class="fas fa-money-bill-wave mr-2"></i>상환 기록
+      </h3>
+      <form id="record-payment-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">상환 금액 *</label>
+          <input type="number" name="amount" required min="0"
+                 class="w-full border rounded px-3 py-2"
+                 placeholder="0">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">상환 날짜 *</label>
+          <input type="date" name="payment_date" required
+                 class="w-full border rounded px-3 py-2"
+                 value="${new Date().toISOString().split('T')[0]}">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium mb-1">메모</label>
+          <textarea name="notes" rows="3"
+                    class="w-full border rounded px-3 py-2"
+                    placeholder="상환 관련 메모"></textarea>
+        </div>
+        
+        <div class="flex gap-3">
+          <button type="submit" class="flex-1 bg-green-500 text-white py-2 rounded hover:bg-green-600">
+            기록
+          </button>
+          <button type="button" onclick="this.closest('.fixed').remove()"
+                  class="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400">
+            취소
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  document.getElementById('record-payment-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    
+    try {
+      await axios.post(`/api/debts/${debtId}/payments`, data);
+      modal.remove();
+      await renderDebtsView();
+    } catch (error) {
+      alert('상환 기록 실패: ' + (error.response?.data?.error || error.message));
+    }
+  });
+};
+
+// 상환 내역 보기
+window.showPaymentHistory = async function(debtId) {
+  try {
+    const response = await axios.get(`/api/debts/${debtId}/payments`);
+    const payments = response.data.payments || [];
+    
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+      <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+        <h3 class="text-xl font-bold mb-4">
+          <i class="fas fa-history mr-2"></i>상환 내역
+        </h3>
+        ${payments.length > 0 ? `
+          <div class="space-y-3">
+            ${payments.map(payment => `
+              <div class="border rounded-lg p-4 flex justify-between items-start">
+                <div class="flex-1">
+                  <div class="flex items-center gap-3 mb-2">
+                    <span class="font-bold text-lg text-green-600">${payment.amount.toLocaleString()}원</span>
+                    <span class="text-sm text-gray-500">${payment.payment_date}</span>
+                  </div>
+                  ${payment.notes ? `<p class="text-sm text-gray-600">${payment.notes}</p>` : ''}
+                </div>
+                <button onclick="deletePayment(${debtId}, ${payment.id})"
+                        class="text-red-500 hover:text-red-700 ml-4" title="삭제">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            `).join('')}
+          </div>
+          <div class="mt-4 pt-4 border-t">
+            <div class="flex justify-between font-bold">
+              <span>총 상환액:</span>
+              <span class="text-green-600">${payments.reduce((sum, p) => sum + p.amount, 0).toLocaleString()}원</span>
+            </div>
+          </div>
+        ` : `
+          <p class="text-center text-gray-500 py-8">상환 내역이 없습니다</p>
+        `}
+        <div class="mt-6">
+          <button onclick="this.closest('.fixed').remove()"
+                  class="w-full bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400">
+            닫기
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+  } catch (error) {
+    alert('상환 내역 조회 실패: ' + (error.response?.data?.error || error.message));
+  }
+};
+
+// 상환 내역 삭제
+window.deletePayment = async function(debtId, paymentId) {
+  if (!confirm('이 상환 기록을 삭제하시겠습니까?')) return;
+  
+  try {
+    await axios.delete(`/api/debts/${debtId}/payments/${paymentId}`);
+    // 모달 닫고 다시 열기
+    document.querySelector('.fixed').remove();
+    await showPaymentHistory(debtId);
+    // 채무 목록도 갱신
+    await renderDebtsView();
+  } catch (error) {
+    alert('상환 기록 삭제 실패: ' + (error.response?.data?.error || error.message));
+  }
+};
 
 // 연간 지출 리포트 뷰
 
@@ -6006,10 +6566,33 @@ window.exportToExcel = async function() {
       csvRows.push(`${t.date},${typeLabel},${t.category},${t.amount},${description}`);
     });
     
+    // 저축 통장별 상세 내역
+    if (savingsAccounts.length > 0) {
+      csvRows.push('=== 저축 통장별 입출금 내역 ===');
+      savingsAccounts.forEach(acc => {
+        const accTransactions = transactions.filter(t => 
+          t.type === 'savings' && t.savings_account_id === acc.id
+        );
+        
+        if (accTransactions.length > 0) {
+          csvRows.push('');
+          csvRows.push(`${acc.name} (잔액: ${acc.balance || 0})`);
+          csvRows.push('날짜,금액,설명');
+          accTransactions.forEach(t => {
+            const description = (t.description || '').replace(/,/g, ' ');
+            csvRows.push(`${t.date},${t.amount},${description}`);
+          });
+          
+          const totalDeposits = accTransactions.reduce((sum, t) => sum + t.amount, 0);
+          csvRows.push(`총 입금액,${totalDeposits},`);
+        }
+      });
+      csvRows.push('');
+    }
+    
     // 월별 통계
-    csvRows.push('');
     csvRows.push('=== 월별 통계 ===');
-    csvRows.push('년월,수입,지출,저축,순수익');
+    csvRows.push('년월,수입,지출,저축,순수익,수입-지출,저축률(%)');
     
     // 월별 집계
     const monthlyData = {};
@@ -6026,8 +6609,157 @@ window.exportToExcel = async function() {
     Object.keys(monthlyData).sort().reverse().forEach(month => {
       const data = monthlyData[month];
       const netIncome = data.income - data.expense - data.savings;
-      csvRows.push(`${month},${data.income},${data.expense},${data.savings},${netIncome}`);
+      const incomeMinusExpense = data.income - data.expense;
+      const savingsRate = data.income > 0 ? ((data.savings / data.income) * 100).toFixed(1) : 0;
+      csvRows.push(`${month},${data.income},${data.expense},${data.savings},${netIncome},${incomeMinusExpense},${savingsRate}`);
     });
+    
+    // 월별 합계
+    const totalMonthlyIncome = Object.values(monthlyData).reduce((sum, d) => sum + d.income, 0);
+    const totalMonthlyExpense = Object.values(monthlyData).reduce((sum, d) => sum + d.expense, 0);
+    const totalMonthlySavings = Object.values(monthlyData).reduce((sum, d) => sum + d.savings, 0);
+    const totalNetIncome = totalMonthlyIncome - totalMonthlyExpense - totalMonthlySavings;
+    const avgSavingsRate = totalMonthlyIncome > 0 ? ((totalMonthlySavings / totalMonthlyIncome) * 100).toFixed(1) : 0;
+    csvRows.push(`합계,${totalMonthlyIncome},${totalMonthlyExpense},${totalMonthlySavings},${totalNetIncome},${totalMonthlyIncome - totalMonthlyExpense},${avgSavingsRate}`);
+    
+    // 카테고리별 지출 분석
+    csvRows.push('');
+    csvRows.push('=== 카테고리별 지출 분석 ===');
+    csvRows.push('카테고리,총 지출액,건수,평균 금액,비율(%)');
+    
+    const categoryData = {};
+    const expenseTransactions = transactions.filter(t => t.type === 'expense');
+    
+    expenseTransactions.forEach(t => {
+      if (!categoryData[t.category]) {
+        categoryData[t.category] = { total: 0, count: 0 };
+      }
+      categoryData[t.category].total += t.amount;
+      categoryData[t.category].count += 1;
+    });
+    
+    Object.entries(categoryData)
+      .sort((a, b) => b[1].total - a[1].total)
+      .forEach(([category, data]) => {
+        const avg = data.count > 0 ? Math.round(data.total / data.count) : 0;
+        const percentage = totalExpense > 0 ? ((data.total / totalExpense) * 100).toFixed(1) : 0;
+        csvRows.push(`${category},${data.total},${data.count},${avg},${percentage}`);
+      });
+    
+    csvRows.push(`합계,${totalExpense},${expenseTransactions.length},,100.0`);
+    
+    // 주별 통계 (최근 12주)
+    csvRows.push('');
+    csvRows.push('=== 주별 통계 (최근 12주) ===');
+    csvRows.push('주차,시작일,종료일,수입,지출,저축,순수익');
+    
+    const today = new Date();
+    const weeks = [];
+    
+    for (let i = 11; i >= 0; i--) {
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - (i * 7) - today.getDay());
+      
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      
+      const weekStartStr = weekStart.toISOString().split('T')[0];
+      const weekEndStr = weekEnd.toISOString().split('T')[0];
+      
+      const weekTransactions = transactions.filter(t => 
+        t.date >= weekStartStr && t.date <= weekEndStr
+      );
+      
+      const weekIncome = weekTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+      const weekExpense = weekTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+      const weekSavings = weekTransactions.filter(t => t.type === 'savings').reduce((sum, t) => sum + t.amount, 0);
+      const weekNet = weekIncome - weekExpense - weekSavings;
+      
+      const weekLabel = `${weekStart.getMonth() + 1}월 ${Math.ceil(weekStart.getDate() / 7)}주차`;
+      csvRows.push(`${weekLabel},${weekStartStr},${weekEndStr},${weekIncome},${weekExpense},${weekSavings},${weekNet}`);
+    }
+    
+    // 채무 현황
+    try {
+      const debtsRes = await axios.get('/api/debts');
+      const debts = debtsRes.data.debts || [];
+      
+      if (debts.length > 0) {
+        csvRows.push('');
+        csvRows.push('=== 채무 현황 ===');
+        csvRows.push('채권자,카테고리,총 채무액,남은 금액,상환 완료,이자율(%),시작일,만기일,상태,메모');
+        
+        debts.forEach(debt => {
+          const paid = debt.amount - debt.remaining_amount;
+          const statusText = debt.status === 'paid' ? '상환완료' : (debt.status === 'overdue' ? '연체' : '진행중');
+          csvRows.push(
+            `${debt.creditor},${debt.category},${debt.amount},${debt.remaining_amount},${paid},${debt.interest_rate},${debt.start_date},${debt.due_date || '-'},${statusText},"${(debt.notes || '').replace(/"/g, '""')}"`
+          );
+        });
+        
+        // 채무 요약
+        const totalDebt = debts.reduce((sum, d) => sum + d.amount, 0);
+        const totalRemaining = debts.reduce((sum, d) => sum + d.remaining_amount, 0);
+        const totalPaid = totalDebt - totalRemaining;
+        const paymentProgress = totalDebt > 0 ? ((totalPaid / totalDebt) * 100).toFixed(1) : 0;
+        
+        csvRows.push('');
+        csvRows.push('채무 요약');
+        csvRows.push(`총 채무액,${totalDebt}`);
+        csvRows.push(`상환 완료,${totalPaid}`);
+        csvRows.push(`남은 금액,${totalRemaining}`);
+        csvRows.push(`상환율(%),${paymentProgress}`);
+        
+        // 카테고리별 채무
+        csvRows.push('');
+        csvRows.push('카테고리별 채무');
+        csvRows.push('카테고리,총 채무액,남은 금액,상환율(%)');
+        
+        const categoryDebts = {};
+        debts.forEach(debt => {
+          if (!categoryDebts[debt.category]) {
+            categoryDebts[debt.category] = { total: 0, remaining: 0 };
+          }
+          categoryDebts[debt.category].total += debt.amount;
+          categoryDebts[debt.category].remaining += debt.remaining_amount;
+        });
+        
+        Object.entries(categoryDebts).forEach(([category, data]) => {
+          const paid = data.total - data.remaining;
+          const progress = data.total > 0 ? ((paid / data.total) * 100).toFixed(1) : 0;
+          csvRows.push(`${category},${data.total},${data.remaining},${progress}`);
+        });
+        
+        // 상환 내역
+        csvRows.push('');
+        csvRows.push('=== 채무별 상환 내역 ===');
+        
+        for (const debt of debts) {
+          try {
+            const paymentsRes = await axios.get(`/api/debts/${debt.id}/payments`);
+            const payments = paymentsRes.data.payments || [];
+            
+            if (payments.length > 0) {
+              csvRows.push('');
+              csvRows.push(`${debt.creditor} - 상환 내역`);
+              csvRows.push('날짜,금액,메모');
+              
+              payments.forEach(payment => {
+                csvRows.push(`${payment.payment_date},${payment.amount},"${(payment.notes || '').replace(/"/g, '""')}"`);
+              });
+              
+              const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0);
+              csvRows.push(`총 상환액,${totalPayments}`);
+            }
+          } catch (err) {
+            console.error(`Failed to fetch payments for debt ${debt.id}:`, err);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[Export] Failed to fetch debts:', error);
+      // Continue even if debt fetch fails
+    }
     
     // CSV 파일 생성 및 다운로드
     const csvContent = csvRows.join('\n');

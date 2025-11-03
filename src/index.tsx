@@ -1956,4 +1956,327 @@ app.delete('/api/receipts/:id', authMiddleware, async (c) => {
   }
 });
 
+// ============================================================
+// Debts API (채무 관리)
+// ============================================================
+
+// Get all debts for user
+app.get('/api/debts', async (c) => {
+  try {
+    const { DB } = c.env as { DB: D1Database };
+    const userId = await getUserId(c);
+    
+    if (!userId) {
+      return c.json({ success: false, error: 'Unauthorized' }, 401);
+    }
+
+    const debts = await DB.prepare(`
+      SELECT * FROM debts 
+      WHERE user_id = ?
+      ORDER BY 
+        CASE status 
+          WHEN 'overdue' THEN 1 
+          WHEN 'active' THEN 2 
+          WHEN 'paid' THEN 3 
+        END,
+        due_date ASC
+    `).bind(String(userId)).all();
+
+    return c.json({ 
+      success: true, 
+      debts: debts.results || [] 
+    });
+  } catch (error: any) {
+    console.error('[Debts] Get all error:', error);
+    return c.json({ success: false, error: '채무 목록 조회 실패' }, 500);
+  }
+});
+
+// Create new debt
+app.post('/api/debts', async (c) => {
+  try {
+    const { DB } = c.env as { DB: D1Database };
+    const userId = await getUserId(c);
+    
+    if (!userId) {
+      return c.json({ success: false, error: 'Unauthorized' }, 401);
+    }
+
+    const body = await c.req.json();
+    const { creditor, amount, interest_rate, start_date, due_date, category, notes } = body;
+
+    if (!creditor || !amount || !start_date) {
+      return c.json({ 
+        success: false, 
+        error: '채권자, 금액, 시작일은 필수입니다' 
+      }, 400);
+    }
+
+    const result = await DB.prepare(`
+      INSERT INTO debts (
+        creditor, amount, remaining_amount, interest_rate,
+        start_date, due_date, category, notes, user_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      creditor,
+      Number(amount),
+      Number(amount), // 초기 remaining_amount는 전체 금액과 동일
+      Number(interest_rate || 0),
+      start_date,
+      due_date || null,
+      category || '개인',
+      notes || null,
+      String(userId)
+    ).run();
+
+    return c.json({ 
+      success: true, 
+      id: result.meta.last_row_id 
+    });
+  } catch (error: any) {
+    console.error('[Debts] Create error:', error);
+    return c.json({ success: false, error: '채무 생성 실패' }, 500);
+  }
+});
+
+// Update debt
+app.put('/api/debts/:id', async (c) => {
+  try {
+    const { DB } = c.env as { DB: D1Database };
+    const userId = await getUserId(c);
+    
+    if (!userId) {
+      return c.json({ success: false, error: 'Unauthorized' }, 401);
+    }
+
+    const id = c.req.param('id');
+    const body = await c.req.json();
+    const { creditor, amount, remaining_amount, interest_rate, start_date, due_date, status, category, notes } = body;
+
+    // Verify debt belongs to user
+    const debt = await DB.prepare(`
+      SELECT * FROM debts WHERE id = ? AND user_id = ?
+    `).bind(id, String(userId)).first();
+
+    if (!debt) {
+      return c.json({ success: false, error: 'Debt not found' }, 404);
+    }
+
+    await DB.prepare(`
+      UPDATE debts 
+      SET creditor = ?, amount = ?, remaining_amount = ?, 
+          interest_rate = ?, start_date = ?, due_date = ?,
+          status = ?, category = ?, notes = ?,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND user_id = ?
+    `).bind(
+      creditor,
+      Number(amount),
+      Number(remaining_amount),
+      Number(interest_rate || 0),
+      start_date,
+      due_date || null,
+      status || 'active',
+      category || '개인',
+      notes || null,
+      id,
+      String(userId)
+    ).run();
+
+    return c.json({ success: true });
+  } catch (error: any) {
+    console.error('[Debts] Update error:', error);
+    return c.json({ success: false, error: '채무 수정 실패' }, 500);
+  }
+});
+
+// Delete debt
+app.delete('/api/debts/:id', async (c) => {
+  try {
+    const { DB } = c.env as { DB: D1Database };
+    const userId = await getUserId(c);
+    
+    if (!userId) {
+      return c.json({ success: false, error: 'Unauthorized' }, 401);
+    }
+
+    const id = c.req.param('id');
+
+    // Verify debt belongs to user
+    const debt = await DB.prepare(`
+      SELECT * FROM debts WHERE id = ? AND user_id = ?
+    `).bind(id, String(userId)).first();
+
+    if (!debt) {
+      return c.json({ success: false, error: 'Debt not found' }, 404);
+    }
+
+    // Delete debt (cascade will delete payments)
+    await DB.prepare(`
+      DELETE FROM debts WHERE id = ? AND user_id = ?
+    `).bind(id, String(userId)).run();
+
+    return c.json({ success: true });
+  } catch (error: any) {
+    console.error('[Debts] Delete error:', error);
+    return c.json({ success: false, error: '채무 삭제 실패' }, 500);
+  }
+});
+
+// Get payment history for a debt
+app.get('/api/debts/:id/payments', async (c) => {
+  try {
+    const { DB } = c.env as { DB: D1Database };
+    const userId = await getUserId(c);
+    
+    if (!userId) {
+      return c.json({ success: false, error: 'Unauthorized' }, 401);
+    }
+
+    const debtId = c.req.param('id');
+
+    // Verify debt belongs to user
+    const debt = await DB.prepare(`
+      SELECT * FROM debts WHERE id = ? AND user_id = ?
+    `).bind(debtId, String(userId)).first();
+
+    if (!debt) {
+      return c.json({ success: false, error: 'Debt not found' }, 404);
+    }
+
+    const payments = await DB.prepare(`
+      SELECT * FROM debt_payments 
+      WHERE debt_id = ? AND user_id = ?
+      ORDER BY payment_date DESC
+    `).bind(debtId, String(userId)).all();
+
+    return c.json({ 
+      success: true, 
+      payments: payments.results || [] 
+    });
+  } catch (error: any) {
+    console.error('[Debts] Get payments error:', error);
+    return c.json({ success: false, error: '상환 내역 조회 실패' }, 500);
+  }
+});
+
+// Record a payment for a debt
+app.post('/api/debts/:id/payments', async (c) => {
+  try {
+    const { DB } = c.env as { DB: D1Database };
+    const userId = await getUserId(c);
+    
+    if (!userId) {
+      return c.json({ success: false, error: 'Unauthorized' }, 401);
+    }
+
+    const debtId = c.req.param('id');
+    const body = await c.req.json();
+    const { amount, payment_date, notes } = body;
+
+    if (!amount || !payment_date) {
+      return c.json({ 
+        success: false, 
+        error: '금액과 날짜는 필수입니다' 
+      }, 400);
+    }
+
+    // Verify debt belongs to user
+    const debt = await DB.prepare(`
+      SELECT * FROM debts WHERE id = ? AND user_id = ?
+    `).bind(debtId, String(userId)).first() as any;
+
+    if (!debt) {
+      return c.json({ success: false, error: 'Debt not found' }, 404);
+    }
+
+    // Record payment
+    await DB.prepare(`
+      INSERT INTO debt_payments (debt_id, amount, payment_date, notes, user_id)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(
+      debtId,
+      Number(amount),
+      payment_date,
+      notes || null,
+      String(userId)
+    ).run();
+
+    // Update remaining amount
+    const newRemaining = Number(debt.remaining_amount) - Number(amount);
+    const newStatus = newRemaining <= 0 ? 'paid' : 'active';
+
+    await DB.prepare(`
+      UPDATE debts 
+      SET remaining_amount = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND user_id = ?
+    `).bind(
+      Math.max(0, newRemaining),
+      newStatus,
+      debtId,
+      String(userId)
+    ).run();
+
+    return c.json({ success: true });
+  } catch (error: any) {
+    console.error('[Debts] Record payment error:', error);
+    return c.json({ success: false, error: '상환 기록 실패' }, 500);
+  }
+});
+
+// Delete a payment (refund/correction)
+app.delete('/api/debts/:debtId/payments/:paymentId', async (c) => {
+  try {
+    const { DB } = c.env as { DB: D1Database };
+    const userId = await getUserId(c);
+    
+    if (!userId) {
+      return c.json({ success: false, error: 'Unauthorized' }, 401);
+    }
+
+    const debtId = c.req.param('debtId');
+    const paymentId = c.req.param('paymentId');
+
+    // Verify payment belongs to user
+    const payment = await DB.prepare(`
+      SELECT * FROM debt_payments WHERE id = ? AND debt_id = ? AND user_id = ?
+    `).bind(paymentId, debtId, String(userId)).first() as any;
+
+    if (!payment) {
+      return c.json({ success: false, error: 'Payment not found' }, 404);
+    }
+
+    // Delete payment
+    await DB.prepare(`
+      DELETE FROM debt_payments WHERE id = ? AND user_id = ?
+    `).bind(paymentId, String(userId)).run();
+
+    // Update debt remaining amount (add back the payment)
+    const debt = await DB.prepare(`
+      SELECT * FROM debts WHERE id = ? AND user_id = ?
+    `).bind(debtId, String(userId)).first() as any;
+
+    if (debt) {
+      const newRemaining = Number(debt.remaining_amount) + Number(payment.amount);
+      const newStatus = newRemaining < Number(debt.amount) ? 'active' : 'active';
+
+      await DB.prepare(`
+        UPDATE debts 
+        SET remaining_amount = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND user_id = ?
+      `).bind(
+        newRemaining,
+        newStatus,
+        debtId,
+        String(userId)
+      ).run();
+    }
+
+    return c.json({ success: true });
+  } catch (error: any) {
+    console.error('[Debts] Delete payment error:', error);
+    return c.json({ success: false, error: '상환 기록 삭제 실패' }, 500);
+  }
+});
+
 export default app
