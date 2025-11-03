@@ -1354,6 +1354,13 @@ app.get('/', (c) => {
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <link href="/static/style.css" rel="stylesheet">
     
+    <style>
+        /* 오버스크롤 방지 - 스크롤 시 위아래 공백 제거 */
+        html, body {
+            overscroll-behavior: none;
+            overscroll-behavior-y: none;
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
     <div id="app" class="container mx-auto max-w-7xl p-4">
@@ -1366,7 +1373,10 @@ app.get('/', (c) => {
             <!-- 탭 네비게이션 -->
             <div class="border-b mb-6">
                 <nav class="flex flex-wrap -mb-px">
-                    <button id="tab-month" class="tab-button border-b-2 border-blue-600 text-blue-600 py-4 px-6 font-medium">
+                    <button id="tab-home" class="tab-button border-b-2 border-blue-600 text-blue-600 py-4 px-6 font-medium">
+                        <i class="fas fa-home mr-2"></i>홈
+                    </button>
+                    <button id="tab-month" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
                         <i class="fas fa-calendar-alt mr-2"></i>월별
                     </button>
                     <button id="tab-week" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
@@ -1375,14 +1385,17 @@ app.get('/', (c) => {
                     <button id="tab-savings" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
                         <i class="fas fa-piggy-bank mr-2"></i>저축
                     </button>
+                    <button id="tab-debts" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
+                        <i class="fas fa-hand-holding-usd mr-2"></i>채무
+                    </button>
+                    <button id="tab-investments" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
+                        <i class="fas fa-chart-line mr-2"></i>투자
+                    </button>
                     <button id="tab-fixed-expenses" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
                         <i class="fas fa-redo mr-2"></i>고정지출
                     </button>
                     <button id="tab-budgets" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
                         <i class="fas fa-chart-pie mr-2"></i>예산
-                    </button>
-                    <button id="tab-investments" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
-                        <i class="fas fa-chart-line mr-2"></i>투자
                     </button>
                     <button id="tab-reports" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
                         <i class="fas fa-chart-bar mr-2"></i>리포트
