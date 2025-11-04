@@ -2376,12 +2376,12 @@ async function renderBudgetsView() {
   const contentArea = document.getElementById('content-area');
   contentArea.innerHTML = `
     <div class="bg-white rounded-lg shadow p-6">
-      <h2 class="text-2xl font-bold mb-4">카테고리별 예산 설정</h2>
+      <h2 class="text-2xl font-bold mb-4">${t('budget.category_budget_setting')}</h2>
       
       <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
         <p class="text-sm text-green-800">
           <i class="fas fa-lightbulb mr-2"></i>
-          <strong>예산 관리 팁:</strong> 각 카테고리에 월별 예산을 설정하세요. 0원 입력 시 예산이 삭제됩니다.
+          <strong>${t('budget.management_tip')}</strong> ${t('budget.tip_desc')}
         </p>
       </div>
       
@@ -2393,16 +2393,16 @@ async function renderBudgetsView() {
           
           return `
             <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-              <label class="w-32 font-medium">${category}</label>
+              <label class="flex-1 font-medium">${category}</label>
               <input 
                 type="number" 
                 value="${budgetAmount}" 
                 min="0"
                 step="10000"
-                class="flex-1 px-4 py-2 border rounded"
+                class="w-32 px-3 py-2 border rounded text-right"
                 onchange="handleBudgetChange('${category}', this.value)"
-                placeholder="예산 없음 (0원 입력 시 삭제)">
-              <span class="text-gray-600">${currencySymbol}</span>
+                placeholder="0">
+              <span class="text-gray-600 w-8">${currencySymbol}</span>
             </div>
           `;
         }).join('')}
@@ -2425,7 +2425,7 @@ async function renderInvestmentsView() {
   contentArea.innerHTML = `
     <div class="space-y-6">
       <div class="flex justify-between items-center">
-        <h2 class="text-2xl font-bold">투자 관리</h2>
+        <h2 class="text-2xl font-bold">${t('investment.title')}</h2>
         <button onclick="openInvestmentModal()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
           <i class="fas fa-plus"></i>
         </button>
@@ -2436,9 +2436,9 @@ async function renderInvestmentsView() {
         <div class="flex items-start gap-3">
           <i class="fas fa-info-circle text-yellow-600 mt-1"></i>
           <div class="text-sm text-yellow-800">
-            <p class="font-medium mb-1">실시간 주가 정보 안내</p>
-            <p>샌드박스 환경에서는 외부 API 접근이 제한되어 시뮬레이션 데이터가 표시될 수 있습니다.</p>
-            <p class="mt-1">실제 Cloudflare Pages 배포 시에는 실시간 주가 데이터가 정상적으로 표시됩니다.</p>
+            <p class="font-medium mb-1">${t('investment.realtime_info')}</p>
+            <p>${getLanguage() === 'ko' ? '샌드박스 환경에서는 외부 API 접근이 제한되어 시뮬레이션 데이터가 표시될 수 있습니다.' : 'Sandbox environment may show simulated data due to external API restrictions.'}</p>
+            <p class="mt-1">${t('investment.realtime_desc')}</p>
             <p class="mt-2 text-xs">
               <strong>지원 종목:</strong> 
               <br/>• 미국 주식: AAPL, GOOGL, MSFT, TSLA, AMZN, META, NVDA, AMD, NFLX
@@ -2468,7 +2468,7 @@ async function renderInvestmentsView() {
       <!-- 보유 종목 리스트 -->
       <div class="bg-white rounded-lg shadow">
         <div class="p-4 border-b">
-          <h3 class="text-lg font-bold">보유 종목</h3>
+          <h3 class="text-lg font-bold">${t('investment.holdings')}</h3>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full">
@@ -2518,7 +2518,7 @@ async function updateInvestmentPrices() {
   
   if (!investmentsList || state.investments.length === 0) {
     if (investmentsList) {
-      investmentsList.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">보유 종목이 없습니다.</td></tr>';
+      investmentsList.innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">${t('investment.no_holdings')}</td></tr>`;
     }
     return;
   }
@@ -2596,7 +2596,7 @@ async function updateInvestmentPrices() {
     }
   }
   
-  investmentsList.innerHTML = rowsHTML || '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">보유 종목이 없습니다.</td></tr>';
+  investmentsList.innerHTML = rowsHTML || `<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">${t('investment.no_holdings')}</td></tr>`;
   
   // 포트폴리오 요약 업데이트
   const totalProfitLoss = totalCurrentValue - totalInvestment;
@@ -7046,9 +7046,9 @@ window.showHelpModal = function() {
               <p class="text-sm ml-4">• 예산 대비 실제 지출을 색상으로 확인할 수 있습니다.</p>
             </div>
             <div>
-              <p class="font-semibold text-sm mb-1">📈 투자 관리</p>
-              <p class="text-sm ml-4">• 투자 탭에서 주식, 암호화폐 포트폴리오를 관리하세요.</p>
-              <p class="text-sm ml-4">• 실시간 주가가 자동으로 업데이트됩니다.</p>
+              <p class="font-semibold text-sm mb-1">📈 ${t('investment.title')}</p>
+              <p class="text-sm ml-4">${getLanguage() === 'ko' ? '• 투자 탭에서 주식, 암호화폐 포트폴리오를 관리하세요.' : '• Manage your stock and crypto portfolio in the Investments tab.'}</p>
+              <p class="text-sm ml-4">${getLanguage() === 'ko' ? '• 실시간 주가가 자동으로 업데이트됩니다.' : '• Real-time prices are automatically updated.'}</p>
             </div>
           </div>
         </section>

@@ -188,6 +188,10 @@ const translations = {
     'investment.quantity': '수량',
     'investment.buy_price': '매수가',
     'investment.current_price': '현재가',
+    'investment.realtime_info': '실시간 주가 정보 안내',
+    'investment.realtime_desc': '실제 Cloudflare Pages 배포 시에는 실시간 주가 데이터가 정상적으로 표시됩니다.',
+    'investment.holdings': '보유 종목',
+    'investment.no_holdings': '보유 종목이 없습니다.',
     'investment.profit_loss': '손익',
     'investment.return_rate': '수익률',
     
@@ -219,6 +223,9 @@ const translations = {
     'budget.warning': '예산 경고',
     'budget.monthly': '월별 예산',
     'budget.category_budget': '카테고리별 예산',
+    'budget.category_budget_setting': '카테고리별 예산 설정',
+    'budget.management_tip': '예산 관리 팁:',
+    'budget.tip_desc': '각 카테고리에 월별 예산을 설정하세요. 0원 입력 시 예산이 삭제됩니다.',
     
     // 리포트
     'report.title': '리포트',
@@ -665,6 +672,10 @@ const translations = {
     'investment.current_price': 'Current Price',
     'investment.profit_loss': 'P&L',
     'investment.return_rate': 'Return',
+    'investment.realtime_info': 'Real-time Stock Price Information',
+    'investment.realtime_desc': 'Real-time stock price data will be displayed properly when deployed to Cloudflare Pages.',
+    'investment.holdings': 'Holdings',
+    'investment.no_holdings': 'No holdings',
     
     // Fixed expenses
     'fixed.title': 'Fixed Expenses',
@@ -694,6 +705,9 @@ const translations = {
     'budget.warning': 'Warning',
     'budget.monthly': 'Monthly Budget',
     'budget.category_budget': 'Category Budget',
+    'budget.category_budget_setting': 'Category Budget Settings',
+    'budget.management_tip': 'Budget Management Tip:',
+    'budget.tip_desc': 'Set monthly budget for each category. Enter 0 to delete budget.',
     
     // Reports
     'report.title': 'Reports',
