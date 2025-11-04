@@ -3951,20 +3951,25 @@ async function loadYearlyReport() {
   
   // 업데이트 제목과 서브타이틀
   document.getElementById('report-title').textContent = `${reportState.year}${getLanguage() === 'ko' ? '년' : ''} ${t('report.monthly_expense_status')}`;
-  document.getElementById('report-subtitle').textContent = '막대를 클릭하면 해당 월의 카테고리별 지출을 확인할 수 있습니다.';
+  document.getElementById('report-subtitle').textContent = t('report.click_bar_tip');
   
   // Breadcrumb 업데이트
   document.getElementById('report-breadcrumb').innerHTML = `
     <div class="flex items-center gap-2 text-sm">
       <button onclick="loadYearlyReport()" class="text-blue-600 hover:text-blue-800 font-medium">
-        <i class="fas fa-home mr-1"></i>${reportState.year}년 연간 지출
+        <i class="fas fa-home mr-1"></i>${reportState.year}${getLanguage() === 'ko' ? '년' : ''} ${t('report.annual_expense')}
       </button>
     </div>
   `;
   
   // 12개월 데이터 가져오기
   const monthlyData = [];
-  const monthLabels = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+  const monthLabels = [
+    t('report.month_jan'), t('report.month_feb'), t('report.month_mar'),
+    t('report.month_apr'), t('report.month_may'), t('report.month_jun'),
+    t('report.month_jul'), t('report.month_aug'), t('report.month_sep'),
+    t('report.month_oct'), t('report.month_nov'), t('report.month_dec')
+  ];
   
   // 연간 합계 계산용 변수
   let yearlyIncome = 0;
@@ -4016,10 +4021,10 @@ async function loadYearlyReport() {
       <table class="w-full">
         <thead class="bg-gray-50">
           <tr>
-            <th class="px-4 py-3 text-left">월</th>
-            <th class="px-4 py-3 text-right">지출액</th>
-            <th class="px-4 py-3 text-right">전년 대비</th>
-            <th class="px-4 py-3 text-center">액션</th>
+            <th class="px-4 py-3 text-left">${t('report.month')}</th>
+            <th class="px-4 py-3 text-right">${t('report.expense_amount')}</th>
+            <th class="px-4 py-3 text-right">${t('report.vs_last_year')}</th>
+            <th class="px-4 py-3 text-center">${t('report.action')}</th>
           </tr>
         </thead>
         <tbody>
@@ -4036,7 +4041,7 @@ async function loadYearlyReport() {
         <td class="px-4 py-3 font-medium">${data.label}</td>
         <td class="px-4 py-3 text-right">
           <div class="font-bold">${formatCurrency(data.total)}</div>
-          <div class="text-xs text-gray-500">전체의 ${maxAmount > 0 ? ((data.total / maxAmount) * 100).toFixed(0) : 0}%</div>
+          <div class="text-xs text-gray-500">${t('report.percent_of_total')} ${maxAmount > 0 ? ((data.total / maxAmount) * 100).toFixed(0) : 0}%</div>
         </td>
         <td class="px-4 py-3 text-right ${diffClass}">
           ${prevYearAmount > 0 ? `${diffSign}${diff}%` : '-'}
@@ -4054,7 +4059,7 @@ async function loadYearlyReport() {
   const yearTotal = monthlyData.reduce((sum, d) => sum + d.total, 0);
   tableHTML += `
       <tr class="border-t-2 bg-gray-50 font-bold">
-        <td class="px-4 py-3">연간 합계</td>
+        <td class="px-4 py-3">${t('report.annual_total')}</td>
         <td class="px-4 py-3 text-right">${formatCurrency(yearTotal)}</td>
         <td class="px-4 py-3"></td>
         <td class="px-4 py-3"></td>
@@ -4186,13 +4191,13 @@ async function loadMonthCategoryReport(month) {
   
   // 제목 업데이트
   document.getElementById('report-title').textContent = `${reportState.year}년 ${monthLabel} 카테고리별 지출`;
-  document.getElementById('report-subtitle').textContent = '막대를 클릭하면 해당 카테고리의 거래 내역을 확인할 수 있습니다.';
+  document.getElementById('report-subtitle').textContent = t('report.click_category_tip');
   
   // Breadcrumb 업데이트
   document.getElementById('report-breadcrumb').innerHTML = `
     <div class="flex items-center gap-2 text-sm">
       <button onclick="loadYearlyReport()" class="text-blue-600 hover:text-blue-800">
-        <i class="fas fa-home mr-1"></i>${reportState.year}년 연간 지출
+        <i class="fas fa-home mr-1"></i>${reportState.year}${getLanguage() === 'ko' ? '년' : ''} ${t('report.annual_expense')}
       </button>
       <i class="fas fa-chevron-right text-gray-400"></i>
       <span class="text-gray-700 font-medium">${monthLabel}</span>
@@ -4350,7 +4355,7 @@ async function loadCategoryTransactions(category) {
   document.getElementById('report-breadcrumb').innerHTML = `
     <div class="flex items-center gap-2 text-sm">
       <button onclick="loadYearlyReport()" class="text-blue-600 hover:text-blue-800">
-        <i class="fas fa-home mr-1"></i>${reportState.year}년 연간 지출
+        <i class="fas fa-home mr-1"></i>${reportState.year}${getLanguage() === 'ko' ? '년' : ''} ${t('report.annual_expense')}
       </button>
       <i class="fas fa-chevron-right text-gray-400"></i>
       <button onclick="loadMonthCategoryReport(${month})" class="text-blue-600 hover:text-blue-800">
@@ -4508,7 +4513,7 @@ function drawYearlyBarChart(data) {
         },
         title: {
           display: true,
-          text: `${reportState.year}년 월별 지출 (클릭하여 상세보기)`,
+          text: `${reportState.year}${getLanguage() === 'ko' ? '년' : ''} ${t('report.monthly_expense_chart')}`,
           font: {
             size: 16,
             weight: 'bold'
