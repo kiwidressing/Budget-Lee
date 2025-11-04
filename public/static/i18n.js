@@ -152,6 +152,16 @@ const translations = {
     'savings.no_goal_set': '💡 저축 목표가 설정되지 않았습니다',
     'savings.set_goal_button': '🎯 목표 설정하기',
     'savings.remaining_amount': '잔액 금액',
+    'savings.accounts': '저축 통장 목록',
+    'savings.total_savings': '총 저축액',
+    'savings.edit_name': '이름 수정',
+    'savings.edit_goal_tooltip': '목표 수정',
+    'savings.set_goal_tooltip': '목표 설정',
+    'savings.no_accounts': '저축 계좌가 없습니다',
+    'savings.no_accounts_desc': '저축 계좌를 추가하고 목표를 설정해보세요!',
+    'savings.create_first_account': '첫 저축 계좌 만들기',
+    'savings.goal_achieved': '🎉 목표 달성!',
+    'savings.remaining': '남은 금액',
     
     // 채무
     'debt.title': '채무 관리',
@@ -195,6 +205,10 @@ const translations = {
     'fixed.guide_desc_1': '고정지출 항목은 <strong>확인용</strong>으로 만들어졌습니다.',
     'fixed.guide_desc_2': '번거롭겠지만 <strong>거래내역</strong> 탭에서 고정지출 지불내역을 <strong>별도로 입력</strong>해야 합니다.',
     'fixed.guide_desc_3': '이곳은 매월/매주 발생하는 고정지출을 잊지 않도록 관리하는 용도입니다.',
+    'fixed.monthly_day': '매월',
+    'fixed.day_suffix': '일',
+    'fixed.weekly': '매주',
+    'fixed.day_of_week_suffix': '요일',
     
     // 예산
     'budget.title': '예산 관리',
@@ -615,6 +629,14 @@ const translations = {
     'savings.no_goal_set': '💡 No savings goal set',
     'savings.set_goal_button': '🎯 Set Goal',
     'savings.remaining_amount': 'Remaining Amount',
+    'savings.edit_name': 'Edit Name',
+    'savings.edit_goal_tooltip': 'Edit Goal',
+    'savings.set_goal_tooltip': 'Set Goal',
+    'savings.no_accounts': 'No Savings Accounts',
+    'savings.no_accounts_desc': 'Add a savings account and set your goals!',
+    'savings.create_first_account': 'Create First Savings Account',
+    'savings.goal_achieved': '🎉 Goal Achieved!',
+    'savings.remaining': 'Remaining',
     
     // Debts
     'debt.title': 'Debts',
@@ -658,6 +680,10 @@ const translations = {
     'fixed.guide_desc_1': 'Fixed expense items are created for <strong>reference purposes</strong>.',
     'fixed.guide_desc_2': 'Although inconvenient, you must <strong>separately enter</strong> fixed expense payment details in the <strong>Transactions</strong> tab.',
     'fixed.guide_desc_3': 'This section is for managing monthly/weekly recurring fixed expenses to avoid forgetting them.',
+    'fixed.monthly_day': 'Monthly on day',
+    'fixed.day_suffix': '',
+    'fixed.weekly': 'Weekly on',
+    'fixed.day_of_week_suffix': '',
     
     // Budget
     'budget.title': 'Budget',
@@ -951,3 +977,5 @@ function getLanguage() {
 
 // DOM 번역 기능은 복잡도와 버그 위험으로 인해 비활성화
 // 대신 앱에서 t() 함수를 직접 사용하는 방식으로 점진적 개선
+ 방식으로 점진적 개선
+�

@@ -2185,11 +2185,11 @@ async function renderSavingsView() {
       ${state.savingsAccounts.length === 0 ? `
         <div class="bg-white p-8 rounded-lg shadow text-center">
           <i class="fas fa-piggy-bank text-6xl text-gray-300 mb-4"></i>
-          <h3 class="text-xl font-semibold text-gray-700 mb-2">저축 계좌가 없습니다</h3>
-          <p class="text-gray-500 mb-6">저축 계좌를 추가하고 목표를 설정해보세요!</p>
+          <h3 class="text-xl font-semibold text-gray-700 mb-2">${t('savings.no_accounts')}</h3>
+          <p class="text-gray-500 mb-6">${t('savings.no_accounts_desc')}</p>
           <button onclick="openSavingsAccountModal()" class="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 inline-flex items-center gap-2">
             <i class="fas fa-plus"></i>
-            <span>첫 저축 계좌 만들기</span>
+            <span>${t('savings.create_first_account')}</span>
           </button>
         </div>
       ` : `
@@ -2206,15 +2206,15 @@ async function renderSavingsView() {
               <h4 class="text-lg font-bold">${acc.name}</h4>
               <div class="flex gap-2">
                 <button onclick="openEditSavingsAccountModal(${acc.id}, '${acc.name.replace(/'/g, "\'")}')\" 
-                        class="text-blue-500 hover:text-blue-700 text-lg" title="이름 수정">
+                        class="text-blue-500 hover:text-blue-700 text-lg" title="${t('savings.edit_name')}">
                   <i class="fas fa-edit"></i>
                 </button>
                 <button onclick="openSavingsGoalModal(${acc.id}, ${savingsGoal})" 
-                        class="text-green-500 hover:text-green-700 text-lg" title="${savingsGoal > 0 ? '목표 수정' : '목표 설정'}">
+                        class="text-green-500 hover:text-green-700 text-lg" title="${savingsGoal > 0 ? t('savings.edit_goal_tooltip') : t('savings.set_goal_tooltip')}">
                   <i class="fas fa-${savingsGoal > 0 ? 'bullseye' : 'plus-circle'}"></i>
                 </button>
                 <button onclick="deleteSavingsAccount(${acc.id})" 
-                        class="text-red-500 hover:text-red-700 text-lg" title="삭제">
+                        class="text-red-500 hover:text-red-700 text-lg" title="${t('common.delete')}">
                   <i class="fas fa-trash"></i>
                 </button>
               </div>
@@ -2234,7 +2234,7 @@ async function renderSavingsView() {
                   </div>
                 </div>
                 <p class="text-xs text-gray-500 mt-1">
-                  ${currentSavings >= savingsGoal ? '🎉 목표 달성!' : `남은 금액: ${formatCurrency(savingsGoal - currentSavings)}`}
+                  ${currentSavings >= savingsGoal ? t('savings.goal_achieved') : `${t('savings.remaining')}: ${formatCurrency(savingsGoal - currentSavings)}`}
                 </p>
               </div>
             ` : `
@@ -2318,10 +2318,10 @@ async function renderFixedExpensesView() {
               </div>
               <div class="flex gap-2">
                 <button onclick="openEditFixedExpenseModal({id: ${instance.id}, name: '${instance.name.replace(/'/g, "\'")}', amount: ${instance.amount}, category: '${instance.category}', frequency: '${instance.frequency}', week_of_month: ${instance.week_of_month || 'null'}, day_of_week: ${instance.day_of_week ?? 'null'}, payment_day: ${instance.payment_day || 'null'}})" 
-                        class="text-blue-500 hover:text-blue-700" title="수정">
+                        class="text-blue-500 hover:text-blue-700" title="${t('common.edit')}">
                   <i class="fas fa-edit"></i>
                 </button>
-                <button onclick="deleteFixedExpense(${instance.id})" class="text-red-500 hover:text-red-700" title="삭제">
+                <button onclick="deleteFixedExpense(${instance.id})" class="text-red-500 hover:text-red-700" title="${t('common.delete')}">
                   <i class="fas fa-trash"></i>
                 </button>
               </div>
@@ -2331,7 +2331,7 @@ async function renderFixedExpensesView() {
               <i class="fas fa-calendar-alt"></i>
               <span>${instance.scheduled_date}</span>
               <span class="text-xs px-2 py-0.5 rounded-full ${instance.frequency === 'monthly_day' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}">
-                ${instance.frequency === 'monthly_day' ? `매월 ${instance.payment_day}일` : `매주 ${getDayName(instance.day_of_week)}요일`}
+                ${instance.frequency === 'monthly_day' ? `${t('fixed.monthly_day')} ${instance.payment_day}${t('fixed.day_suffix')}` : `${t('fixed.weekly')} ${getDayName(instance.day_of_week)}${t('fixed.day_of_week_suffix')}`}
               </span>
             </div>
             
@@ -5087,7 +5087,7 @@ function openFixedExpenseModal() {
               <option value="6">토요일</option>
             </select>
           </div>
-          <div id="payment-day-container" style="display: none;">
+          <div id="payment-day-container" style="displa"payment-day-container" style="display: none;">
             <label class="block text-sm font-medium mb-2">일자</label>
             <input type="number" name="payment_day" class="w-full px-4 py-2 border rounded" min="1" max="31" placeholder="1-31">
           </div>
@@ -6011,7 +6011,7 @@ async function handleEditFixedExpense(event, id) {
   }
   
   try {
-    const response = await axios.put(`/api/fixed-expenses/${id}`, data);
+   pi/fixed-expenses/${id}`, data);
     if (response.data.success) {
       closeModal();
       renderFixedExpensesView();
@@ -7420,4 +7420,6 @@ function changeLanguage(lang) {
 }
 
 // 앱 초기화 - 페이지 로드 시 인증 확인 후 적절한 화면 렌더링
+renderApp();
+절한 화면 렌더링
 renderApp();
