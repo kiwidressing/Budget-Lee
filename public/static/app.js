@@ -5226,7 +5226,13 @@ async function handleBudgetChange(category, value) {
       });
       alert(`${category} ${t('budget.saved_as')} ${formatCurrency(amount)}`);
     }
+    // 예산 데이터를 다시 가져오고 화면 새로고침
     await fetchBudgets();
+    await renderBudgetsView();
+    // 홈 화면도 업데이트 (Monthly Budget Status 반영)
+    if (state.activeView === 'month' || state.activeView === 'home') {
+      await loadMonthView();
+    }
   } catch (error) {
     console.error('Budget save error:', error);
     alert(t('budget.save_error'));
