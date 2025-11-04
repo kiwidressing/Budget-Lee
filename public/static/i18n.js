@@ -49,6 +49,8 @@ const translations = {
     'common.yes': '예',
     'common.no': '아니오',
     'common.user': '사용자',
+    'common.bank': '은행',
+    'common.card': '카드',
     
     // Auth
     'auth.logout': '로그아웃',
@@ -162,6 +164,9 @@ const translations = {
     'savings.create_first_account': '첫 저축 계좌 만들기',
     'savings.goal_achieved': '🎉 목표 달성!',
     'savings.remaining': '남은 금액',
+    'savings.set_goal_tip': '저축 목표를 설정하고 진행 상황을 추적하세요!',
+    'savings.set_goal_modal_title': '저축 목표 설정',
+    'savings.label': '저축',
     
     // 채무
     'debt.title': '채무 관리',
@@ -191,6 +196,12 @@ const translations = {
     'debt.total_expected_repayment': '총 상환 예상액',
     'debt.repayment_progress': '상환 진행률',
     'debt.view_repayment_history': '상환 내역 보기',
+    'debt.status.ongoing_badge': '진행중',
+    'debt.status.paid': '상환완료',
+    'debt.status.overdue': '연체',
+    'debt.category.personal': '개인',
+    'debt.category.business': '비즈니스',
+    'debt.category.other': '기타',
     
     // 투자
     'investment.title': '투자 관리',
@@ -594,6 +605,8 @@ const translations = {
     'common.yes': 'Yes',
     'common.no': 'No',
     'common.user': 'User',
+    'common.bank': 'Bank',
+    'common.card': 'Card',
     
     // Auth
     'auth.logout': 'Logout',
@@ -707,6 +720,9 @@ const translations = {
     'savings.create_first_account': 'Create First Savings Account',
     'savings.goal_achieved': '🎉 Goal Achieved!',
     'savings.remaining': 'Remaining',
+    'savings.set_goal_tip': 'Set savings goals and track your progress!',
+    'savings.set_goal_modal_title': 'Set Savings Goal',
+    'savings.label': 'Savings',
     
     // Debts
     'debt.title': 'Debts',
@@ -736,6 +752,12 @@ const translations = {
     'debt.total_expected_repayment': 'Total Expected Repayment',
     'debt.repayment_progress': 'Repayment Progress',
     'debt.view_repayment_history': 'View Repayment History',
+    'debt.status.ongoing_badge': 'Ongoing',
+    'debt.status.paid': 'Paid Off',
+    'debt.status.overdue': 'Overdue',
+    'debt.category.personal': 'Personal',
+    'debt.category.business': 'Business',
+    'debt.category.other': 'Other',
     
     // Investments
     'investment.title': 'Investments',

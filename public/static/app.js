@@ -1649,10 +1649,10 @@ async function renderSavingsGoalsProgress() {
               <button onclick="openSavingsGoalModal(${account.id}, 0)" 
                       class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2">
                 <i class="fas fa-bullseye"></i>
-                <span>목표 설정</span>
+                <span>${t('savings.set_goal_button')}</span>
               </button>
             </div>
-            <p class="text-xs text-gray-400 mt-2">💡 저축 목표를 설정하고 진행 상황을 추적하세요!</p>
+            <p class="text-xs text-gray-400 mt-2">💡 ${t('savings.set_goal_tip')}</p>
           </div>
         `;
         return;
@@ -3166,7 +3166,7 @@ function renderDebtCard(debt) {
   
   const statusColor = isPaid ? 'green' : (isOverdue ? 'red' : 'orange');
   const statusIcon = isPaid ? 'check-circle' : (isOverdue ? 'exclamation-triangle' : 'clock');
-  const statusText = isPaid ? '상환완료' : (isOverdue ? '연체' : '진행중');
+  const statusText = isPaid ? t('debt.status.paid') : (isOverdue ? t('debt.status.overdue') : t('debt.status.ongoing_badge'));
   
   // 이자 계산
   const startDate = new Date(debt.start_date);
@@ -3314,10 +3314,10 @@ window.showAddDebtModal = function() {
         <div>
           <label class="block text-sm font-medium mb-1">카테고리</label>
           <select name="category" class="w-full border rounded px-3 py-2">
-            <option value="개인">개인</option>
-            <option value="은행">은행</option>
-            <option value="카드">카드</option>
-            <option value="기타">기타</option>
+            <option value="개인">${t('debt.category.personal')}</option>
+            <option value="은행">${t('common.bank')}</option>
+            <option value="카드">${t('common.card')}</option>
+            <option value="기타">${t('debt.category.other')}</option>
           </select>
         </div>
         
@@ -3415,18 +3415,18 @@ window.showEditDebtModal = async function(debtId) {
         <div>
           <label class="block text-sm font-medium mb-1">상태</label>
           <select name="status" class="w-full border rounded px-3 py-2">
-            <option value="active" ${debt.status === 'active' ? 'selected' : ''}>진행중</option>
-            <option value="overdue" ${debt.status === 'overdue' ? 'selected' : ''}>연체</option>
-            <option value="paid" ${debt.status === 'paid' ? 'selected' : ''}>상환완료</option>
+            <option value="active" ${debt.status === 'active' ? 'selected' : ''}>${t('debt.status.ongoing_badge')}</option>
+            <option value="overdue" ${debt.status === 'overdue' ? 'selected' : ''}>${t('debt.status.overdue')}</option>
+            <option value="paid" ${debt.status === 'paid' ? 'selected' : ''}>${t('debt.status.paid')}</option>
           </select>
         </div>
         
         <div>
           <label class="block text-sm font-medium mb-1">카테고리</label>
           <select name="category" class="w-full border rounded px-3 py-2">
-            <option value="개인" ${debt.category === '개인' ? 'selected' : ''}>개인</option>
-            <option value="은행" ${debt.category === '은행' ? 'selected' : ''}>은행</option>
-            <option value="카드" ${debt.category === '카드' ? 'selected' : ''}>카드</option>
+            <option value="개인" ${debt.category === '개인' ? 'selected' : ''}>${t('debt.category.personal')}</option>
+            <option value="은행" ${debt.category === '은행' ? 'selected' : ''}>${t('common.bank')}</option>
+            <option value="카드" ${debt.category === '카드' ? 'selected' : ''}>${t('common.card')}</option>
             <option value="기타" ${debt.category === '기타' ? 'selected' : ''}>기타</option>
           </select>
         </div>
@@ -4994,7 +4994,7 @@ function openSavingsGoalModal(accountId, currentGoal) {
   modalContainer.innerHTML = `
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
       <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
-        <h3 class="text-xl font-bold mb-4">${account.name} - 저축 목표 설정</h3>
+        <h3 class="text-xl font-bold mb-4">${account.name} - ${t('savings.set_goal_modal_title')}</h3>
         <form onsubmit="handleSavingsGoalSubmit(event, ${accountId})" class="space-y-4">
           <div>
             <label class="block text-sm font-medium mb-2">목표 금액</label>
@@ -5048,7 +5048,7 @@ async function handleSavingsGoalSubmit(event, accountId) {
       renderSavingsView();
     }
   } catch (error) {
-    alert('목표 설정 중 오류가 발생했습니다.');
+    alert(t('common.error'));
   }
 }
 
