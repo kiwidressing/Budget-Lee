@@ -167,6 +167,9 @@ const translations = {
     'savings.set_goal_tip': '저축 목표를 설정하고 진행 상황을 추적하세요!',
     'savings.set_goal_modal_title': '저축 목표 설정',
     'savings.label': '저축',
+    'savings.no_registered_accounts': '등록된 저축 계좌가 없습니다.',
+    'savings.add_savings_account': '저축 계좌 추가',
+    'savings.goal_achieved_msg': '목표 달성! 🎉',
     
     // 채무
     'debt.title': '채무 관리',
@@ -557,6 +560,20 @@ const translations = {
     'error.delete_transaction': '거래 삭제 중 오류가 발생했습니다',
     'error.load_data': '데이터 로딩 중 오류가 발생했습니다',
     'error.save_settings': '설정 저장 중 오류가 발생했습니다',
+    
+    // Validation messages
+    'validation.select_savings_account': '저축 통장을 선택해주세요.',
+    'validation.enter_account_name': '통장 이름을 입력해주세요.',
+    
+    // Confirm messages
+    'confirm.delete_savings_account': '이 저축 통장을 삭제하시겠습니까? 관련된 모든 저축 거래도 삭제됩니다.',
+    'confirm.savings_account_not_found': '저축 통장을 찾을 수 없습니다.',
+    
+    // Form labels
+    'form.account_name': '통장 이름',
+    'form.edit_savings_account_name': '저축 통장 이름 수정',
+    'form.add_savings_account': '저축 통장 추가',
+    'form.placeholder_account_name': '예: 비상금',
   },
   
   en: {
@@ -726,6 +743,9 @@ const translations = {
     'savings.set_goal_tip': 'Set savings goals and track your progress!',
     'savings.set_goal_modal_title': 'Set Savings Goal',
     'savings.label': 'Savings',
+    'savings.no_registered_accounts': 'No registered savings accounts.',
+    'savings.add_savings_account': 'Add Savings Account',
+    'savings.goal_achieved_msg': 'Goal Achieved! 🎉',
     
     // Debts
     'debt.title': 'Debts',
@@ -1116,6 +1136,20 @@ const translations = {
     'error.delete_transaction': 'Error occurred while deleting transaction',
     'error.load_data': 'Error occurred while loading data',
     'error.save_settings': 'Error occurred while saving settings',
+    
+    // Validation messages
+    'validation.select_savings_account': 'Please select a savings account.',
+    'validation.enter_account_name': 'Please enter an account name.',
+    
+    // Confirm messages
+    'confirm.delete_savings_account': 'Delete this savings account? All related savings transactions will also be deleted.',
+    'confirm.savings_account_not_found': 'Savings account not found.',
+    
+    // Form labels
+    'form.account_name': 'Account Name',
+    'form.edit_savings_account_name': 'Edit Savings Account Name',
+    'form.add_savings_account': 'Add Savings Account',
+    'form.placeholder_account_name': 'e.g., Emergency Fund',
   }
 };
 

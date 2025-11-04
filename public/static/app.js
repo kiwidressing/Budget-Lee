@@ -1529,9 +1529,9 @@ async function renderMonthView() {
           
           <select id="filter-type" class="px-4 py-2 border rounded" onchange="filterTransactions()">
             <option value="">${t('transaction.all_types')}</option>
-            <option value="income">수입</option>
-            <option value="expense">지출</option>
-            <option value="savings">저축</option>
+            <option value="income">${t('transaction.type.income')}</option>
+            <option value="expense">${t('transaction.type.expense')}</option>
+            <option value="savings">${t('transaction.type.savings')}</option>
           </select>
           
           <select id="filter-category" class="px-4 py-2 border rounded" onchange="filterTransactions()">
@@ -1622,9 +1622,9 @@ async function renderSavingsGoalsProgress() {
       container.innerHTML = `
         <div class="text-center text-gray-500 py-8">
           <i class="fas fa-piggy-bank text-4xl mb-3 opacity-20"></i>
-          <p>등록된 저축 계좌가 없습니다.</p>
+          <p>${t('savings.no_registered_accounts')}</p>
           <button onclick="switchView('savings')" class="mt-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-            <i class="fas fa-plus mr-2"></i>저축 계좌 추가
+            <i class="fas fa-plus mr-2"></i>${t('savings.add_savings_account')}
           </button>
         </div>
       `;
@@ -1702,7 +1702,7 @@ async function renderSavingsGoalsProgress() {
           
           ${percentage >= 100 ? `
             <div class="mt-2 flex items-center text-green-600 text-sm font-medium">
-              <i class="fas fa-check-circle mr-2"></i>목표 달성! 🎉
+              <i class="fas fa-check-circle mr-2"></i>${t('savings.goal_achieved_msg')}
             </div>
           ` : ''}
         </div>
@@ -4846,21 +4846,21 @@ async function openTransactionModal(date) {
             <div class="flex gap-2">
               <button type="button" onclick="setTransactionType('income')" 
                       class="flex-1 py-2 rounded border ${state.currentTransactionType === 'income' ? 'bg-blue-500 text-white' : 'bg-gray-100'}">
-                수입
+                ${t('transaction.type.income')}
               </button>
               <button type="button" onclick="setTransactionType('expense')" 
                       class="flex-1 py-2 rounded border ${state.currentTransactionType === 'expense' ? 'bg-red-500 text-white' : 'bg-gray-100'}">
-                지출
+                ${t('transaction.type.expense')}
               </button>
               <button type="button" onclick="setTransactionType('savings')" 
                       class="flex-1 py-2 rounded border ${state.currentTransactionType === 'savings' ? 'bg-green-500 text-white' : 'bg-gray-100'}">
-                저축
+                ${t('transaction.type.savings')}
               </button>
             </div>
           </div>
           
           <div id="savings-account-select" style="display: ${state.currentTransactionType === 'savings' ? 'block' : 'none'}">
-            <label class="block text-sm font-medium mb-2">저축 통장</label>
+            <label class="block text-sm font-medium mb-2">${t('form.savings_account')}</label>
             <select name="savings_account_id" class="w-full px-4 py-2 border rounded">
               <option value="">${t('common.select_placeholder')}</option>
               ${state.savingsAccounts.map(acc => `<option value="${acc.id}">${acc.name}</option>`).join('')}
@@ -4868,7 +4868,7 @@ async function openTransactionModal(date) {
           </div>
           
           <div>
-            <label class="block text-sm font-medium mb-2">카테고리</label>
+            <label class="block text-sm font-medium mb-2">${t('transaction.category')}</label>
             <select name="category" class="w-full px-4 py-2 border rounded" required>
               ${(categories[state.currentTransactionType] || []).map(cat => 
                 `<option value="${cat}">${cat}</option>`
@@ -4877,30 +4877,30 @@ async function openTransactionModal(date) {
           </div>
           
           <div>
-            <label class="block text-sm font-medium mb-2">금액</label>
+            <label class="block text-sm font-medium mb-2">${t('transaction.amount')}</label>
             <input type="number" name="amount" class="w-full px-4 py-2 border rounded" required min="0" placeholder="0">
           </div>
           
           <div>
-            <label class="block text-sm font-medium mb-2">날짜</label>
+            <label class="block text-sm font-medium mb-2">${t('transaction.date')}</label>
             <input type="date" name="date" value="${selectedDate}" class="w-full px-4 py-2 border rounded" required>
           </div>
           
           <div>
-            <label class="block text-sm font-medium mb-2">메모 (선택)</label>
-            <input type="text" name="description" class="w-full px-4 py-2 border rounded" placeholder="메모를 입력하세요">
+            <label class="block text-sm font-medium mb-2">${t('transaction.memo')} (${t('common.optional')})</label>
+            <input type="text" name="description" class="w-full px-4 py-2 border rounded" placeholder="${t('transaction.memo')}">
           </div>
           
           <div>
-            <label class="block text-sm font-medium mb-2">결제 수단</label>
+            <label class="block text-sm font-medium mb-2">${t('transaction.payment_method')}</label>
             <select name="payment_method" class="w-full px-4 py-2 border rounded" required>
-              <option value="card">카드</option>
-              <option value="cash">현금</option>
+              <option value="card">${t('payment.card')}</option>
+              <option value="cash">${t('payment.cash')}</option>
             </select>
           </div>
           
           <button type="submit" class="w-full py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
-            추가
+            ${t('common.add')}
           </button>
         </form>
       </div>
@@ -4948,7 +4948,7 @@ async function handleTransactionSubmit(event) {
   if (state.currentTransactionType === 'savings') {
     const savingsAccountId = formData.get('savings_account_id');
     if (!savingsAccountId) {
-      showValidationError('저축 통장을 선택해주세요.');
+      showValidationError(t('validation.select_savings_account'));
       return;
     }
   }
@@ -4975,7 +4975,7 @@ async function handleTransactionSubmit(event) {
 }
 
 async function deleteTransaction(id) {
-  if (!confirm('이 거래를 삭제하시겠습니까?')) return;
+  if (!confirm(t('transaction.delete_confirm'))) return;
   
   try {
     const response = await axios.delete(`/api/transactions/${id}`);
@@ -4983,7 +4983,7 @@ async function deleteTransaction(id) {
       switchView(state.activeView);
     }
   } catch (error) {
-    alert('거래 삭제 중 오류가 발생했습니다.');
+    alert(t('error.delete_transaction'));
   }
 }
 
@@ -4992,14 +4992,14 @@ function openSavingsAccountModal() {
   modalContainer.innerHTML = `
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
       <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
-        <h3 class="text-xl font-bold mb-4">저축 통장 추가</h3>
+        <h3 class="text-xl font-bold mb-4">${t('form.add_savings_account')}</h3>
         <form onsubmit="handleSavingsAccountSubmit(event)" class="space-y-4">
           <div>
-            <label class="block text-sm font-medium mb-2">통장 이름</label>
-            <input type="text" name="name" class="w-full px-4 py-2 border rounded" required placeholder="예: 비상금">
+            <label class="block text-sm font-medium mb-2">${t('form.account_name')}</label>
+            <input type="text" name="name" class="w-full px-4 py-2 border rounded" required placeholder="${t('form.placeholder_account_name')}">
           </div>
           <button type="submit" class="w-full py-3 bg-green-500 text-white rounded hover:bg-green-600 font-medium">
-            추가
+            ${t('common.add')}
           </button>
         </form>
       </div>
@@ -5013,7 +5013,7 @@ async function handleSavingsAccountSubmit(event) {
   
   // 통장 이름 검증
   const nameValue = formData.get('name');
-  const nameValidation = validateString(nameValue, 1, 50, '통장 이름');
+  const nameValidation = validateString(nameValue, 1, 50, t('form.account_name'));
   if (!nameValidation.valid) {
     showValidationError(nameValidation.error);
     return;
@@ -5033,7 +5033,7 @@ async function handleSavingsAccountSubmit(event) {
 }
 
 async function deleteSavingsAccount(id) {
-  if (!confirm('이 저축 통장을 삭제하시겠습니까? 관련된 모든 저축 거래도 삭제됩니다.')) return;
+  if (!confirm(t('confirm.delete_savings_account'))) return;
   
   try {
     const response = await axios.delete(`/api/savings-accounts/${id}`);
@@ -5041,7 +5041,7 @@ async function deleteSavingsAccount(id) {
       renderSavingsView();
     }
   } catch (error) {
-    alert('통장 삭제 중 오류가 발생했습니다.');
+    alert(t('error.delete_transaction'));
   }
 }
 
@@ -5050,7 +5050,7 @@ function openSavingsGoalModal(accountId, currentGoal) {
   const account = state.savingsAccounts.find(a => a.id === accountId);
   
   if (!account) {
-    alert('저축 통장을 찾을 수 없습니다.');
+    alert(t('confirm.savings_account_not_found'));
     return;
   }
   
@@ -6229,18 +6229,18 @@ function openEditSavingsAccountModal(id, name) {
   modalContainer.innerHTML = `
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
       <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
-        <h3 class="text-xl font-bold mb-4">저축 통장 이름 수정</h3>
+        <h3 class="text-xl font-bold mb-4">${t('form.edit_savings_account_name')}</h3>
         <form onsubmit="handleEditSavingsAccount(event, ${id})" class="space-y-4">
           <div>
-            <label class="block text-sm font-medium mb-1">통장 이름</label>
+            <label class="block text-sm font-medium mb-1">${t('form.account_name')}</label>
             <input type="text" name="name" value="${name}" required class="w-full px-4 py-2 border rounded">
           </div>
           <div class="flex gap-2">
             <button type="submit" class="flex-1 py-3 bg-green-500 text-white rounded hover:bg-green-600 font-medium">
-              수정
+              ${t('common.edit')}
             </button>
             <button type="button" onclick="closeModal()" class="flex-1 py-3 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 font-medium">
-              취소
+              ${t('common.cancel')}
             </button>
           </div>
         </form>
@@ -6257,7 +6257,7 @@ async function handleEditSavingsAccount(event, id) {
   const name = formData.get('name').trim();
   
   if (!name) {
-    alert('통장 이름을 입력해주세요.');
+    alert(t('validation.enter_account_name'));
     return;
   }
   
