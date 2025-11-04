@@ -1450,31 +1450,31 @@ async function renderMonthView() {
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-gradient-to-br from-blue-500 to-blue-700 text-white p-4 rounded-lg shadow-lg">
           <p class="text-blue-100 text-sm font-medium flex items-center">
-            <i class="fas fa-arrow-up mr-2"></i>수입
+            <i class="fas fa-arrow-up mr-2"></i>${t('common.income')}
           </p>
           <p class="text-2xl font-bold mt-1">${formatCurrency(income)}</p>
-          <p class="text-blue-200 text-xs mt-2">💵 현금: ${formatCurrency(cashIncome)}</p>
+          <p class="text-blue-200 text-xs mt-2">💵 ${t('payment.cash')}: ${formatCurrency(cashIncome)}</p>
         </div>
         <div class="bg-gradient-to-br from-red-500 to-red-700 text-white p-4 rounded-lg shadow-lg">
           <p class="text-red-100 text-sm font-medium flex items-center">
-            <i class="fas fa-arrow-down mr-2"></i>지출
+            <i class="fas fa-arrow-down mr-2"></i>${t('common.expense')}
           </p>
           <p class="text-2xl font-bold mt-1">${formatCurrency(expense)}</p>
-          <p class="text-red-200 text-xs mt-2">💵 현금: ${formatCurrency(cashExpense)}</p>
+          <p class="text-red-200 text-xs mt-2">💵 ${t('payment.cash')}: ${formatCurrency(cashExpense)}</p>
         </div>
         <div class="bg-gradient-to-br from-green-500 to-green-700 text-white p-4 rounded-lg shadow-lg">
           <p class="text-green-100 text-sm font-medium flex items-center">
-            <i class="fas fa-piggy-bank mr-2"></i>저축
+            <i class="fas fa-piggy-bank mr-2"></i>${t('transaction.type.savings')}
           </p>
           <p class="text-2xl font-bold mt-1">${formatCurrency(savings)}</p>
-          <p class="text-green-200 text-xs mt-2">💵 현금: ${formatCurrency(cashSavings)}</p>
+          <p class="text-green-200 text-xs mt-2">💵 ${t('payment.cash')}: ${formatCurrency(cashSavings)}</p>
         </div>
         <div class="bg-gradient-to-br from-purple-500 to-purple-700 text-white p-4 rounded-lg shadow-lg">
           <p class="text-purple-100 text-sm font-medium flex items-center">
-            <i class="fas fa-wallet mr-2"></i>잔액
+            <i class="fas fa-wallet mr-2"></i>${t('common.balance')}
           </p>
           <p class="text-2xl font-bold mt-1">${formatCurrency(balance)}</p>
-          <p class="text-purple-200 text-xs mt-2">💵 현금: ${formatCurrency(cashBalance)}</p>
+          <p class="text-purple-200 text-xs mt-2">💵 ${t('payment.cash')}: ${formatCurrency(cashBalance)}</p>
         </div>
       </div>
       
