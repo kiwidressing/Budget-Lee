@@ -2440,10 +2440,10 @@ async function renderInvestmentsView() {
             <p>${getLanguage() === 'ko' ? '샌드박스 환경에서는 외부 API 접근이 제한되어 시뮬레이션 데이터가 표시될 수 있습니다.' : 'Sandbox environment may show simulated data due to external API restrictions.'}</p>
             <p class="mt-1">${t('investment.realtime_desc')}</p>
             <p class="mt-2 text-xs">
-              <strong>지원 종목:</strong> 
-              <br/>• 미국 주식: AAPL, GOOGL, MSFT, TSLA, AMZN, META, NVDA, AMD, NFLX
-              <br/>• 한국 주식: 005930.KS (삼성전자), 000660.KS (SK하이닉스)
-              <br/>• 암호화폐: BTC, ETH, BNB, XRP, SOL, ADA, DOGE, DOT, MATIC, AVAX
+              <strong>${t('investment.supported_symbols')}</strong> 
+              <br/>• ${t('investment.us_stocks')}: AAPL, GOOGL, MSFT, TSLA, AMZN, META, NVDA, AMD, NFLX
+              <br/>• ${t('investment.kr_stocks')}: 005930.KS (${getLanguage() === 'ko' ? '삼성전자' : 'Samsung Electronics'}), 000660.KS (${getLanguage() === 'ko' ? 'SK하이닉스' : 'SK Hynix'})
+              <br/>• ${t('investment.crypto')}: BTC, ETH, BNB, XRP, SOL, ADA, DOGE, DOT, MATIC, AVAX
             </p>
           </div>
         </div>
@@ -2452,16 +2452,16 @@ async function renderInvestmentsView() {
       <!-- 포트폴리오 요약 -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="portfolio-summary">
         <div class="bg-white rounded-lg shadow p-4">
-          <div class="text-gray-500 text-sm">총 투자금액</div>
-          <div class="text-2xl font-bold mt-1" id="total-investment">로딩중...</div>
+          <div class="text-gray-500 text-sm">${t('investment.total_investment')}</div>
+          <div class="text-2xl font-bold mt-1" id="total-investment">${t('investment.loading')}</div>
         </div>
         <div class="bg-white rounded-lg shadow p-4">
-          <div class="text-gray-500 text-sm">현재 평가금액</div>
-          <div class="text-2xl font-bold mt-1" id="total-current-value">로딩중...</div>
+          <div class="text-gray-500 text-sm">${t('investment.current_value')}</div>
+          <div class="text-2xl font-bold mt-1" id="total-current-value">${t('investment.loading')}</div>
         </div>
         <div class="bg-white rounded-lg shadow p-4">
-          <div class="text-gray-500 text-sm">총 수익/손실</div>
-          <div class="text-2xl font-bold mt-1" id="total-profit-loss">로딩중...</div>
+          <div class="text-gray-500 text-sm">${t('investment.total_pl')}</div>
+          <div class="text-2xl font-bold mt-1" id="total-profit-loss">${t('investment.loading')}</div>
         </div>
       </div>
       
