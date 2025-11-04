@@ -2674,7 +2674,7 @@ async function openInvestmentModal(investmentId = null) {
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
       <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-bold">${isEdit ? '투자 수정' : '투자 추가'}</h3>
+          <h3 class="text-xl font-bold">${isEdit ? t('investment.edit_investment') : t('investment.add')}</h3>
           <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
             <i class="fas fa-times"></i>
           </button>
@@ -2682,53 +2682,53 @@ async function openInvestmentModal(investmentId = null) {
         
         <form onsubmit="handleInvestmentSubmit(event, ${investmentId})" class="space-y-4">
           <div>
-            <label class="block text-sm font-medium mb-2">종목 심볼</label>
+            <label class="block text-sm font-medium mb-2">${t('investment.ticker_symbol')}</label>
             <input type="text" name="symbol" value="${investment?.symbol || ''}" 
-                   placeholder="예: AAPL, BTC, 005930.KS" required
+                   placeholder="e.g., AAPL, BTC, 005930.KS" required
                    class="w-full px-4 py-2 border rounded">
-            <p class="text-xs text-gray-500 mt-1">주식: AAPL, 005930.KS / 코인: BTC, ETH, SOL</p>
+            <p class="text-xs text-gray-500 mt-1">Stock: AAPL, 005930.KS / Crypto: BTC, ETH, SOL</p>
           </div>
           
           <div>
-            <label class="block text-sm font-medium mb-2">종목 이름</label>
+            <label class="block text-sm font-medium mb-2">${t('investment.stock_name')}</label>
             <input type="text" name="name" value="${investment?.name || ''}" 
-                   placeholder="예: Apple Inc., 비트코인, 삼성전자" required
+                   placeholder="e.g., Apple Inc., Bitcoin, Samsung" required
                    class="w-full px-4 py-2 border rounded">
           </div>
           
           <div>
-            <label class="block text-sm font-medium mb-2">보유 수량</label>
+            <label class="block text-sm font-medium mb-2">${t('investment.shares_held')}</label>
             <input type="number" name="quantity" value="${investment?.quantity || ''}" 
-                   placeholder="보유 주식 수" required min="1"
+                   placeholder="Number of shares" required min="1"
                    class="w-full px-4 py-2 border rounded">
           </div>
           
           <div>
-            <label class="block text-sm font-medium mb-2">평균 매수가</label>
+            <label class="block text-sm font-medium mb-2">${t('investment.purchase_price')}</label>
             <input type="number" name="purchase_price" value="${investment?.purchase_price || ''}" 
-                   placeholder="주당 매수 가격" required min="0" step="0.01"
+                   placeholder="Price per share" required min="0" step="0.01"
                    class="w-full px-4 py-2 border rounded">
           </div>
           
           <div>
-            <label class="block text-sm font-medium mb-2">매수일</label>
+            <label class="block text-sm font-medium mb-2">${t('investment.purchase_date')}</label>
             <input type="date" name="purchase_date" 
                    value="${investment?.purchase_date || getDateString(new Date())}" 
                    required class="w-full px-4 py-2 border rounded">
           </div>
           
           <div>
-            <label class="block text-sm font-medium mb-2">메모 (선택)</label>
+            <label class="block text-sm font-medium mb-2">${t('investment.memo_optional')}</label>
             <textarea name="notes" rows="2" 
                       class="w-full px-4 py-2 border rounded">${investment?.notes || ''}</textarea>
           </div>
           
           <div class="flex gap-2 pt-4">
             <button type="submit" class="flex-1 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-              ${isEdit ? '수정' : '추가'}
+              ${isEdit ? t('common.edit') : t('common.add')}
             </button>
             <button type="button" onclick="closeModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">
-              취소
+              ${t('common.cancel')}
             </button>
           </div>
         </form>
@@ -2803,7 +2803,7 @@ async function handleInvestmentSubmit(event, investmentId = null) {
       // 추가
       response = await axios.post('/api/investments', data);
       if (response.data.success) {
-        alert(`${data.name} 투자가 추가되었습니다.`);
+        alert(`${data.name} ${t('investment.added')}`);
       }
     }
     
@@ -6219,7 +6219,7 @@ async function handleEditFixedExpense(event, id) {
       renderFixedExpensesView();
     }
   } catch (error) {
-    alert(error.response?.data?.error || '고정지출 수정 중 오류가 발생했습니다.');
+    alert(error.response?.data?.error || t('fixed.error_edit'));
   }
 }
 
@@ -6396,7 +6396,7 @@ async function handleReceiptSubmit(event) {
   const is_tax_deductible = fd.get('is_tax_deductible') === 'on';
 
   if (!file || !purchase_date || !amount || !category) {
-    alert('파일/날짜/금액/항목은 필수입니다.');
+    alert(t('receipt.required_fields'));
     return;
   }
 
@@ -6597,7 +6597,7 @@ function showReceiptUploadModal() {
       <form onsubmit="handleReceiptSubmit(event)" class="space-y-4" id="receipt-form">
         <!-- 파일 -->
         <div>
-          <label class="block text-sm font-medium mb-1">영수증 사진 *</label>
+          <label class="block text-sm font-medium mb-1">${t('receipt.receipt_photo')} *</label>
           <input type="file" name="file" accept="image/*" required
             onchange="handleReceiptImageSelect(event)"
             class="w-full px-3 py-2 border rounded-lg">
@@ -6612,7 +6612,7 @@ function showReceiptUploadModal() {
 
         <!-- 날짜 -->
         <div>
-          <label class="block text-sm font-medium mb-1">구매 날짜 *</label>
+          <label class="block text-sm font-medium mb-1">${t('receipt.purchase_date_label')} *</label>
           <input type="date" name="purchase_date" required
             value="${new Date().toISOString().split('T')[0]}"
             class="w-full px-3 py-2 border rounded-lg">
@@ -6620,49 +6620,49 @@ function showReceiptUploadModal() {
 
         <!-- 금액 -->
         <div>
-          <label class="block text-sm font-medium mb-1">금액 *</label>
+          <label class="block text-sm font-medium mb-1">${t('receipt.amount_label')} *</label>
           <input type="number" name="amount" required min="0"
             class="w-full px-3 py-2 border rounded-lg">
         </div>
 
-        <!-- 항목 (의식주 등) -->
+        <!-- Item -->
         <div>
-          <label class="block text-sm font-medium mb-1">항목 *</label>
+          <label class="block text-sm font-medium mb-1">${t('receipt.item_label')} *</label>
           <select name="category" required class="w-full px-3 py-2 border rounded-lg">
             <option value="">${t('common.select_placeholder')}</option>
-            <option value="식">식 (식비)</option>
-            <option value="의">의 (의복비)</option>
-            <option value="주">주 (주거비)</option>
-            <option value="교통">교통</option>
-            <option value="통신">통신</option>
-            <option value="문화">문화</option>
-            <option value="의료">의료</option>
-            <option value="교육">교육</option>
-            <option value="쇼핑">쇼핑</option>
-            <option value="기타">기타</option>
+            <option value="식">Food</option>
+            <option value="의">Clothing</option>
+            <option value="주">Housing</option>
+            <option value="교통">Transport</option>
+            <option value="통신">Communication</option>
+            <option value="문화">Culture</option>
+            <option value="의료">Medical</option>
+            <option value="교육">Education</option>
+            <option value="쇼핑">Shopping</option>
+            <option value="기타">Other</option>
           </select>
         </div>
 
-        <!-- 상점명 -->
+        <!-- Merchant -->
         <div>
-          <label class="block text-sm font-medium mb-1">상점명</label>
+          <label class="block text-sm font-medium mb-1">${t('receipt.merchant_label')}</label>
           <input type="text" name="merchant" 
             class="w-full px-3 py-2 border rounded-lg">
         </div>
 
-        <!-- 결제수단 -->
+        <!-- Payment Method -->
         <div>
-          <label class="block text-sm font-medium mb-1">결제수단</label>
+          <label class="block text-sm font-medium mb-1">${t('transaction.payment_method')}</label>
           <select name="payment_method" class="w-full px-3 py-2 border rounded-lg">
-            <option value="card">카드</option>
-            <option value="cash">현금</option>
-            <option value="transfer">계좌이체</option>
+            <option value="card">${t('payment.card')}</option>
+            <option value="cash">${t('payment.cash')}</option>
+            <option value="transfer">${t('payment.transfer')}</option>
           </select>
         </div>
 
-        <!-- 메모 -->
+        <!-- Memo -->
         <div>
-          <label class="block text-sm font-medium mb-1">메모</label>
+          <label class="block text-sm font-medium mb-1">${t('transaction.memo')}</label>
           <textarea name="notes" rows="2"
             class="w-full px-3 py-2 border rounded-lg"></textarea>
         </div>
@@ -6671,14 +6671,14 @@ function showReceiptUploadModal() {
         <div class="flex items-center">
           <input type="checkbox" name="is_tax_deductible" id="taxDeductible"
             class="mr-2">
-          <label for="taxDeductible" class="text-sm">세액공제 대상</label>
+          <label for="taxDeductible" class="text-sm">${t('receipt.tax_deductible')}</label>
         </div>
 
         <!-- 버튼 -->
         <div class="flex gap-2 pt-4">
           <button type="button" onclick="closeReceiptModal()"
             class="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-100">
-            취소
+            ${t('common.cancel')}
           </button>
           <button type="submit"
             class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
