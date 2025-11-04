@@ -1834,6 +1834,33 @@ function renderBudgetChart(budgetData, period) {
     `;
   }
   
+  // CRITICAL FIX: Remove duplicates and filter out 0-amount budgets
+  const uniqueBudgets = new Map();
+  budgetData.forEach(item => {
+    // Skip 0-amount budgets
+    if (!item.monthly_budget || item.monthly_budget <= 0) return;
+    
+    // Keep only the latest entry for each category (or highest budget amount)
+    const existing = uniqueBudgets.get(item.category);
+    if (!existing || item.monthly_budget > existing.monthly_budget) {
+      uniqueBudgets.set(item.category, item);
+    }
+  });
+  
+  // Convert back to array
+  const filteredBudgetData = Array.from(uniqueBudgets.values());
+  
+  // If no valid budgets after filtering, show empty state
+  if (filteredBudgetData.length === 0) {
+    const statusKey = period === '월별' ? 'month.monthly_budget_status' : 'week.weekly_budget_status';
+    return `
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-xl font-bold mb-4">${t(statusKey)}</h3>
+        <p class="text-center text-gray-500 py-4">${t('month.no_budget_set')}</p>
+      </div>
+    `;
+  }
+  
   const statusKey = period === '월별' ? 'month.monthly_budget_status' : 'week.weekly_budget_status';
   let html = `
     <div class="bg-white p-6 rounded-lg shadow">
@@ -1841,7 +1868,7 @@ function renderBudgetChart(budgetData, period) {
       <div class="space-y-4">
   `;
   
-  budgetData.forEach(item => {
+  filteredBudgetData.forEach(item => {
     const percentage = item.monthly_budget > 0 ? (item.actual_spending / item.monthly_budget * 100) : 0;
     const remaining = item.monthly_budget - item.actual_spending;
     
