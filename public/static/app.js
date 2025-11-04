@@ -5485,9 +5485,25 @@ async function confirmDeleteAccount() {
     }
   } catch (error) {
     console.error('Account deletion error:', error);
-    alert(lang === 'ko'
+    
+    // 자세한 에러 메시지
+    let errorMsg = lang === 'ko'
       ? '❌ 계정 삭제 중 오류가 발생했습니다.'
-      : '❌ An error occurred while deleting account.');
+      : '❌ An error occurred while deleting account.';
+    
+    if (error.response) {
+      // 서버 응답이 있는 경우
+      errorMsg += '\n\n' + (lang === 'ko' ? '서버 오류: ' : 'Server error: ') + 
+                  (error.response.data?.error || error.response.statusText);
+    } else if (error.request) {
+      // 요청은 보냈으나 응답이 없는 경우
+      errorMsg += '\n\n' + (lang === 'ko' ? '서버에 연결할 수 없습니다.' : 'Cannot connect to server.');
+    } else {
+      // 요청 설정 중 에러
+      errorMsg += '\n\n' + error.message;
+    }
+    
+    alert(errorMsg);
   }
 }
 
