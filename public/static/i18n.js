@@ -48,6 +48,11 @@ const translations = {
     'common.optional': '선택',
     'common.yes': '예',
     'common.no': '아니오',
+    'common.user': '사용자',
+    
+    // Auth
+    'auth.logout': '로그아웃',
+    'auth.login': '로그인',
     
     // 홈 화면
     'home.title': '가계부 앱',
@@ -207,6 +212,27 @@ const translations = {
     'settings.reset_confirm': '모든 데이터가 삭제됩니다. 계속하시겠습니까?',
     'settings.about': '앱 정보',
     'settings.version': '버전',
+    'settings.initial_balance': '💰 초기 총 잔액 (카드 + 현금)',
+    'settings.initial_balance_desc': '가계부 시작 시점의 전체 자산 (카드 잔액 + 현금 + 저축 포함)',
+    'settings.cash_on_hand': '💵 초기 현금 보유액',
+    'settings.cash_on_hand_desc': '가계부 시작 시점에 현금으로 보유한 금액',
+    'settings.background_theme': '🎨 배경 테마',
+    'settings.background_theme_desc': '앱 배경 색상을 선택하세요',
+    'settings.dark_mode': '🌙 다크모드',
+    'settings.dark_mode_desc': '어두운 화면에서 눈의 피로를 줄입니다',
+    'settings.dark_mode_on': '다크모드 켜짐',
+    'settings.light_mode': '라이트모드',
+    'settings.help': '📚 도움말',
+    'settings.help_desc': '앱 사용 방법과 주요 기능을 확인하세요',
+    'settings.help_button': '사용 방법 보기',
+    'settings.export_title': '📊 데이터 내보내기',
+    'settings.export_desc': '재무 데이터를 엑셀이나 JSON 형식으로 내보낼 수 있습니다',
+    'settings.export_excel': '엑셀 (.csv)',
+    'settings.export_json': 'JSON',
+    'settings.import_title': '데이터 복원',
+    'settings.import_desc': '백업한 JSON 파일에서 데이터를 복원할 수 있습니다',
+    'settings.import_button': '불러오기',
+    'settings.save': '설정 저장',
     
     // 메시지
     'msg.save_success': '저장되었습니다',
@@ -269,6 +295,11 @@ const translations = {
     'common.optional': 'Optional',
     'common.yes': 'Yes',
     'common.no': 'No',
+    'common.user': 'User',
+    
+    // Auth
+    'auth.logout': 'Logout',
+    'auth.login': 'Login',
     
     // Home screen
     'home.title': 'Budget App',
@@ -428,6 +459,27 @@ const translations = {
     'settings.reset_confirm': 'All data will be deleted. Continue?',
     'settings.about': 'About',
     'settings.version': 'Version',
+    'settings.initial_balance': '💰 Initial Total Balance (Card + Cash)',
+    'settings.initial_balance_desc': 'Total assets at the start of budget tracking (card + cash + savings)',
+    'settings.cash_on_hand': '💵 Initial Cash on Hand',
+    'settings.cash_on_hand_desc': 'Amount of cash held at the start',
+    'settings.background_theme': '🎨 Background Theme',
+    'settings.background_theme_desc': 'Select app background color',
+    'settings.dark_mode': '🌙 Dark Mode',
+    'settings.dark_mode_desc': 'Reduce eye strain in dark environments',
+    'settings.dark_mode_on': 'Dark Mode On',
+    'settings.light_mode': 'Light Mode',
+    'settings.help': '📚 Help',
+    'settings.help_desc': 'Learn how to use the app and its features',
+    'settings.help_button': 'View Instructions',
+    'settings.export_title': '📊 Export Data',
+    'settings.export_desc': 'Export your financial data to Excel or JSON format',
+    'settings.export_excel': 'Excel (.csv)',
+    'settings.export_json': 'JSON',
+    'settings.import_title': 'Import Data',
+    'settings.import_desc': 'Restore data from a backup JSON file',
+    'settings.import_button': 'Import',
+    'settings.save': 'Save Settings',
     
     // Messages
     'msg.save_success': 'Saved successfully',
@@ -467,88 +519,5 @@ function getLanguage() {
   return currentLanguage;
 }
 
-// DOM에서 모든 한글 텍스트를 찾아서 번역
-function translateDOM() {
-  if (currentLanguage === 'ko') return; // 한국어면 번역하지 않음
-  
-  // 모든 텍스트 노드 찾기
-  const walker = document.createTreeWalker(
-    document.body,
-    NodeFilter.SHOW_TEXT,
-    null,
-    false
-  );
-  
-  const nodes = [];
-  let node;
-  while (node = walker.nextNode()) {
-    // 스크립트 태그나 스타일 태그 내부는 제외
-    if (node.parentElement && !['SCRIPT', 'STYLE'].includes(node.parentElement.tagName)) {
-      nodes.push(node);
-    }
-  }
-  
-  // 각 텍스트 노드의 한글을 번역
-  nodes.forEach(node => {
-    const text = node.textContent.trim();
-    if (text && /[가-힣]/.test(text)) {
-      // 번역 키를 찾아서 번역
-      for (const [key, koText] of Object.entries(translations.ko)) {
-        if (text.includes(koText)) {
-          const enText = translations.en[key];
-          if (enText) {
-            node.textContent = node.textContent.replace(koText, enText);
-          }
-        }
-      }
-    }
-  });
-  
-  // placeholder, title 등의 속성도 번역
-  const elements = document.querySelectorAll('[placeholder], [title], [aria-label]');
-  elements.forEach(el => {
-    ['placeholder', 'title', 'aria-label'].forEach(attr => {
-      const value = el.getAttribute(attr);
-      if (value && /[가-힣]/.test(value)) {
-        for (const [key, koText] of Object.entries(translations.ko)) {
-          if (value.includes(koText)) {
-            const enText = translations.en[key];
-            if (enText) {
-              el.setAttribute(attr, value.replace(koText, enText));
-            }
-          }
-        }
-      }
-    });
-  });
-}
-
-// MutationObserver로 동적으로 추가되는 컨텐츠도 번역
-let observer = null;
-function startTranslationObserver() {
-  if (currentLanguage === 'ko' || observer) return;
-  
-  observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.addedNodes.length) {
-        setTimeout(translateDOM, 100);
-      }
-    });
-  });
-  
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-}
-
-// 페이지 로드 시 번역 실행
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    translateDOM();
-    startTranslationObserver();
-  });
-} else {
-  translateDOM();
-  startTranslationObserver();
-}
+// DOM 번역 기능은 복잡도와 버그 위험으로 인해 비활성화
+// 대신 앱에서 t() 함수를 직접 사용하는 방식으로 점진적 개선

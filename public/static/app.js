@@ -111,14 +111,30 @@ const categories = {
 
 // 통화 정의
 
-const CURRENCIES = {
-  'KRW': { symbol: '₩', name: '원화 (KRW)' },
-  'USD': { symbol: '$', name: '미국 달러 (USD)' },
-  'EUR': { symbol: '€', name: '유로 (EUR)' },
-  'JPY': { symbol: '¥', name: '일본 엔 (JPY)' },
-  'AUD': { symbol: 'A$', name: '호주 달러 (AUD)' },
-  'GBP': { symbol: '£', name: '영국 파운드 (GBP)' }
-};
+function getCurrencies() {
+  const lang = getLanguage();
+  if (lang === 'en') {
+    return {
+      'KRW': { symbol: '₩', name: 'Korean Won (KRW)' },
+      'USD': { symbol: '$', name: 'US Dollar (USD)' },
+      'EUR': { symbol: '€', name: 'Euro (EUR)' },
+      'JPY': { symbol: '¥', name: 'Japanese Yen (JPY)' },
+      'AUD': { symbol: 'A$', name: 'Australian Dollar (AUD)' },
+      'GBP': { symbol: '£', name: 'British Pound (GBP)' }
+    };
+  } else {
+    return {
+      'KRW': { symbol: '₩', name: '원화 (KRW)' },
+      'USD': { symbol: '$', name: '미국 달러 (USD)' },
+      'EUR': { symbol: '€', name: '유로 (EUR)' },
+      'JPY': { symbol: '¥', name: '일본 엔 (JPY)' },
+      'AUD': { symbol: 'A$', name: '호주 달러 (AUD)' },
+      'GBP': { symbol: '£', name: '영국 파운드 (GBP)' }
+    };
+  }
+}
+
+const CURRENCIES = getCurrencies();
 
 // 유틸리티 함수
 
@@ -790,14 +806,14 @@ async function renderApp() {
         <div class="flex items-center justify-between mb-6">
           <h1 class="text-3xl font-bold text-gray-800 flex items-center">
             <i class="fas fa-wallet mr-3 text-blue-600"></i>
-            가계부 앱
+            ${t('home.title')}
           </h1>
           <div class="flex items-center gap-4">
             <span class="text-sm text-gray-600">
-              <i class="fas fa-user mr-2"></i>${state.currentUser?.name || '사용자'}님
+              <i class="fas fa-user mr-2"></i>${state.currentUser?.name || t('common.user')}
             </span>
             <button onclick="handleLogout()" class="text-sm text-red-600 hover:text-red-700">
-              <i class="fas fa-sign-out-alt mr-1"></i>로그아웃
+              <i class="fas fa-sign-out-alt mr-1"></i>${t('auth.logout')}
             </button>
           </div>
         </div>
@@ -806,37 +822,37 @@ async function renderApp() {
         <div class="border-b mb-6">
           <nav class="flex flex-wrap -mb-px">
             <button id="tab-home" class="tab-button border-b-2 border-blue-600 text-blue-600 py-4 px-6 font-medium">
-              <i class="fas fa-home mr-2"></i>홈
+              <i class="fas fa-home mr-2"></i>${t('tab.home')}
             </button>
             <button id="tab-month" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
-              <i class="fas fa-calendar-alt mr-2"></i>월별
+              <i class="fas fa-calendar-alt mr-2"></i>${t('tab.month')}
             </button>
             <button id="tab-week" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
-              <i class="fas fa-calendar-week mr-2"></i>주별
+              <i class="fas fa-calendar-week mr-2"></i>${t('tab.week')}
             </button>
             <button id="tab-savings" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
-              <i class="fas fa-piggy-bank mr-2"></i>저축
+              <i class="fas fa-piggy-bank mr-2"></i>${t('tab.savings')}
             </button>
             <button id="tab-fixed-expenses" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
-              <i class="fas fa-redo mr-2"></i>고정지출
+              <i class="fas fa-redo mr-2"></i>${t('tab.fixed_expenses')}
             </button>
             <button id="tab-budgets" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
-              <i class="fas fa-chart-pie mr-2"></i>예산
+              <i class="fas fa-chart-pie mr-2"></i>${t('tab.budgets')}
             </button>
             <button id="tab-investments" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
-              <i class="fas fa-chart-line mr-2"></i>투자
+              <i class="fas fa-chart-line mr-2"></i>${t('tab.investments')}
             </button>
             <button id="tab-receipts" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
-              <i class="fas fa-receipt mr-2"></i>영수증
+              <i class="fas fa-receipt mr-2"></i>${t('receipt.title')}
             </button>
             <button id="tab-debts" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
-              <i class="fas fa-hand-holding-usd mr-2"></i>채무
+              <i class="fas fa-hand-holding-usd mr-2"></i>${t('tab.debts')}
             </button>
             <button id="tab-reports" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
-              <i class="fas fa-chart-bar mr-2"></i>리포트
+              <i class="fas fa-chart-bar mr-2"></i>${t('tab.reports')}
             </button>
             <button id="tab-settings" class="tab-button border-b-2 border-transparent text-gray-600 hover:text-gray-800 py-4 px-6">
-              <i class="fas fa-cog mr-2"></i>설정
+              <i class="fas fa-cog mr-2"></i>${t('tab.settings')}
             </button>
           </nav>
         </div>
@@ -845,7 +861,7 @@ async function renderApp() {
         <div id="content-area" class="min-h-screen">
           <div class="text-center text-gray-500 py-8">
             <i class="fas fa-spinner fa-spin text-4xl mb-4"></i>
-            <p>로딩 중...</p>
+            <p>${t('common.loading')}</p>
           </div>
         </div>
       </div>
@@ -4563,11 +4579,11 @@ async function renderSettingsView() {
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">통화</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">${t('settings.currency')}</label>
           <select id="currency-select" class="w-full px-4 py-2 border rounded">
-            ${Object.keys(CURRENCIES).map(code => `
+            ${Object.keys(getCurrencies()).map(code => `
               <option value="${code}" ${state.settings.currency === code ? 'selected' : ''}>
-                ${CURRENCIES[code].name}
+                ${getCurrencies()[code].name}
               </option>
             `).join('')}
           </select>
