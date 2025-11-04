@@ -2117,7 +2117,7 @@ async function renderWeekView() {
       
       <!-- 수입/지출/저축 비율 파이차트 -->
       <div class="bg-white p-6 rounded-lg shadow">
-        <h3 class="text-xl font-bold mb-4">주별 수입/지출/저축 비율</h3>
+        <h3 class="text-xl font-bold mb-4">${t('week.weekly_ratio')}</h3>
         <div class="flex justify-center">
           <canvas id="week-pie-chart" style="max-width: 300px; max-height: 300px;"></canvas>
         </div>
