@@ -92,6 +92,28 @@ const translations = {
     'category.allowance': '용돈',
     'category.bonus': '상여',
     
+    // Income categories
+    'category.income.salary': '급여',
+    'category.income.bonus': '상여금',
+    'category.income.side': '부수입',
+    'category.income.other': '기타수입',
+    
+    // Expense categories
+    'category.expense.clothing': '의복비',
+    'category.expense.food': '식비',
+    'category.expense.housing': '주거비',
+    'category.expense.transport': '교통비',
+    'category.expense.culture': '문화생활',
+    'category.expense.shopping': '쇼핑',
+    'category.expense.medical': '의료비',
+    'category.expense.education': '교육비',
+    'category.expense.communication': '통신비',
+    'category.expense.insurance': '보험',
+    'category.expense.other': '기타지출',
+    
+    // Savings category
+    'category.savings.savings': '저축',
+    
     // 결제 수단
     'payment.cash': '현금',
     'payment.card': '카드',
@@ -234,6 +256,74 @@ const translations = {
     'settings.import_button': '불러오기',
     'settings.save': '설정 저장',
     
+    // 추가 공통 텍스트
+    'common.select_placeholder': '선택하세요',
+    'common.search_placeholder': '검색',
+    'common.search_name': '실명으로 검색',
+    'common.view': '보기',
+    'common.download': '다운로드',
+    'common.edit_button': '수정',
+    'common.hello': '안녕하세요',
+    'common.welcome': '안녕하세요',
+    
+    // 홈 화면 추가
+    'home.savings_rate': '저축률',
+    'home.budget_vs_spending': '예산 vs 지출',
+    'home.monthly_status': '월별 실시 현황',
+    'home.greeting': '안녕하세요',
+    
+    // 월별/주별
+    'month.spending_status': '월별 지출 현황',
+    'week.spending_status': '주별 지출 현황',
+    'calendar.spending_trend': '지출 추이',
+    'calendar.no_data': '데이터가 없습니다',
+    
+    // 거래
+    'transaction.recent': '최근 거래 내역',
+    'transaction.history': '거래내역',
+    'transaction.no_transactions': '거래 내역이 없습니다',
+    'transaction.no_expenses': '지출 내역이 없습니다',
+    
+    // 채무 추가
+    'debt.total_receivables': '총 채권액',
+    'debt.remaining_balance': '남은 금액',
+    'debt.fully_repaid': '상환 완료',
+    'debt.repayment_rate': '상환율',
+    'debt.ongoing': '진행 중인 채무',
+    'debt.calculator': '이자 계산기',
+    'debt.set_goal': '목표 설정하기',
+    'debt.view_history': '상환 내역 보기',
+    
+    // 저축 추가
+    'savings.accounts': '저축 통장 목록',
+    'savings.goal_progress': '저축 목표 달성률',
+    'savings.total_savings': '총 저축액',
+    'savings.interest': '이자',
+    
+    // 투자 추가
+    'investment.realtime_stock': '실시간 주식 현황',
+    'investment.total_investment': '총 투자금',
+    'investment.current_value': '현재 평가액',
+    'investment.unrealized_pl': '평가 손익',
+    'investment.view_transactions': '진행 내역 보기',
+    
+    // 고정지출 추가
+    'fixed.manage_desc': '고정지출을 한눈에 관리하세요',
+    'fixed.no_expenses': '이번 달에 예정된 고정지출이 없습니다',
+    'fixed.category_budget': '카테고리별 예산 설정',
+    
+    // 예산 추가
+    'budget.over': '예산 초과',
+    'budget.vs_spending': '예산 vs 지출',
+    
+    // 영수증 추가
+    'receipt.merchant_name': '라라',
+    'receipt.medical': '의료비',
+    
+    // 리포트 추가
+    'report.monthly_spending': '월 지출 현황',
+    'report.ratio': '수입/지출/저축 비율',
+    
     // 메시지
     'msg.save_success': '저장되었습니다',
     'msg.save_failed': '저장에 실패했습니다',
@@ -245,6 +335,78 @@ const translations = {
     'msg.required_field': '필수 항목을 입력해주세요',
     'msg.confirm_delete': '삭제하시겠습니까?',
     'msg.no_data': '데이터가 없습니다',
+    
+    // Background themes
+    'theme.morning': '오전 (시원한 파랑)',
+    'theme.morning_desc': '차가운 파란색/보라색 톤',
+    'theme.lightBlue': '연한 파랑',
+    'theme.lightBlue_desc': '부드러운 하늘색/라벤더 톤',
+    'theme.sunset': '노을 (따뜻한 핑크)',
+    'theme.sunset_desc': '따뜻한 핑크/살구색 톤',
+    'theme.spring': '🌸 봄',
+    'theme.spring_desc': '벚꽃 핑크와 새싹 초록',
+    'theme.summer': '☀️ 여름',
+    'theme.summer_desc': '시원한 하늘과 바다 블루',
+    'theme.autumn': '🍂 가을',
+    'theme.autumn_desc': '단풍 오렌지와 따뜻한 베이지',
+    'theme.winter': '❄️ 겨울',
+    'theme.winter_desc': '하얀 눈과 차가운 하늘',
+    'theme.gray': '회색 (기본)',
+    'theme.gray_desc': '심플한 회색 배경',
+    
+    // Additional UI labels
+    'ui.this_month': '이번 달',
+    'ui.next_month': '다음 달',
+    'ui.prev_month': '이전 달',
+    'ui.this_week': '이번 주',
+    'ui.next_week': '다음 주',
+    'ui.prev_week': '이전 주',
+    'ui.today': '오늘',
+    'ui.yesterday': '어제',
+    'ui.tomorrow': '내일',
+    'ui.all_types': '전체 유형',
+    'ui.all_categories': '전체 카테고리',
+    'ui.select_date': '날짜 선택',
+    'ui.select_category': '카테고리 선택',
+    'ui.select_type': '유형 선택',
+    'ui.amount_label': '금액 입력',
+    'ui.description_label': '설명 입력',
+    'ui.memo_label': '메모 입력',
+    'ui.select_bg_theme': '앱 배경 색상을 선택하세요',
+    'ui.initial_balance_info': '가계부 시작 시점의 전체 자산 (카드 잔액 + 현금 + 저축 포함)',
+    'ui.cash_on_hand_info': '가계부 시작 시점에 현금으로 보유한 금액',
+    'ui.auto_extract_receipt': '영수증을 촬영하면 자동으로 정보를 추출합니다',
+    'ui.no_fixed_expenses': '이번 달에 예정된 고정지출이 없습니다',
+    'ui.stored_in_browser': '브라우저에 저장됨',
+    'ui.downloaded_to_folder': '다운로드된 파일은 브라우저의 다운로드 폴더에 저장되었습니다',
+    
+    // Form labels
+    'form.ticker_symbol': '종목 심볼',
+    'form.stock_name': '종목 이름',
+    'form.quantity': '보유 수량',
+    'form.avg_purchase_price': '평균 매수가',
+    'form.purchase_date': '매수일',
+    'form.memo_optional': '메모 (선택)',
+    'form.savings_account': '저축 통장',
+    'form.description_optional': '설명 (선택)',
+    'form.payment_method': '결제 수단',
+    'form.creditor': '채권자',
+    'form.debt_amount': '채무 금액',
+    'form.interest_rate': '이자율 (%)',
+    'form.start_date': '시작일',
+    'form.due_date': '만기일',
+    'form.required': '*',
+    
+    // Settings changes confirmation
+    'settings.currency_changed': '설정이 저장되었습니다. 통화가 {from}에서 {to}로 변경되었습니다',
+    'settings.saved': '설정이 저장되었습니다',
+    
+    // Errors and alerts
+    'error.add_transaction': '거래 추가 중 오류가 발생했습니다',
+    'error.update_transaction': '거래 수정 중 오류가 발생했습니다',
+    'error.delete_transaction': '거래 삭제 중 오류가 발생했습니다',
+    'error.load_data': '데이터 로딩 중 오류가 발생했습니다',
+    'error.save_settings': '설정 저장 중 오류가 발생했습니다',
   },
   
   en: {
@@ -338,6 +500,28 @@ const translations = {
     'category.investment': 'Investment',
     'category.allowance': 'Allowance',
     'category.bonus': 'Bonus',
+    
+    // Income categories
+    'category.income.salary': 'Salary',
+    'category.income.bonus': 'Bonus',
+    'category.income.side': 'Side Income',
+    'category.income.other': 'Other Income',
+    
+    // Expense categories
+    'category.expense.clothing': 'Clothing',
+    'category.expense.food': 'Food',
+    'category.expense.housing': 'Housing',
+    'category.expense.transport': 'Transportation',
+    'category.expense.culture': 'Culture/Entertainment',
+    'category.expense.shopping': 'Shopping',
+    'category.expense.medical': 'Medical',
+    'category.expense.education': 'Education',
+    'category.expense.communication': 'Communication',
+    'category.expense.insurance': 'Insurance',
+    'category.expense.other': 'Other Expenses',
+    
+    // Savings category
+    'category.savings.savings': 'Savings',
     
     // Payment methods
     'payment.cash': 'Cash',
@@ -481,6 +665,74 @@ const translations = {
     'settings.import_button': 'Import',
     'settings.save': 'Save Settings',
     
+    // Additional common text
+    'common.select_placeholder': 'Select',
+    'common.search_placeholder': 'Search',
+    'common.search_name': 'Search by name',
+    'common.view': 'View',
+    'common.download': 'Download',
+    'common.edit_button': 'Edit',
+    'common.hello': 'Hello',
+    'common.welcome': 'Welcome',
+    
+    // Home screen additions
+    'home.savings_rate': 'Savings Rate',
+    'home.budget_vs_spending': 'Budget vs Spending',
+    'home.monthly_status': 'Monthly Status',
+    'home.greeting': 'Hello',
+    
+    // Monthly/Weekly
+    'month.spending_status': 'Monthly Spending Status',
+    'week.spending_status': 'Weekly Spending Status',
+    'calendar.spending_trend': 'Spending Trend',
+    'calendar.no_data': 'No data available',
+    
+    // Transactions
+    'transaction.recent': 'Recent Transactions',
+    'transaction.history': 'Transaction History',
+    'transaction.no_transactions': 'No transactions',
+    'transaction.no_expenses': 'No expenses',
+    
+    // Debt additions
+    'debt.total_receivables': 'Total Receivables',
+    'debt.remaining_balance': 'Remaining Balance',
+    'debt.fully_repaid': 'Fully Repaid',
+    'debt.repayment_rate': 'Repayment Rate',
+    'debt.ongoing': 'Ongoing Debts',
+    'debt.calculator': 'Interest Calculator',
+    'debt.set_goal': 'Set Goal',
+    'debt.view_history': 'View Repayment History',
+    
+    // Savings additions
+    'savings.accounts': 'Savings Accounts',
+    'savings.goal_progress': 'Savings Goal Progress',
+    'savings.total_savings': 'Total Savings',
+    'savings.interest': 'Interest',
+    
+    // Investment additions
+    'investment.realtime_stock': 'Real-time Stock Status',
+    'investment.total_investment': 'Total Investment',
+    'investment.current_value': 'Current Valuation',
+    'investment.unrealized_pl': 'Unrealized P&L',
+    'investment.view_transactions': 'View Transaction History',
+    
+    // Fixed expenses additions
+    'fixed.manage_desc': 'Manage fixed expenses at a glance',
+    'fixed.no_expenses': 'No fixed expenses scheduled this month',
+    'fixed.category_budget': 'Set Budget by Category',
+    
+    // Budget additions
+    'budget.over': 'Over Budget',
+    'budget.vs_spending': 'Budget vs Spending',
+    
+    // Receipt additions
+    'receipt.merchant_name': 'Merchant',
+    'receipt.medical': 'Medical',
+    
+    // Report additions
+    'report.monthly_spending': 'Monthly Spending Status',
+    'report.ratio': 'Income/Expense/Savings Ratio',
+    
     // Messages
     'msg.save_success': 'Saved successfully',
     'msg.save_failed': 'Failed to save',
@@ -492,6 +744,78 @@ const translations = {
     'msg.required_field': 'Please fill in required fields',
     'msg.confirm_delete': 'Are you sure you want to delete?',
     'msg.no_data': 'No data available',
+    
+    // Background themes
+    'theme.morning': 'Morning (Cool Blue)',
+    'theme.morning_desc': 'Cool blue/purple tones',
+    'theme.lightBlue': 'Light Blue',
+    'theme.lightBlue_desc': 'Soft sky/lavender tones',
+    'theme.sunset': 'Sunset (Warm Pink)',
+    'theme.sunset_desc': 'Warm pink/apricot tones',
+    'theme.spring': '🌸 Spring',
+    'theme.spring_desc': 'Cherry blossom pink and fresh green',
+    'theme.summer': '☀️ Summer',
+    'theme.summer_desc': 'Cool sky and ocean blue',
+    'theme.autumn': '🍂 Autumn',
+    'theme.autumn_desc': 'Maple orange and warm beige',
+    'theme.winter': '❄️ Winter',
+    'theme.winter_desc': 'White snow and cool sky',
+    'theme.gray': 'Gray (Default)',
+    'theme.gray_desc': 'Simple gray background',
+    
+    // Additional UI labels
+    'ui.this_month': 'This Month',
+    'ui.next_month': 'Next Month',
+    'ui.prev_month': 'Previous Month',
+    'ui.this_week': 'This Week',
+    'ui.next_week': 'Next Week',
+    'ui.prev_week': 'Previous Week',
+    'ui.today': 'Today',
+    'ui.yesterday': 'Yesterday',
+    'ui.tomorrow': 'Tomorrow',
+    'ui.all_types': 'All Types',
+    'ui.all_categories': 'All Categories',
+    'ui.select_date': 'Select Date',
+    'ui.select_category': 'Select Category',
+    'ui.select_type': 'Select Type',
+    'ui.amount_label': 'Enter Amount',
+    'ui.description_label': 'Enter Description',
+    'ui.memo_label': 'Enter Memo',
+    'ui.select_bg_theme': 'Select app background color',
+    'ui.initial_balance_info': 'Total assets at the start of budget tracking (card + cash + savings)',
+    'ui.cash_on_hand_info': 'Amount of cash held at the start',
+    'ui.auto_extract_receipt': 'Take a photo of the receipt to automatically extract information',
+    'ui.no_fixed_expenses': 'No fixed expenses scheduled this month',
+    'ui.stored_in_browser': 'Stored in browser',
+    'ui.downloaded_to_folder': 'Downloaded file has been saved to your browser\'s download folder',
+    
+    // Form labels
+    'form.ticker_symbol': 'Ticker Symbol',
+    'form.stock_name': 'Stock Name',
+    'form.quantity': 'Quantity',
+    'form.avg_purchase_price': 'Average Purchase Price',
+    'form.purchase_date': 'Purchase Date',
+    'form.memo_optional': 'Memo (Optional)',
+    'form.savings_account': 'Savings Account',
+    'form.description_optional': 'Description (Optional)',
+    'form.payment_method': 'Payment Method',
+    'form.creditor': 'Creditor',
+    'form.debt_amount': 'Debt Amount',
+    'form.interest_rate': 'Interest Rate (%)',
+    'form.start_date': 'Start Date',
+    'form.due_date': 'Due Date',
+    'form.required': '*',
+    
+    // Settings changes confirmation
+    'settings.currency_changed': 'Settings saved. Currency changed from {from} to {to}',
+    'settings.saved': 'Settings saved successfully',
+    
+    // Errors and alerts
+    'error.add_transaction': 'Error occurred while adding transaction',
+    'error.update_transaction': 'Error occurred while updating transaction',
+    'error.delete_transaction': 'Error occurred while deleting transaction',
+    'error.load_data': 'Error occurred while loading data',
+    'error.save_settings': 'Error occurred while saving settings',
   }
 };
 

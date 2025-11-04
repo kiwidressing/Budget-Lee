@@ -53,61 +53,87 @@ const state = {
   authToken: localStorage.getItem('authToken') || null
 };
 
-// 배경 테마 정의
-const BACKGROUND_THEMES = {
-  morning: {
-    name: '오전 (시원한 파랑)',
-    colors: 'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)',
-    description: '차가운 파란색/보라색 톤'
-  },
-  lightBlue: {
-    name: '연한 파랑',
-    colors: 'linear-gradient(135deg, #e3f2fd 0%, #e1bee7 50%, #f3e5f5 100%)',
-    description: '부드러운 하늘색/라벤더 톤'
-  },
-  sunset: {
-    name: '노을 (따뜻한 핑크)',
-    colors: 'linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)',
-    description: '따뜻한 핑크/살구색 톤'
-  },
-  spring: {
-    name: '🌸 봄',
-    colors: 'linear-gradient(135deg, #ffeef8 0%, #ffe5f0 25%, #e8f5e9 75%, #c8e6c9 100%)',
-    description: '벚꽃 핑크와 새싹 초록'
-  },
-  summer: {
-    name: '☀️ 여름',
-    colors: 'linear-gradient(135deg, #e1f5fe 0%, #b3e5fc 25%, #81d4fa 75%, #4fc3f7 100%)',
-    description: '시원한 하늘과 바다 블루'
-  },
-  autumn: {
-    name: '🍂 가을',
-    colors: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 25%, #ffccbc 75%, #ffab91 100%)',
-    description: '단풍 오렌지와 따뜻한 베ージ'
-  },
-  winter: {
-    name: '❄️ 겨울',
-    colors: 'linear-gradient(135deg, #e3f2fd 0%, #e1f5fe 25%, #f1f8f6 75%, #ffffff 100%)',
-    description: '하얀 눈과 차가운 하늘'
-  },
-  gray: {
-    name: '회색 (기본)',
-    colors: '#F3F4F6',
-    description: '심플한 회색 배경'
-  }
-};
+// 배경 테마 정의 - 다국어 지원
 
-// 카테고리 정의
+function getBackgroundThemes() {
+  return {
+    morning: {
+      name: t('theme.morning'),
+      colors: 'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)',
+      description: t('theme.morning_desc')
+    },
+    lightBlue: {
+      name: t('theme.lightBlue'),
+      colors: 'linear-gradient(135deg, #e3f2fd 0%, #e1bee7 50%, #f3e5f5 100%)',
+      description: t('theme.lightBlue_desc')
+    },
+    sunset: {
+      name: t('theme.sunset'),
+      colors: 'linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)',
+      description: t('theme.sunset_desc')
+    },
+    spring: {
+      name: t('theme.spring'),
+      colors: 'linear-gradient(135deg, #ffeef8 0%, #ffe5f0 25%, #e8f5e9 75%, #c8e6c9 100%)',
+      description: t('theme.spring_desc')
+    },
+    summer: {
+      name: t('theme.summer'),
+      colors: 'linear-gradient(135deg, #e1f5fe 0%, #b3e5fc 25%, #81d4fa 75%, #4fc3f7 100%)',
+      description: t('theme.summer_desc')
+    },
+    autumn: {
+      name: t('theme.autumn'),
+      colors: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 25%, #ffccbc 75%, #ffab91 100%)',
+      description: t('theme.autumn_desc')
+    },
+    winter: {
+      name: t('theme.winter'),
+      colors: 'linear-gradient(135deg, #e3f2fd 0%, #e1f5fe 25%, #f1f8f6 75%, #ffffff 100%)',
+      description: t('theme.winter_desc')
+    },
+    gray: {
+      name: t('theme.gray'),
+      colors: '#F3F4F6',
+      description: t('theme.gray_desc')
+    }
+  };
+}
 
-const categories = {
-  income: ['급여', '상여금', '부수입', '기타수입'],
-  expense: [
-    '의복비', '식비', '주거비', '교통비', 
-    '문화생활', '쇼핑', '의료비', '교육비', 
-    '통신비', '보험', '기타지출'
-  ],
-  savings: ['저축']
-};
+// Dynamic background themes based on current language
+const BACKGROUND_THEMES = getBackgroundThemes();
+
+// 카테고리 정의 - 다국어 지원
+
+function getCategories() {
+  return {
+    income: [
+      t('category.income.salary'),
+      t('category.income.bonus'),
+      t('category.income.side'),
+      t('category.income.other')
+    ],
+    expense: [
+      t('category.expense.clothing'),
+      t('category.expense.food'),
+      t('category.expense.housing'),
+      t('category.expense.transport'),
+      t('category.expense.culture'),
+      t('category.expense.shopping'),
+      t('category.expense.medical'),
+      t('category.expense.education'),
+      t('category.expense.communication'),
+      t('category.expense.insurance'),
+      t('category.expense.other')
+    ],
+    savings: [
+      t('category.savings.savings')
+    ]
+  };
+}
+
+// Dynamic categories based on current language
+const categories = getCategories();
 
 // 통화 정의
 
@@ -1148,7 +1174,7 @@ async function renderHomeView() {
             <i class="fas fa-arrow-up mr-2"></i>수입
           </p>
           <p class="text-3xl font-bold mt-2">${formatCurrency(income)}</p>
-          <p class="text-blue-200 text-xs mt-2">이번 달</p>
+          <p class="text-blue-200 text-xs mt-2">${t('ui.this_month')}</p>
         </div>
         
         <div class="bg-gradient-to-br from-red-500 to-red-700 text-white p-5 rounded-lg shadow-lg">
@@ -1156,7 +1182,7 @@ async function renderHomeView() {
             <i class="fas fa-arrow-down mr-2"></i>지출
           </p>
           <p class="text-3xl font-bold mt-2">${formatCurrency(expense)}</p>
-          <p class="text-red-200 text-xs mt-2">이번 달</p>
+          <p class="text-red-200 text-xs mt-2">${t('ui.this_month')}</p>
         </div>
         
         <div class="bg-gradient-to-br from-green-500 to-green-700 text-white p-5 rounded-lg shadow-lg">
@@ -1164,7 +1190,7 @@ async function renderHomeView() {
             <i class="fas fa-piggy-bank mr-2"></i>저축
           </p>
           <p class="text-3xl font-bold mt-2">${formatCurrency(savings)}</p>
-          <p class="text-green-200 text-xs mt-2">이번 달</p>
+          <p class="text-green-200 text-xs mt-2">${t('ui.this_month')}</p>
         </div>
       </div>
       
@@ -1463,7 +1489,7 @@ async function renderMonthView() {
         <div id="savings-goals-section" class="space-y-4">
           <div class="text-center text-gray-500 py-4">
             <i class="fas fa-spinner fa-spin text-2xl"></i>
-            <p class="mt-2">로딩 중...</p>
+            <p class="mt-2">${t('common.loading')}</p>
           </div>
         </div>
       </div>
@@ -2088,7 +2114,7 @@ async function renderWeekView() {
         <div id="savings-goals-section" class="space-y-4">
           <div class="text-center text-gray-500 py-4">
             <i class="fas fa-spinner fa-spin text-2xl"></i>
-            <p class="mt-2">로딩 중...</p>
+            <p class="mt-2">${t('common.loading')}</p>
           </div>
         </div>
       </div>
@@ -2298,7 +2324,7 @@ async function renderFixedExpensesView() {
         }).join('')}
       </div>
       
-      ${fixedExpenseInstances.length === 0 ? '<p class="text-center text-gray-500 py-8">이번 달에 예정된 고정지출이 없습니다.</p>' : ''}
+      ${fixedExpenseInstances.length === 0 ? `<p class="text-center text-gray-500 py-8">${t('ui.no_fixed_expenses')}</p>` : ''}
     </div>
   `;
 }
@@ -2801,7 +2827,7 @@ async function openEditTransactionModal(transactionId) {
         
         <form onsubmit="handleEditTransactionSubmit(event, ${transactionId})" class="space-y-4">
           <div>
-            <label class="block text-sm font-medium mb-2">거래 유형</label>
+            <label class="block text-sm font-medium mb-2">${t('transaction.type')}</label>
             <div class="flex gap-2">
               <button type="button" onclick="setEditTransactionType('income', ${transactionId})" 
                       class="flex-1 py-2 rounded border ${transaction.type === 'income' ? 'bg-blue-500 text-white' : 'bg-gray-100'}"
@@ -2825,7 +2851,7 @@ async function openEditTransactionModal(transactionId) {
           <div id="edit-savings-account-select-${transactionId}" style="display: ${transaction.type === 'savings' ? 'block' : 'none'}">
             <label class="block text-sm font-medium mb-2">저축 통장</label>
             <select name="savings_account_id" class="w-full px-4 py-2 border rounded">
-              <option value="">선택하세요</option>
+              <option value="">${t('common.select_placeholder')}</option>
               ${state.savingsAccounts.map(acc => 
                 `<option value="${acc.id}" ${acc.id === transaction.savings_account_id ? 'selected' : ''}>${acc.name}</option>`
               ).join('')}
@@ -4590,25 +4616,25 @@ async function renderSettingsView() {
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">💰 초기 총 잔액 (카드 + 현금)</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">${t('settings.initial_balance')}</label>
           <input type="number" id="initial-balance" value="${state.settings.initial_balance}" 
                  class="w-full px-4 py-2 border rounded" placeholder="0">
           <p class="text-xs text-gray-500 mt-1">
-            <i class="fas fa-info-circle mr-1"></i>가계부 시작 시점의 전체 자산 (카드 잔액 + 현금 + 저축 포함)
+            <i class="fas fa-info-circle mr-1"></i>${t('ui.initial_balance_info')}
           </p>
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">💵 초기 현금 보유액</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">${t('settings.cash_on_hand')}</label>
           <input type="number" id="cash-on-hand" value="${state.settings.cash_on_hand || 0}" 
                  class="w-full px-4 py-2 border rounded" placeholder="0">
           <p class="text-xs text-gray-500 mt-1">
-            <i class="fas fa-info-circle mr-1"></i>가계부 시작 시점에 현금으로 보유한 금액
+            <i class="fas fa-info-circle mr-1"></i>${t('ui.cash_on_hand_info')}
           </p>
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">🎨 배경 테마</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">${t('settings.background_theme')}</label>
           <select id="background-theme-select" class="w-full px-4 py-2 border rounded" onchange="previewBackgroundTheme(this.value)">
             ${Object.keys(BACKGROUND_THEMES).map(key => `
               <option value="${key}" ${state.backgroundTheme === key ? 'selected' : ''}>
@@ -4720,7 +4746,7 @@ async function openTransactionModal(date) {
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
       <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-bold">거래 추가</h3>
+          <h3 class="text-xl font-bold">${t('transaction.add')}</h3>
           <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
             <i class="fas fa-times"></i>
           </button>
@@ -4728,7 +4754,7 @@ async function openTransactionModal(date) {
         
         <form onsubmit="handleTransactionSubmit(event)" class="space-y-4">
           <div>
-            <label class="block text-sm font-medium mb-2">거래 유형</label>
+            <label class="block text-sm font-medium mb-2">${t('transaction.type')}</label>
             <div class="flex gap-2">
               <button type="button" onclick="setTransactionType('income')" 
                       class="flex-1 py-2 rounded border ${state.currentTransactionType === 'income' ? 'bg-blue-500 text-white' : 'bg-gray-100'}">
@@ -4748,7 +4774,7 @@ async function openTransactionModal(date) {
           <div id="savings-account-select" style="display: ${state.currentTransactionType === 'savings' ? 'block' : 'none'}">
             <label class="block text-sm font-medium mb-2">저축 통장</label>
             <select name="savings_account_id" class="w-full px-4 py-2 border rounded">
-              <option value="">선택하세요</option>
+              <option value="">${t('common.select_placeholder')}</option>
               ${state.savingsAccounts.map(acc => `<option value="${acc.id}">${acc.name}</option>`).join('')}
             </select>
           </div>
@@ -4856,7 +4882,7 @@ async function handleTransactionSubmit(event) {
       switchView(state.activeView);
     }
   } catch (error) {
-    alert('거래 추가 중 오류가 발생했습니다.');
+    alert(t('error.add_transaction'));
   }
 }
 
@@ -5250,7 +5276,7 @@ async function saveSettings() {
             break;
         }
       } else {
-        alert('설정이 저장되었습니다.');
+        alert(t('settings.saved'));
         await renderSettingsView();
       }
     }
@@ -6353,7 +6379,7 @@ function showReceiptUploadModal() {
           <input type="file" name="file" accept="image/*" required
             onchange="handleReceiptImageSelect(event)"
             class="w-full px-3 py-2 border rounded-lg">
-          <p class="text-xs text-gray-500 mt-1">📷 영수증을 촬영하면 자동으로 정보를 추출합니다</p>
+          <p class="text-xs text-gray-500 mt-1">📷 ${t('ui.auto_extract_receipt')}</p>
           <div id="ocr-status" class="mt-2"></div>
         </div>
         
@@ -6381,7 +6407,7 @@ function showReceiptUploadModal() {
         <div>
           <label class="block text-sm font-medium mb-1">항목 *</label>
           <select name="category" required class="w-full px-3 py-2 border rounded-lg">
-            <option value="">선택하세요</option>
+            <option value="">${t('common.select_placeholder')}</option>
             <option value="식">식 (식비)</option>
             <option value="의">의 (의복비)</option>
             <option value="주">주 (주거비)</option>
