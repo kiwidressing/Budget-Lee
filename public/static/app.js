@@ -6011,7 +6011,7 @@ async function handleEditFixedExpense(event, id) {
   }
   
   try {
-   pi/fixed-expenses/${id}`, data);
+    const response = await axios.put(`/api/fixed-expenses/${id}`, data);
     if (response.data.success) {
       closeModal();
       renderFixedExpensesView();
@@ -7420,6 +7420,4 @@ function changeLanguage(lang) {
 }
 
 // 앱 초기화 - 페이지 로드 시 인증 확인 후 적절한 화면 렌더링
-renderApp();
-절한 화면 렌더링
 renderApp();
