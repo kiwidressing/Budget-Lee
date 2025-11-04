@@ -1854,7 +1854,7 @@ function renderBudgetChart(budgetData, period) {
     html += `
       <div>
         <div class="flex justify-between items-center mb-2">
-          <span class="font-medium text-gray-700">${item.category}</span>
+          <span class="font-medium text-gray-700">${translateCategoryName(item.category)}</span>
           <div class="text-right">
             <span class="text-sm font-bold" style="color: ${barColor}">${formatCurrency(item.actual_spending)}</span>
             <span class="text-sm text-gray-500"> / ${formatCurrency(item.monthly_budget)}</span>
@@ -1945,8 +1945,8 @@ function renderExpenseBarChart(expenseByCategory, period) {
         <div class="flex justify-between items-center mb-1">
           <div class="flex items-center gap-2">
             <div class="w-3 h-3 rounded-full" style="background-color: ${color}"></div>
-            <span class="font-medium text-gray-700">${item.category}</span>
-            <span class="text-xs text-gray-500">(${item.count}건)</span>
+            <span class="font-medium text-gray-700">${translateCategoryName(item.category)}</span>
+            <span class="text-xs text-gray-500">(${item.count}${t('common.count')})</span>
           </div>
           <div class="text-right">
             <span class="font-bold text-gray-900">${formatCurrency(item.total)}</span>
@@ -6587,6 +6587,36 @@ if (typeof window.getCategoryIcon !== 'function') {
       '문화': '🎬', '기타': '🧾'
     };
     return map[cat] || '🧾';
+  };
+}
+
+// 카테고리 이름 번역 헬퍼 함수
+if (typeof window.translateCategoryName !== 'function') {
+  window.translateCategoryName = function translateCategoryName(cat) {
+    const map = {
+      '의복비': t('category.expense.clothing'),
+      '식비': t('category.expense.food'),
+      '주거비': t('category.expense.housing'),
+      '교통비': t('category.expense.transport'),
+      '문화생활': t('category.expense.culture'),
+      '쇼핑': t('category.expense.shopping'),
+      '의료비': t('category.expense.medical'),
+      '교육비': t('category.expense.education'),
+      '통신비': t('category.expense.communication'),
+      '보험': t('category.expense.insurance'),
+      '기타지출': t('category.expense.other'),
+      // 짧은 형식
+      '식': t('category.expense.food'),
+      '의': t('category.expense.clothing'),
+      '주': t('category.expense.housing'),
+      '교통': t('category.expense.transport'),
+      '통신': t('category.expense.communication'),
+      '의료': t('category.expense.medical'),
+      '교육': t('category.expense.education'),
+      '문화': t('category.expense.culture'),
+      '기타': t('category.expense.other')
+    };
+    return map[cat] || cat;
   };
 }
 
