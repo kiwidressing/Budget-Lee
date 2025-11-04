@@ -61,6 +61,16 @@ const translations = {
     'home.this_month': '이번 달',
     'home.summary': '요약',
     'home.no_transactions': '거래 내역이 없습니다',
+    'home.welcome': '안녕하세요',
+    'home.user_greeting': '안녕하세요, {name}님!',
+    'home.check_financial_status': '{year}년 {month}월의 재정 현황을 확인하세요',
+    'home.savings_ratio': '저축률',
+    'home.budget_vs_category_spending': '예산 대비 카테고리별 지출',
+    'home.income_expense_savings_comparison': '수입/지출/저축 비교',
+    'home.monthly_view': '월별 보기',
+    'home.category_management': '대신 관리',
+    'home.expense_management': '지출 관리',
+    'home.view_reports': '리포트',
     
     // 거래 추가/수정
     'transaction.add': '거래 추가',
@@ -470,6 +480,16 @@ const translations = {
     'home.this_month': 'This Month',
     'home.summary': 'Summary',
     'home.no_transactions': 'No transactions',
+    'home.welcome': 'Hello',
+    'home.user_greeting': 'Hello, {name}!',
+    'home.check_financial_status': 'Check your financial status for {month}/{year}',
+    'home.savings_ratio': 'Savings Ratio',
+    'home.budget_vs_category_spending': 'Budget vs Category Spending',
+    'home.income_expense_savings_comparison': 'Income/Expense/Savings Comparison',
+    'home.monthly_view': 'Monthly View',
+    'home.category_management': 'Category Management',
+    'home.expense_management': 'Expense Management',
+    'home.view_reports': 'Reports',
     
     // Transaction add/edit
     'transaction.add': 'Add Transaction',

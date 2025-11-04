@@ -1153,10 +1153,10 @@ async function renderHomeView() {
       <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-lg shadow-lg">
         <h2 class="text-2xl md:text-3xl font-bold mb-2">
           <i class="fas fa-chart-line mr-2"></i>
-          안녕하세요, ${state.currentUser?.name || '사용자'}님! 💼
+          ${t('home.user_greeting').replace('{name}', state.currentUser?.name || t('common.user'))} 💼
         </h2>
         <p class="text-blue-100 text-sm md:text-base">
-          ${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월의 재정 현황을 확인하세요 📊
+          ${t('home.check_financial_status').replace('{year}', new Date().getFullYear()).replace('{month}', new Date().getMonth() + 1)} 📊
         </p>
       </div>
       
@@ -1198,7 +1198,7 @@ async function renderHomeView() {
       <div class="bg-white p-6 rounded-lg shadow-lg">
         <div class="flex justify-between items-center mb-3">
           <h3 class="text-lg font-bold text-gray-800">
-            <i class="fas fa-chart-line mr-2 text-green-600"></i>저축률
+            <i class="fas fa-chart-line mr-2 text-green-600"></i>${t('home.savings_ratio')}
           </h3>
           <span class="text-2xl font-bold text-green-600">${savingsRate}%</span>
         </div>
@@ -1218,7 +1218,7 @@ async function renderHomeView() {
       <div class="bg-white p-6 rounded-lg shadow-lg">
         <h3 class="text-lg font-bold mb-4 text-gray-800">
           <i class="fas fa-chart-bar mr-2 text-blue-600"></i>
-          ${hasBudgets ? '예산 대비 카테고리별 지출' : '카테고리별 지출'}
+          ${hasBudgets ? t('home.budget_vs_category_spending') : t('report.category_analysis')}
         </h3>
         <div class="h-80">
           <canvas id="home-category-chart"></canvas>
@@ -1228,7 +1228,7 @@ async function renderHomeView() {
       <!-- 월별 추이 그래프 -->
       <div class="bg-white p-6 rounded-lg shadow-lg">
         <h3 class="text-lg font-bold mb-4 text-gray-800">
-          <i class="fas fa-chart-area mr-2 text-purple-600"></i>수입/지출/저축 비교
+          <i class="fas fa-chart-area mr-2 text-purple-600"></i>${t('home.income_expense_savings_comparison')}
         </h3>
         <div class="h-64">
           <canvas id="home-comparison-chart"></canvas>
@@ -1240,22 +1240,22 @@ async function renderHomeView() {
         <button onclick="switchView('month')" 
                 class="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-lg shadow-lg transition-all">
           <i class="fas fa-calendar-alt text-2xl mb-2"></i>
-          <p class="font-medium">월별 보기</p>
+          <p class="font-medium">${t('home.monthly_view')}</p>
         </button>
         <button onclick="switchView('budgets')" 
                 class="bg-green-500 hover:bg-green-600 text-white p-4 rounded-lg shadow-lg transition-all">
           <i class="fas fa-chart-pie text-2xl mb-2"></i>
-          <p class="font-medium">예산 관리</p>
+          <p class="font-medium">${t('budget.title')}</p>
         </button>
         <button onclick="switchView('savings')" 
                 class="bg-purple-500 hover:bg-purple-600 text-white p-4 rounded-lg shadow-lg transition-all">
           <i class="fas fa-piggy-bank text-2xl mb-2"></i>
-          <p class="font-medium">저축 관리</p>
+          <p class="font-medium">${t('savings.title')}</p>
         </button>
         <button onclick="switchView('reports')" 
                 class="bg-orange-500 hover:bg-orange-600 text-white p-4 rounded-lg shadow-lg transition-all">
           <i class="fas fa-chart-bar text-2xl mb-2"></i>
-          <p class="font-medium">리포트</p>
+          <p class="font-medium">${t('report.title')}</p>
         </button>
       </div>
     </div>
@@ -1341,7 +1341,7 @@ function drawHomeComparisonChart(income, expense, savings) {
   new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['수입', '지출', '저축'],
+      labels: [t('common.income'), t('common.expense'), t('transaction.type.savings')],
       datasets: [{
         data: [income, expense, savings],
         backgroundColor: [
@@ -1565,7 +1565,7 @@ function drawPieChart(canvasId, income, expense, savings) {
   new Chart(ctx, {
     type: 'pie',
     data: {
-      labels: ['수입', '지출', '저축'],
+      labels: [t('common.income'), t('common.expense'), t('transaction.type.savings')],
       datasets: [{
         data: [income, expense, savings],
         backgroundColor: ['#3B82F6', '#EF4444', '#10B981'],
@@ -1962,7 +1962,7 @@ function renderTransactionList(transactions) {
   let html = '<div class="space-y-2 max-h-96 overflow-y-auto">';
   transactions.forEach(t => {
     const typeColor = t.type === 'income' ? 'blue' : t.type === 'expense' ? 'red' : 'green';
-    const typeText = t.type === 'income' ? '수입' : t.type === 'expense' ? '지출' : '저축';
+    const typeText = t.type === 'income' ? window.t('common.income') : t.type === 'expense' ? window.t('common.expense') : window.t('transaction.type.savings');
     const paymentIcon = t.payment_method === 'cash' ? '💵' : '💳';
     
     html += `
@@ -7167,7 +7167,7 @@ window.exportToExcel = async function() {
     transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
     
     transactions.forEach(t => {
-      const typeLabel = t.type === 'income' ? '수입' : t.type === 'expense' ? '지출' : '저축';
+      const typeLabel = t.type === 'income' ? window.t('common.income') : t.type === 'expense' ? window.t('common.expense') : window.t('transaction.type.savings');
       const description = (t.description || '').replace(/,/g, ' ').replace(/\n/g, ' ');
       csvRows.push(`${t.date},${typeLabel},${t.category},${t.amount},${description}`);
     });
