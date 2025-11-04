@@ -7736,16 +7736,20 @@ function changeLanguage(lang) {
 }
 
 // ============================================================
-// 옵션 A: Service Worker 자동 업데이트
+// 옵션 A: Service Worker 자동 업데이트 (최적화됨)
 // ============================================================
 if ('serviceWorker' in navigator) {
-  // 앱 시작 시 Service Worker 강제 업데이트 체크
-  navigator.serviceWorker.getRegistrations().then(registrations => {
-    registrations.forEach(registration => {
-      console.log('[PWA] Checking for Service Worker updates...');
-      registration.update(); // 강제 업데이트 체크
+  // Service Worker 업데이트 - 1시간에 한번만 체크
+  const lastCheck = localStorage.getItem('sw_last_check');
+  const now = Date.now();
+  if (!lastCheck || now - parseInt(lastCheck) > 3600000) {
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      registrations.forEach(registration => {
+        registration.update();
+      });
     });
-  });
+    localStorage.setItem('sw_last_check', now.toString());
+  }
   
   // Service Worker 업데이트 감지
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -7787,39 +7791,37 @@ function enableAllInputs() {
       element.contentEditable = 'true';
     }
   });
-  console.log('[PWA] All inputs forcefully enabled:', inputs.length, 'elements');
+  // Only log on first load
+  if (inputs.length > 0 && !window._inputsInitialized) {
+    console.log('[PWA] Inputs enabled:', inputs.length);
+    window._inputsInitialized = true;
+  }
 }
 
-// DOM이 변경될 때마다 입력 필드 활성화 체크 (MutationObserver 사용)
+// DOM이 변경될 때마다 입력 필드 활성화 체크 (MutationObserver 사용 - 최적화됨)
+let inputCheckTimeout = null;
 const inputObserver = new MutationObserver((mutations) => {
-  // 모든 변경사항에 대해 입력 필드 활성화 (안전하게)
   let needsCheck = false;
   
-  mutations.forEach(mutation => {
-    // 새 노드 추가 감지
+  for (const mutation of mutations) {
+    // 새 노드 추가 감지 - input 관련만 체크
     if (mutation.addedNodes.length > 0) {
-      mutation.addedNodes.forEach(node => {
-        if (node.nodeType === 1) {
-          const inputs = node.querySelectorAll ? node.querySelectorAll('input, textarea, select') : [];
-          if (inputs.length > 0 || node.matches?.('input, textarea, select')) {
-            needsCheck = true;
-          }
+      for (const node of mutation.addedNodes) {
+        if (node.nodeType === 1 && node.matches?.('input, textarea, select, form')) {
+          needsCheck = true;
+          break;
         }
-      });
-    }
-    
-    // 속성 변경 감지 (disabled, readonly 등)
-    if (mutation.type === 'attributes') {
-      const target = mutation.target;
-      if (target.matches && target.matches('input, textarea, select')) {
-        needsCheck = true;
       }
     }
-  });
+    if (needsCheck) break;
+  }
   
-  // 변경 감지되면 즉시 모든 입력 활성화
+  // Debounce: 100ms 내 중복 호출 방지
   if (needsCheck) {
-    enableAllInputs();
+    clearTimeout(inputCheckTimeout);
+    inputCheckTimeout = setTimeout(() => {
+      enableAllInputs();
+    }, 100);
   }
 });
 
@@ -7841,23 +7843,14 @@ if (document.body) {
       attributes: true,
       attributeFilter: ['disabled', 'readonly', 'contenteditable', 'tabindex']
     });
-    console.log('[PWA] Input observer activated (deferred)');
+    // Input observer activated (deferred)
   });
 }
 
-// 페이지 로드 시 즉시 입력 필드 활성화
+// 페이지 로드 시 즉시 입력 필드 활성화 (한번만)
 enableAllInputs();
 
-// 주기적으로 입력 필드 체크 (강력한 보험 - 1초마다)
-setInterval(() => {
-  const disabledInputs = document.querySelectorAll('input[disabled], textarea[disabled], input[readonly], textarea[readonly]');
-  if (disabledInputs.length > 0) {
-    console.log('[PWA] Found', disabledInputs.length, 'disabled inputs, re-enabling...');
-    enableAllInputs();
-  }
-}, 1000);
-
-// 사용자가 클릭/포커스할 때마다 해당 입력 활성화
+// 사용자가 클릭할 때만 해당 입력 활성화 (로그 제거)
 document.addEventListener('click', (e) => {
   const target = e.target;
   if (target && (target.matches('input, textarea, select'))) {
@@ -7867,7 +7860,6 @@ document.addEventListener('click', (e) => {
     target.readOnly = false;
     target.style.pointerEvents = 'auto';
     target.style.userSelect = 'auto';
-    console.log('[PWA] Click-activated input:', target.name || target.id);
   }
 }, true);
 
