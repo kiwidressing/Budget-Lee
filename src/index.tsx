@@ -2521,4 +2521,40 @@ app.delete('/api/debts/:debtId/payments/:paymentId', authMiddleware, async (c) =
   }
 });
 
+// ========== 데이터 초기화 API (개발용) ==========
+
+// 모든 사용자 데이터 완전 삭제 (개발/테스트용)
+app.post('/api/reset-all-data', authMiddleware, async (c) => {
+  const { DB } = c.env
+  const userId = c.get('userId')!
+  
+  try {
+    // 모든 사용자 데이터 삭제
+    await DB.batch([
+      DB.prepare('DELETE FROM transactions WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM category_budgets WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM savings_accounts WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM settings WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM fixed_expenses WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM fixed_expense_payments WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM investments WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM investment_transactions WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM receipts WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM debts WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM debt_payments WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM monthly_summary WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM accounts WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM transfers WHERE user_id = ?').bind(userId)
+    ])
+    
+    return c.json({ 
+      success: true, 
+      message: '모든 데이터가 초기화되었습니다. 페이지를 새로고침 해주세요.' 
+    })
+  } catch (error: any) {
+    console.error('[Reset] Data reset error:', error)
+    return c.json({ success: false, error: '데이터 초기화 실패' }, 500)
+  }
+})
+
 export default app

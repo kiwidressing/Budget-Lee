@@ -4763,6 +4763,24 @@ async function renderSettingsView() {
           </button>
         </div>
         
+        <hr class="my-6 border-red-200">
+        
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h3 class="text-lg font-bold mb-3 text-red-700">
+            <i class="fas fa-exclamation-triangle mr-2"></i>⚠️ ${getLanguage() === 'ko' ? '데이터 초기화' : 'Reset All Data'}
+          </h3>
+          <p class="text-sm text-red-600 mb-4">
+            <i class="fas fa-info-circle mr-1"></i>
+            ${getLanguage() === 'ko' 
+              ? '모든 거래, 예산, 저축, 투자 데이터가 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다!' 
+              : 'All transactions, budgets, savings, and investment data will be permanently deleted. This action cannot be undone!'}
+          </p>
+          <button onclick="confirmResetAllData()" 
+                  class="w-full px-4 py-3 bg-red-600 text-white rounded hover:bg-red-700 font-bold">
+            <i class="fas fa-trash-alt mr-2"></i>${getLanguage() === 'ko' ? '🗑️ 모든 데이터 삭제' : '🗑️ Delete All Data'}
+          </button>
+        </div>
+        
         <button onclick="saveSettings()" class="w-full px-4 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
           <i class="fas fa-save mr-2"></i>${t('settings.save')}
         </button>
@@ -5346,6 +5364,52 @@ async function saveSettings() {
     }
   } catch (error) {
     alert('설정 저장 중 오류가 발생했습니다.');
+  }
+}
+
+// 모든 데이터 초기화 확인
+async function confirmResetAllData() {
+  const lang = getLanguage();
+  const confirmMessage = lang === 'ko' 
+    ? '⚠️ 경고: 모든 데이터가 영구적으로 삭제됩니다!\n\n다음 데이터가 모두 삭제됩니다:\n- 모든 거래 내역\n- 모든 예산 설정\n- 모든 저축 계좌\n- 모든 투자 기록\n- 모든 고정 지출\n- 모든 영수증\n- 모든 부채 기록\n\n정말로 계속하시겠습니까?' 
+    : '⚠️ WARNING: All data will be permanently deleted!\n\nThe following data will be deleted:\n- All transactions\n- All budget settings\n- All savings accounts\n- All investments\n- All fixed expenses\n- All receipts\n- All debt records\n\nAre you sure you want to continue?';
+  
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+  
+  // 두 번째 확인
+  const secondConfirm = lang === 'ko'
+    ? '마지막 확인: 이 작업은 되돌릴 수 없습니다. 정말로 모든 데이터를 삭제하시겠습니까?'
+    : 'Final confirmation: This action cannot be undone. Do you really want to delete all data?';
+  
+  if (!confirm(secondConfirm)) {
+    return;
+  }
+  
+  try {
+    const response = await axios.post('/api/reset-all-data');
+    
+    if (response.data.success) {
+      alert(lang === 'ko' 
+        ? '✅ 모든 데이터가 삭제되었습니다!\n\n페이지를 새로고침합니다...' 
+        : '✅ All data has been deleted!\n\nReloading page...');
+      
+      // 로컬 스토리지도 정리 (언어 설정 제외)
+      const currentLang = localStorage.getItem('app_language');
+      localStorage.clear();
+      if (currentLang) {
+        localStorage.setItem('app_language', currentLang);
+      }
+      
+      // 페이지 강제 새로고침 (캐시 무시)
+      window.location.reload(true);
+    }
+  } catch (error) {
+    console.error('Data reset error:', error);
+    alert(lang === 'ko'
+      ? '❌ 데이터 초기화 중 오류가 발생했습니다.'
+      : '❌ An error occurred while resetting data.');
   }
 }
 
