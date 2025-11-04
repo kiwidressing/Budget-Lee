@@ -1163,7 +1163,7 @@ async function renderHomeView() {
           <i class="fas fa-chart-line mr-2"></i>
           ${t('home.user_greeting').replace('{name}', state.currentUser?.name || t('common.user'))} 💼
         </h2>
-        <p class="text-blue-100 text-sm md:text-base">
+        <p class="text-white text-sm md:text-base font-medium">
           ${t('home.check_financial_status').replace('{year}', new Date().getFullYear()).replace('{month}', new Date().getMonth() + 1)} 📊
         </p>
       </div>
