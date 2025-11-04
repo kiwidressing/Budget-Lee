@@ -4552,6 +4552,17 @@ async function renderSettingsView() {
       
       <div class="space-y-6">
         <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">🌐 언어 / Language</label>
+          <select id="language-select" class="w-full px-4 py-2 border rounded" onchange="changeLanguage(this.value)">
+            <option value="ko" ${getLanguage() === 'ko' ? 'selected' : ''}>한국어</option>
+            <option value="en" ${getLanguage() === 'en' ? 'selected' : ''}>English</option>
+          </select>
+          <p class="text-xs text-gray-500 mt-1">
+            <i class="fas fa-info-circle mr-1"></i>${t('settings.language')}
+          </p>
+        </div>
+        
+        <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">통화</label>
           <select id="currency-select" class="w-full px-4 py-2 border rounded">
             ${Object.keys(CURRENCIES).map(code => `
@@ -7337,6 +7348,14 @@ window.exportToExcel = async function() {
 };
 
 console.log('[Help & Export] Functions initialized');
+
+// ============================================================
+// Language Change Function
+// ============================================================
+function changeLanguage(lang) {
+  setLanguage(lang);
+  // Page will automatically reload in setLanguage() function
+}
 
 // 앱 초기화 - 페이지 로드 시 인증 확인 후 적절한 화면 렌더링
 renderApp();

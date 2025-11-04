@@ -1443,7 +1443,8 @@ app.get('/', (c) => {
 
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="/static/app.js?v=2025-10-30-receipts-indexeddb"></script>
+    <script src="/static/i18n.js"></script>
+    <script src="/static/app.js?v=2025-11-04-i18n"></script>
     <script>
       // PWA Service Worker 등록 (오프라인 지원)
       if ('serviceWorker' in navigator) {
