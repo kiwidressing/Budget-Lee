@@ -1164,14 +1164,14 @@ async function renderHomeView() {
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-gradient-to-br from-purple-500 to-purple-700 text-white p-5 rounded-lg shadow-lg">
           <p class="text-purple-100 text-sm font-medium flex items-center">
-            <i class="fas fa-wallet mr-2"></i>총 자산
+            <i class="fas fa-wallet mr-2"></i>${t('home.total_assets')}
           </p>
           <p class="text-3xl font-bold mt-2">${formatCurrency(totalAssets)}</p>
         </div>
         
         <div class="bg-gradient-to-br from-blue-500 to-blue-700 text-white p-5 rounded-lg shadow-lg">
           <p class="text-blue-100 text-sm font-medium flex items-center">
-            <i class="fas fa-arrow-up mr-2"></i>수입
+            <i class="fas fa-arrow-up mr-2"></i>${t('common.income')}
           </p>
           <p class="text-3xl font-bold mt-2">${formatCurrency(income)}</p>
           <p class="text-blue-200 text-xs mt-2">${t('ui.this_month')}</p>
@@ -1179,7 +1179,7 @@ async function renderHomeView() {
         
         <div class="bg-gradient-to-br from-red-500 to-red-700 text-white p-5 rounded-lg shadow-lg">
           <p class="text-red-100 text-sm font-medium flex items-center">
-            <i class="fas fa-arrow-down mr-2"></i>지출
+            <i class="fas fa-arrow-down mr-2"></i>${t('common.expense')}
           </p>
           <p class="text-3xl font-bold mt-2">${formatCurrency(expense)}</p>
           <p class="text-red-200 text-xs mt-2">${t('ui.this_month')}</p>
@@ -1187,7 +1187,7 @@ async function renderHomeView() {
         
         <div class="bg-gradient-to-br from-green-500 to-green-700 text-white p-5 rounded-lg shadow-lg">
           <p class="text-green-100 text-sm font-medium flex items-center">
-            <i class="fas fa-piggy-bank mr-2"></i>저축
+            <i class="fas fa-piggy-bank mr-2"></i>${t('transaction.type.savings')}
           </p>
           <p class="text-3xl font-bold mt-2">${formatCurrency(savings)}</p>
           <p class="text-green-200 text-xs mt-2">${t('ui.this_month')}</p>
@@ -1209,7 +1209,7 @@ async function renderHomeView() {
           </div>
         </div>
         <div class="flex justify-between text-xs text-gray-600 mt-2">
-          <span>수입 대비 저축 비율</span>
+          <span>${t('home.savings_ratio_vs_income')}</span>
           <span>${formatCurrency(savings)} / ${formatCurrency(income)}</span>
         </div>
       </div>
@@ -1277,7 +1277,7 @@ function drawHomeCategoryChart(expenseByCategory, categoryBudgetMap, hasBudgets)
   const categories = Object.keys(expenseByCategory).sort((a, b) => expenseByCategory[b] - expenseByCategory[a]);
   
   const datasets = [{
-    label: '실제 지출',
+    label: t('home.actual_spending'),
     data: categories.map(cat => expenseByCategory[cat]),
     backgroundColor: 'rgba(239, 68, 68, 0.7)',
     borderColor: 'rgba(239, 68, 68, 1)',
@@ -1287,7 +1287,7 @@ function drawHomeCategoryChart(expenseByCategory, categoryBudgetMap, hasBudgets)
   // 예산이 있으면 추가
   if (hasBudgets && Object.keys(categoryBudgetMap).length > 0) {
     datasets.push({
-      label: '예산',
+      label: t('home.budget'),
       data: categories.map(cat => categoryBudgetMap[cat] || 0),
       backgroundColor: 'rgba(59, 130, 246, 0.7)',
       borderColor: 'rgba(59, 130, 246, 1)',
