@@ -6310,7 +6310,7 @@ async function renderReceiptsView() {
           <button onclick="changeReceiptMonth(-1)" class="p-2 hover:bg-gray-100 rounded">
             <i class="fas fa-chevron-left"></i>
           </button>
-          <span class="text-lg font-medium">${y}년 ${m}월</span>
+          <span class="text-lg font-medium">${getLanguage() === 'ko' ? `${y}년 ${m}월` : new Date(y, m - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' })}</span>
           <button onclick="changeReceiptMonth(1)" class="p-2 hover:bg-gray-100 rounded">
             <i class="fas fa-chevron-right"></i>
           </button>
@@ -6321,13 +6321,13 @@ async function renderReceiptsView() {
           ${receipts.length === 0 ? `
             <div class="col-span-full text-center py-12 text-gray-500">
               <i class="fas fa-receipt text-5xl mb-4 opacity-20"></i>
-              <p>등록된 영수증이 없습니다.</p>
+              <p>${t('receipt.no_receipts')}</p>
             </div>
           ` : receipts.map(receipt => `
             <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
               <div class="flex justify-between items-start mb-3">
                 <div class="flex-1">
-                  <div class="font-medium text-gray-900">${receipt.merchant || '상점명 없음'}</div>
+                  <div class="font-medium text-gray-900">${receipt.merchant || t('receipt.no_merchant')}</div>
                   <div class="text-sm text-gray-500">${receipt.purchase_date}</div>
                 </div>
                 <div class="text-right">
@@ -6367,10 +6367,10 @@ async function renderReceiptsView() {
           <i class="fas fa-receipt mr-2 text-blue-600"></i>${t('receipt.title')}
         </h2>
         <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p class="text-red-600 font-medium mb-2">영수증 목록을 불러오는데 실패했습니다.</p>
+          <p class="text-red-600 font-medium mb-2">${t('receipt.load_failed')}</p>
           <p class="text-sm text-red-500">오류: ${errorMsg}</p>
           <button onclick="safeRenderReceiptsView()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-            <i class="fas fa-redo mr-2"></i>다시 시도
+            <i class="fas fa-redo mr-2"></i>${t('receipt.retry')}
           </button>
         </div>
       </div>

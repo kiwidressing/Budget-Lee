@@ -298,6 +298,11 @@ const translations = {
     'receipt.ocr_failed': '자동 추출 실패. 직접 입력해주세요.',
     'receipt.tax_deductible': '세금 공제 대상',
     'receipt.notes': '비고',
+    'receipt.no_receipts': '등록된 영수증이 없습니다.',
+    'receipt.no_merchant': '상점명 없음',
+    'receipt.load_failed': '영수증 목록을 불러오는데 실패했습니다.',
+    'receipt.retry': '다시 시도',
+    'receipt.year_month': '년 월',
     
     // 설정
     'settings.title': '설정',
@@ -821,6 +826,11 @@ const translations = {
     'receipt.ocr_failed': 'Auto extraction failed. Please enter manually.',
     'receipt.tax_deductible': 'Tax Deductible',
     'receipt.notes': 'Notes',
+    'receipt.no_receipts': 'No receipts registered.',
+    'receipt.no_merchant': 'No merchant name',
+    'receipt.load_failed': 'Failed to load receipts list.',
+    'receipt.retry': 'Retry',
+    'receipt.year_month': 'Year Month',
     
     // Settings
     'settings.title': 'Settings',
