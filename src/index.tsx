@@ -2571,32 +2571,48 @@ app.delete('/api/account/delete', authMiddleware, async (c) => {
   try {
     console.log(`[Account] Starting account deletion for user_id: ${userId}`)
     
+    // 안전한 삭제 헬퍼 함수 (테이블이 없어도 에러 안남)
+    const safeDelete = async (tableName: string) => {
+      try {
+        const result = await DB.prepare(`DELETE FROM ${tableName} WHERE user_id = ?`).bind(userId).run()
+        console.log(`[Account] Deleted from ${tableName}: ${result.meta.changes} rows`)
+        return result
+      } catch (err: any) {
+        // 테이블이 없는 경우는 무시
+        if (err.message && err.message.includes('no such table')) {
+          console.log(`[Account] Table ${tableName} does not exist, skipping...`)
+          return { meta: { changes: 0 } }
+        }
+        throw err
+      }
+    }
+    
     // 순차적으로 삭제 (외래 키 제약 조건 고려)
     // 1. 자식 테이블들 먼저 삭제
-    await DB.prepare('DELETE FROM debt_payments WHERE user_id = ?').bind(userId).run()
-    await DB.prepare('DELETE FROM debts WHERE user_id = ?').bind(userId).run()
-    await DB.prepare('DELETE FROM investment_transactions WHERE user_id = ?').bind(userId).run()
-    await DB.prepare('DELETE FROM investments WHERE user_id = ?').bind(userId).run()
-    await DB.prepare('DELETE FROM fixed_expense_payments WHERE user_id = ?').bind(userId).run()
-    await DB.prepare('DELETE FROM fixed_expenses WHERE user_id = ?').bind(userId).run()
-    await DB.prepare('DELETE FROM transfers WHERE user_id = ?').bind(userId).run()
-    await DB.prepare('DELETE FROM receipts WHERE user_id = ?').bind(userId).run()
-    await DB.prepare('DELETE FROM transactions WHERE user_id = ?').bind(userId).run()
-    await DB.prepare('DELETE FROM accounts WHERE user_id = ?').bind(userId).run()
+    await safeDelete('debt_payments')
+    await safeDelete('debts')
+    await safeDelete('investment_transactions')
+    await safeDelete('investments')
+    await safeDelete('fixed_expense_payments')
+    await safeDelete('fixed_expenses')
+    await safeDelete('transfers')
+    await safeDelete('receipts')
+    await safeDelete('transactions')
+    await safeDelete('accounts')
     
     // 2. 독립적인 테이블들
-    await DB.prepare('DELETE FROM category_budgets WHERE user_id = ?').bind(userId).run()
-    await DB.prepare('DELETE FROM savings_accounts WHERE user_id = ?').bind(userId).run()
-    await DB.prepare('DELETE FROM monthly_summary WHERE user_id = ?').bind(userId).run()
-    await DB.prepare('DELETE FROM settings WHERE user_id = ?').bind(userId).run()
+    await safeDelete('category_budgets')
+    await safeDelete('savings_accounts')
+    await safeDelete('monthly_summary')
+    await safeDelete('settings')
     
     // 3. 세션 삭제
-    await DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(userId).run()
+    await safeDelete('sessions')
     
     // 4. 마지막으로 사용자 계정 삭제
     const deleteResult = await DB.prepare('DELETE FROM users WHERE id = ?').bind(userId).run()
     
-    console.log(`[Account] Account deleted successfully. Rows affected: ${deleteResult.meta.changes}`)
+    console.log(`[Account] Account deleted successfully. User rows affected: ${deleteResult.meta.changes}`)
     
     return c.json({ 
       success: true, 
