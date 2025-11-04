@@ -627,17 +627,17 @@ function renderLoginScreen() {
       <div class="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full mx-4">
         <div class="text-center mb-8">
           <i class="fas fa-wallet text-6xl text-blue-600 mb-4"></i>
-          <h1 class="text-3xl font-bold text-gray-800">가계부 앱</h1>
-          <p class="text-gray-600 mt-2">개인 재무 관리 도우미</p>
+          <h1 class="text-3xl font-bold text-gray-800">Budget Lee</h1>
+          <p class="text-gray-600 mt-2">Personal Finance Manager</p>
         </div>
         
         <div class="mb-6">
           <div class="flex border-b">
             <button onclick="showLoginForm()" id="login-tab" class="flex-1 py-3 font-medium text-blue-600 border-b-2 border-blue-600">
-              로그인
+              Sign In
             </button>
             <button onclick="showRegisterForm()" id="register-tab" class="flex-1 py-3 font-medium text-gray-600">
-              회원가입
+              Sign Up
             </button>
           </div>
         </div>
@@ -647,7 +647,7 @@ function renderLoginScreen() {
           <form onsubmit="handleLogin(event)" class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">
-                <i class="fas fa-user mr-2"></i>아이디
+                <i class="fas fa-user mr-2"></i>Username
               </label>
               <input 
                 type="text" 
@@ -655,13 +655,13 @@ function renderLoginScreen() {
                 id="login-username"
                 required 
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="아이디 입력"
+                placeholder="Enter username"
                 autocomplete="username"
               >
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">
-                <i class="fas fa-lock mr-2"></i>비밀번호 (숫자 4자리)
+                <i class="fas fa-lock mr-2"></i>Password (4 digits)
               </label>
               <input 
                 type="password" 
@@ -686,7 +686,7 @@ function renderLoginScreen() {
                   class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                 >
                 <span class="ml-2 text-sm text-gray-700">
-                  <i class="fas fa-user-check mr-1"></i>아이디 저장
+                  <i class="fas fa-user-check mr-1"></i>Remember Username
                 </span>
               </label>
               
@@ -698,7 +698,7 @@ function renderLoginScreen() {
                   class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                 >
                 <span class="ml-2 text-sm text-gray-700">
-                  <i class="fas fa-check-circle mr-1"></i>로그인 상태 유지
+                  <i class="fas fa-check-circle mr-1"></i>Stay Signed In
                 </span>
               </label>
             </div>
@@ -707,7 +707,7 @@ function renderLoginScreen() {
               type="submit" 
               class="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
             >
-              <i class="fas fa-sign-in-alt mr-2"></i>로그인
+              <i class="fas fa-sign-in-alt mr-2"></i>Sign In
             </button>
           </form>
         </div>
@@ -717,33 +717,33 @@ function renderLoginScreen() {
           <form onsubmit="handleRegister(event)" class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">
-                <i class="fas fa-user mr-2"></i>이름
+                <i class="fas fa-user mr-2"></i>Name
               </label>
               <input 
                 type="text" 
                 name="name" 
                 required 
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="홍길동"
+                placeholder="John Doe"
                 autocomplete="name"
               >
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">
-                <i class="fas fa-id-card mr-2"></i>아이디
+                <i class="fas fa-id-card mr-2"></i>Username
               </label>
               <input 
                 type="text" 
                 name="username" 
                 required 
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="아이디 입력"
+                placeholder="Enter username"
                 autocomplete="username"
               >
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">
-                <i class="fas fa-lock mr-2"></i>비밀번호 (숫자 4자리)
+                <i class="fas fa-lock mr-2"></i>Password (4 digits)
               </label>
               <input 
                 type="password" 
@@ -759,7 +759,7 @@ function renderLoginScreen() {
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">
-                <i class="fas fa-lock mr-2"></i>비밀번호 확인
+                <i class="fas fa-lock mr-2"></i>Confirm Password
               </label>
               <input 
                 type="password" 
@@ -777,13 +777,13 @@ function renderLoginScreen() {
               type="submit" 
               class="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
             >
-              <i class="fas fa-user-plus mr-2"></i>회원가입
+              <i class="fas fa-user-plus mr-2"></i>Sign Up
             </button>
           </form>
         </div>
         
         <div class="mt-6 text-center text-sm text-gray-600">
-          <p>처음 사용하시나요? 회원가입 후 이용하세요!</p>
+          <p>First time here? Sign up to get started!</p>
         </div>
       </div>
     </div>
@@ -4673,49 +4673,49 @@ async function renderSettingsView() {
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">🌙 다크모드</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">${t('settings.dark_mode')}</label>
           <div class="flex items-center gap-3">
             <button onclick="toggleDarkMode()" 
                     class="px-4 py-2 rounded ${state.darkMode ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}">
               <i class="fas fa-${state.darkMode ? 'moon' : 'sun'} mr-2"></i>
-              ${state.darkMode ? '다크모드 켜짐' : '라이트모드'}
+              ${state.darkMode ? t('settings.dark_mode_on') : t('settings.light_mode')}
             </button>
           </div>
           <p class="text-xs text-gray-500 mt-1">
-            <i class="fas fa-info-circle mr-1"></i>어두운 화면에서 눈의 피로를 줄입니다
+            <i class="fas fa-info-circle mr-1"></i>${t('settings.dark_mode_desc')}
           </p>
         </div>
         
         <hr class="my-6">
         
         <div>
-          <h3 class="text-lg font-bold mb-3">📚 도움말</h3>
+          <h3 class="text-lg font-bold mb-3">${t('settings.help')}</h3>
           <p class="text-sm text-gray-600 mb-4">
             <i class="fas fa-info-circle mr-1"></i>
-            앱 사용 방법과 주요 기능을 확인하세요.
+            ${t('settings.help_desc')}
           </p>
           <button onclick="showHelpModal()" 
                   class="w-full px-4 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
-            <i class="fas fa-question-circle mr-2"></i>사용 방법 보기
+            <i class="fas fa-question-circle mr-2"></i>${t('settings.help_button')}
           </button>
         </div>
         
         <hr class="my-6">
         
         <div>
-          <h3 class="text-lg font-bold mb-3">📊 데이터 내보내기</h3>
+          <h3 class="text-lg font-bold mb-3">${t('settings.export_title')}</h3>
           <p class="text-sm text-gray-600 mb-4">
             <i class="fas fa-info-circle mr-1"></i>
-            재무 데이터를 엑셀이나 JSON 형식으로 내보낼 수 있습니다.
+            ${t('settings.export_desc')}
           </p>
           <div class="grid grid-cols-2 gap-3">
             <button onclick="exportToExcel()" 
                     class="px-4 py-3 bg-green-600 text-white rounded hover:bg-green-700 font-medium">
-              <i class="fas fa-file-excel mr-2"></i>엑셀 (.csv)
+              <i class="fas fa-file-excel mr-2"></i>${t('settings.export_excel')}
             </button>
             <button onclick="exportData()" 
                     class="px-4 py-3 bg-green-500 text-white rounded hover:bg-green-600 font-medium">
-              <i class="fas fa-download mr-2"></i>JSON
+              <i class="fas fa-download mr-2"></i>${t('settings.export_json')}
             </button>
           </div>
         </div>
@@ -4723,19 +4723,19 @@ async function renderSettingsView() {
         <hr class="my-6">
         
         <div>
-          <h3 class="text-lg font-bold mb-3">데이터 복원</h3>
+          <h3 class="text-lg font-bold mb-3">${t('settings.import_title')}</h3>
           <p class="text-sm text-gray-600 mb-4">
             <i class="fas fa-info-circle mr-1"></i>
-            백업한 JSON 파일에서 데이터를 복원할 수 있습니다.
+            ${t('settings.import_desc')}
           </p>
           <button onclick="openImportDataModal()" 
                   class="w-full px-4 py-3 bg-orange-500 text-white rounded hover:bg-orange-600 font-medium">
-            <i class="fas fa-upload mr-2"></i>불러오기
+            <i class="fas fa-upload mr-2"></i>${t('settings.import_button')}
           </button>
         </div>
         
         <button onclick="saveSettings()" class="w-full px-4 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
-          <i class="fas fa-save mr-2"></i>설정 저장
+          <i class="fas fa-save mr-2"></i>${t('settings.save')}
         </button>
       </div>
     </div>
