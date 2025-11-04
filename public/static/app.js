@@ -3055,14 +3055,14 @@ async function renderDebtsView() {
       <!-- 헤더 -->
       <div class="flex justify-between items-center">
         <h2 class="text-2xl font-bold text-gray-800">
-          <i class="fas fa-hand-holding-usd mr-2"></i>채무 관리
+          <i class="fas fa-hand-holding-usd mr-2"></i>${t('debt.title')}
         </h2>
         <div class="flex gap-2">
           <button onclick="showInterestCalculator()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
-            <i class="fas fa-calculator mr-2"></i>이자 계산기
+            <i class="fas fa-calculator mr-2"></i>${t('debt.interest_calculator')}
           </button>
           <button onclick="showAddDebtModal()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-            <i class="fas fa-plus mr-2"></i>채무 추가
+            <i class="fas fa-plus mr-2"></i>${t('debt.add')}
           </button>
         </div>
       </div>
@@ -3072,7 +3072,7 @@ async function renderDebtsView() {
         <div class="bg-white rounded-lg shadow-md p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-600">총 채무액</p>
+              <p class="text-sm text-gray-600">${t('debt.total_debt')}</p>
               <p class="text-2xl font-bold text-red-600">${formatCurrency(totalDebt)}</p>
             </div>
             <i class="fas fa-file-invoice-dollar text-3xl text-red-300"></i>
@@ -3082,7 +3082,7 @@ async function renderDebtsView() {
         <div class="bg-white rounded-lg shadow-md p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-600">남은 금액</p>
+              <p class="text-sm text-gray-600">${t('debt.remaining_amount')}</p>
               <p class="text-2xl font-bold text-orange-600">${formatCurrency(totalRemaining)}</p>
             </div>
             <i class="fas fa-exclamation-circle text-3xl text-orange-300"></i>
@@ -3092,7 +3092,7 @@ async function renderDebtsView() {
         <div class="bg-white rounded-lg shadow-md p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-600">상환 완료</p>
+              <p class="text-sm text-gray-600">${t('debt.repayment_complete')}</p>
               <p class="text-2xl font-bold text-green-600">${formatCurrency(totalPaid)}</p>
             </div>
             <i class="fas fa-check-circle text-3xl text-green-300"></i>
@@ -3102,7 +3102,7 @@ async function renderDebtsView() {
         <div class="bg-white rounded-lg shadow-md p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-600">상환율</p>
+              <p class="text-sm text-gray-600">${t('debt.repayment_rate')}</p>
               <p class="text-2xl font-bold text-blue-600">${paymentProgress}%</p>
             </div>
             <i class="fas fa-percentage text-3xl text-blue-300"></i>
@@ -3126,7 +3126,7 @@ async function renderDebtsView() {
         ${activeDebts.length > 0 ? `
           <div class="bg-white rounded-lg shadow-md p-6">
             <h3 class="text-lg font-bold text-gray-800 mb-4">
-              <i class="fas fa-clock mr-2"></i>진행 중인 채무
+              <i class="fas fa-clock mr-2"></i>${t('debt.ongoing_debts')}
             </h3>
             <div class="space-y-3">
               ${activeDebts.map(debt => renderDebtCard(debt)).join('')}
@@ -3137,7 +3137,7 @@ async function renderDebtsView() {
         ${paidDebts.length > 0 ? `
           <div class="bg-white rounded-lg shadow-md p-6">
             <h3 class="text-lg font-bold text-green-600 mb-4">
-              <i class="fas fa-check-double mr-2"></i>상환 완료
+              <i class="fas fa-check-double mr-2"></i>${t('debt.completed_debts')}
             </h3>
             <div class="space-y-3">
               ${paidDebts.map(debt => renderDebtCard(debt)).join('')}
@@ -3217,7 +3217,7 @@ function renderDebtCard(debt) {
       
       <div class="grid grid-cols-2 gap-4 mb-3">
         <div>
-          <p class="text-xs text-gray-500">총 채무액</p>
+          <p class="text-xs text-gray-500">${t('debt.total_debt')}</p>
           <p class="font-semibold">${formatCurrency(debt.amount)}</p>
         </div>
         <div>
@@ -3837,8 +3837,8 @@ async function renderReportsView() {
       <!-- 헤더 -->
       <div class="flex justify-between items-center">
         <div>
-          <h2 class="text-2xl font-bold" id="report-title">연간 지출 현황</h2>
-          <p class="text-gray-600 text-sm mt-1" id="report-subtitle">월별 총 지출을 확인하세요. 막대를 클릭하면 카테고리별 상세 내역을 볼 수 있습니다.</p>
+          <h2 class="text-2xl font-bold" id="report-title">${t('report.annual_expense')} ${t('report.monthly_expense_status')}</h2>
+          <p class="text-gray-600 text-sm mt-1" id="report-subtitle">${t('report.click_bar_tip')}</p>
         </div>
         <div class="flex gap-2">
           <button onclick="changeReportYear(-1)" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
@@ -3846,7 +3846,7 @@ async function renderReportsView() {
           </button>
           <select id="report-year" onchange="loadYearlyReport()" class="px-4 py-2 border rounded">
             ${[0, 1, 2, 3, 4].map(offset => `
-              <option value="${currentYear - offset}" ${offset === 0 ? 'selected' : ''}>${currentYear - offset}년</option>
+              <option value="${currentYear - offset}" ${offset === 0 ? 'selected' : ''}>${currentYear - offset}${getLanguage() === 'ko' ? '년' : ''}</option>
             `).join('')}
           </select>
           <button onclick="changeReportYear(1)" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
@@ -3859,7 +3859,7 @@ async function renderReportsView() {
       <div id="report-breadcrumb" class="bg-white rounded-lg shadow px-6 py-3">
         <div class="flex items-center gap-2 text-sm">
           <button onclick="loadYearlyReport()" class="text-blue-600 hover:text-blue-800 font-medium">
-            <i class="fas fa-home mr-1"></i>연간 지출
+            <i class="fas fa-home mr-1"></i>${t('report.annual_expense')}
           </button>
         </div>
       </div>
@@ -3869,7 +3869,7 @@ async function renderReportsView() {
         <div class="bg-white rounded-lg shadow-md p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-600">연수입</p>
+              <p class="text-sm text-gray-600">${t('report.annual_income')}</p>
               <p class="text-2xl font-bold text-blue-600" id="summary-yearly-income">-</p>
             </div>
             <i class="fas fa-arrow-down text-3xl text-blue-300"></i>
@@ -3879,7 +3879,7 @@ async function renderReportsView() {
         <div class="bg-white rounded-lg shadow-md p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-600">연지출</p>
+              <p class="text-sm text-gray-600">${t('report.annual_expense_label')}</p>
               <p class="text-2xl font-bold text-red-600" id="summary-yearly-expense">-</p>
             </div>
             <i class="fas fa-arrow-up text-3xl text-red-300"></i>
@@ -3889,7 +3889,7 @@ async function renderReportsView() {
         <div class="bg-white rounded-lg shadow-md p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-600">연저축</p>
+              <p class="text-sm text-gray-600">${t('report.annual_savings')}</p>
               <p class="text-2xl font-bold text-green-600" id="summary-yearly-savings">-</p>
             </div>
             <i class="fas fa-piggy-bank text-3xl text-green-300"></i>
@@ -3899,7 +3899,7 @@ async function renderReportsView() {
         <div class="bg-white rounded-lg shadow-md p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-600">순수익</p>
+              <p class="text-sm text-gray-600">${t('report.net_profit')}</p>
               <p class="text-2xl font-bold text-purple-600" id="summary-yearly-net">-</p>
             </div>
             <i class="fas fa-chart-line text-3xl text-purple-300"></i>
@@ -3950,7 +3950,7 @@ async function loadYearlyReport() {
   detailsDiv.innerHTML = '<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>';
   
   // 업데이트 제목과 서브타이틀
-  document.getElementById('report-title').textContent = `${reportState.year}년 월별 지출 현황`;
+  document.getElementById('report-title').textContent = `${reportState.year}${getLanguage() === 'ko' ? '년' : ''} ${t('report.monthly_expense_status')}`;
   document.getElementById('report-subtitle').textContent = '막대를 클릭하면 해당 월의 카테고리별 지출을 확인할 수 있습니다.';
   
   // Breadcrumb 업데이트
@@ -4011,7 +4011,7 @@ async function loadYearlyReport() {
   const prevYearSameMonthComparison = await getPreviousYearComparison(reportState.year);
   
   let tableHTML = `
-    <h3 class="text-lg font-bold mb-4">월별 상세</h3>
+    <h3 class="text-lg font-bold mb-4">${t('report.monthly_detail')}</h3>
     <div class="overflow-x-auto">
       <table class="w-full">
         <thead class="bg-gray-50">
@@ -4044,7 +4044,7 @@ async function loadYearlyReport() {
         <td class="px-4 py-3 text-center">
           <button onclick="loadMonthCategoryReport(${data.month})" 
                   class="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600">
-            <i class="fas fa-chart-bar mr-1"></i>상세보기
+            <i class="fas fa-chart-bar mr-1"></i>${t('report.detail_view')}
           </button>
         </td>
       </tr>
