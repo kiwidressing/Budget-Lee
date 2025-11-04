@@ -1440,7 +1440,7 @@ async function renderMonthView() {
         <button onclick="changeMonth(-1)" class="w-8 h-8 md:w-10 md:h-10 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 flex items-center justify-center">
           <i class="fas fa-chevron-left text-sm"></i>
         </button>
-        <h2 class="text-sm md:text-base font-semibold">${state.currentMonth.getFullYear()}년 ${state.currentMonth.getMonth() + 1}월</h2>
+        <h2 class="text-sm md:text-base font-semibold">${getLanguage() === 'ko' ? `${state.currentMonth.getFullYear()}년 ${state.currentMonth.getMonth() + 1}월` : `${state.currentMonth.toLocaleString('en-US', { month: 'long', year: 'numeric' })}`}</h2>
         <button onclick="changeMonth(1)" class="w-8 h-8 md:w-10 md:h-10 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 flex items-center justify-center">
           <i class="fas fa-chevron-right text-sm"></i>
         </button>
@@ -1644,7 +1644,7 @@ async function renderSavingsGoalsProgress() {
             <div class="flex justify-between items-center">
               <div>
                 <h4 class="font-semibold text-lg">${account.name}</h4>
-                <p class="text-sm text-gray-500">현재 잔액: ${formatCurrency(account.balance || 0)}</p>
+                <p class="text-sm text-gray-500">${t('month.current_balance')}: ${formatCurrency(account.balance || 0)}</p>
               </div>
               <button onclick="openSavingsGoalModal(${account.id}, 0)" 
                       class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2">
@@ -1825,17 +1825,19 @@ function renderCalendar(calendarData) {
 // 예산 vs 지출 그래프 렌더링
 function renderBudgetChart(budgetData, period) {
   if (!budgetData || budgetData.length === 0) {
+    const statusKey = period === '월별' ? 'month.monthly_budget_status' : 'week.weekly_budget_status';
     return `
       <div class="bg-white p-6 rounded-lg shadow">
-        <h3 class="text-xl font-bold mb-4">${period} 예산 현황</h3>
-        <p class="text-center text-gray-500 py-4">설정된 예산이 없습니다. 예산 탭에서 카테고리별 예산을 설정하세요.</p>
+        <h3 class="text-xl font-bold mb-4">${t(statusKey)}</h3>
+        <p class="text-center text-gray-500 py-4">${t('month.no_budget_set')}</p>
       </div>
     `;
   }
   
+  const statusKey = period === '월별' ? 'month.monthly_budget_status' : 'week.weekly_budget_status';
   let html = `
     <div class="bg-white p-6 rounded-lg shadow">
-      <h3 class="text-xl font-bold mb-4">${period} 예산 현황</h3>
+      <h3 class="text-xl font-bold mb-4">${t(statusKey)}</h3>
       <div class="space-y-4">
   `;
   
@@ -1868,7 +1870,7 @@ function renderBudgetChart(budgetData, period) {
           </div>
         </div>
         <p class="text-xs mt-1 ${remaining < 0 ? 'text-red-600 font-bold' : 'text-gray-600'}">
-          ${remaining >= 0 ? `잔액: ${formatCurrency(remaining)}` : `⚠️ 초과: ${formatCurrency(Math.abs(remaining))}`}
+          ${remaining >= 0 ? `${t('month.balance')}: ${formatCurrency(remaining)}` : `⚠️ ${t('month.exceeded')}: ${formatCurrency(Math.abs(remaining))}`}
         </p>
       </div>
     `;
@@ -1885,10 +1887,11 @@ function renderBudgetChart(budgetData, period) {
 // 카테고리별 지출 바 그래프 렌더링
 function renderExpenseBarChart(expenseByCategory, period) {
   if (!expenseByCategory || expenseByCategory.length === 0) {
+    const titleKey = period === '월별' ? 'month.monthly_category_spending' : 'week.weekly_category_spending';
     return `
       <div class="bg-white p-6 rounded-lg shadow">
-        <h3 class="text-xl font-bold mb-4">${period} 카테고리별 지출</h3>
-        <p class="text-center text-gray-500 py-4">지출 내역이 없습니다.</p>
+        <h3 class="text-xl font-bold mb-4">${t(titleKey)}</h3>
+        <p class="text-center text-gray-500 py-4">${t('transaction.no_spending')}</p>
       </div>
     `;
   }
@@ -1914,14 +1917,15 @@ function renderExpenseBarChart(expenseByCategory, period) {
   // 최대값 찾기 (바 너비 계산용)
   const maxAmount = Math.max(...expenseByCategory.map(item => item.total));
   
+  const titleKey = period === '월별' ? 'month.monthly_category_spending' : 'week.weekly_category_spending';
   let html = `
     <div class="bg-white p-6 rounded-lg shadow">
       <div class="flex justify-between items-center mb-4">
         <h3 class="text-xl font-bold">
-          <i class="fas fa-chart-bar mr-2 text-blue-600"></i>${period} 카테고리별 지출
+          <i class="fas fa-chart-bar mr-2 text-blue-600"></i>${t(titleKey)}
         </h3>
         <div class="text-right">
-          <p class="text-sm text-gray-600">총 지출</p>
+          <p class="text-sm text-gray-600">${t('report.total_spent')}</p>
           <p class="text-2xl font-bold text-red-600">${formatCurrency(totalExpense)}</p>
         </div>
       </div>
@@ -2292,7 +2296,7 @@ async function renderFixedExpensesView() {
           <i class="fas fa-chevron-left"></i>
         </button>
         <h3 class="text-lg font-semibold">
-          ${state.currentMonth.getFullYear()}년 ${state.currentMonth.getMonth() + 1}월
+          ${getLanguage() === 'ko' ? `${state.currentMonth.getFullYear()}년 ${state.currentMonth.getMonth() + 1}월` : state.currentMonth.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
         </h3>
         <button onclick="changeFixedExpenseMonth(1)" class="p-2 hover:bg-gray-100 rounded">
           <i class="fas fa-chevron-right"></i>
@@ -4226,7 +4230,7 @@ async function loadMonthCategoryReport(month) {
     .sort((a, b) => b.total - a.total);
   
   if (categoryArray.length === 0) {
-    detailsDiv.innerHTML = '<p class="text-center text-gray-500">이 달에는 지출 내역이 없습니다.</p>';
+    detailsDiv.innerHTML = `<p class="text-center text-gray-500">${t('month.no_spending_this_month')}</p>`;
     
     if (reportChart) {
       reportChart.destroy();
