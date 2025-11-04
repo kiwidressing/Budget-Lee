@@ -2569,27 +2569,34 @@ app.delete('/api/account/delete', authMiddleware, async (c) => {
   const userId = c.get('userId')!
   
   try {
-    // 모든 관련 데이터 삭제
-    await DB.batch([
-      DB.prepare('DELETE FROM transactions WHERE user_id = ?').bind(userId),
-      DB.prepare('DELETE FROM category_budgets WHERE user_id = ?').bind(userId),
-      DB.prepare('DELETE FROM savings_accounts WHERE user_id = ?').bind(userId),
-      DB.prepare('DELETE FROM settings WHERE user_id = ?').bind(userId),
-      DB.prepare('DELETE FROM fixed_expenses WHERE user_id = ?').bind(userId),
-      DB.prepare('DELETE FROM fixed_expense_payments WHERE user_id = ?').bind(userId),
-      DB.prepare('DELETE FROM investments WHERE user_id = ?').bind(userId),
-      DB.prepare('DELETE FROM investment_transactions WHERE user_id = ?').bind(userId),
-      DB.prepare('DELETE FROM receipts WHERE user_id = ?').bind(userId),
-      DB.prepare('DELETE FROM debts WHERE user_id = ?').bind(userId),
-      DB.prepare('DELETE FROM debt_payments WHERE user_id = ?').bind(userId),
-      DB.prepare('DELETE FROM monthly_summary WHERE user_id = ?').bind(userId),
-      DB.prepare('DELETE FROM accounts WHERE user_id = ?').bind(userId),
-      DB.prepare('DELETE FROM transfers WHERE user_id = ?').bind(userId),
-      // 세션 삭제
-      DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(userId),
-      // 마지막으로 사용자 계정 삭제
-      DB.prepare('DELETE FROM users WHERE id = ?').bind(userId)
-    ])
+    console.log(`[Account] Starting account deletion for user_id: ${userId}`)
+    
+    // 순차적으로 삭제 (외래 키 제약 조건 고려)
+    // 1. 자식 테이블들 먼저 삭제
+    await DB.prepare('DELETE FROM debt_payments WHERE user_id = ?').bind(userId).run()
+    await DB.prepare('DELETE FROM debts WHERE user_id = ?').bind(userId).run()
+    await DB.prepare('DELETE FROM investment_transactions WHERE user_id = ?').bind(userId).run()
+    await DB.prepare('DELETE FROM investments WHERE user_id = ?').bind(userId).run()
+    await DB.prepare('DELETE FROM fixed_expense_payments WHERE user_id = ?').bind(userId).run()
+    await DB.prepare('DELETE FROM fixed_expenses WHERE user_id = ?').bind(userId).run()
+    await DB.prepare('DELETE FROM transfers WHERE user_id = ?').bind(userId).run()
+    await DB.prepare('DELETE FROM receipts WHERE user_id = ?').bind(userId).run()
+    await DB.prepare('DELETE FROM transactions WHERE user_id = ?').bind(userId).run()
+    await DB.prepare('DELETE FROM accounts WHERE user_id = ?').bind(userId).run()
+    
+    // 2. 독립적인 테이블들
+    await DB.prepare('DELETE FROM category_budgets WHERE user_id = ?').bind(userId).run()
+    await DB.prepare('DELETE FROM savings_accounts WHERE user_id = ?').bind(userId).run()
+    await DB.prepare('DELETE FROM monthly_summary WHERE user_id = ?').bind(userId).run()
+    await DB.prepare('DELETE FROM settings WHERE user_id = ?').bind(userId).run()
+    
+    // 3. 세션 삭제
+    await DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(userId).run()
+    
+    // 4. 마지막으로 사용자 계정 삭제
+    const deleteResult = await DB.prepare('DELETE FROM users WHERE id = ?').bind(userId).run()
+    
+    console.log(`[Account] Account deleted successfully. Rows affected: ${deleteResult.meta.changes}`)
     
     return c.json({ 
       success: true, 
@@ -2597,7 +2604,11 @@ app.delete('/api/account/delete', authMiddleware, async (c) => {
     })
   } catch (error: any) {
     console.error('[Account] Delete account error:', error)
-    return c.json({ success: false, error: '계정 삭제 실패' }, 500)
+    console.error('[Account] Error details:', error.message, error.stack)
+    return c.json({ 
+      success: false, 
+      error: `계정 삭제 실패: ${error.message || '알 수 없는 오류'}` 
+    }, 500)
   }
 })
 
