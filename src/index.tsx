@@ -1343,6 +1343,12 @@ app.get('/', (c) => {
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="가계부">
+    
+    <!-- 캐시 방지 메타태그 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <title>가계부 앱</title>
     <link rel="manifest" href="/manifest.json">
     
@@ -1354,7 +1360,7 @@ app.get('/', (c) => {
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="/static/style.css" rel="stylesheet">
+    <link href="/static/style.css?v=${Date.now()}" rel="stylesheet">
     
     <style>
         /* 배경 - 바운스 시에도 배경 확장 */
@@ -1444,8 +1450,8 @@ app.get('/', (c) => {
 
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="/static/i18n.js"></script>
-    <script src="/static/app.js?v=2025-11-04-i18n"></script>
+    <script src="/static/i18n.js?v=${Date.now()}"></script>
+    <script src="/static/app.js?v=${Date.now()}"></script>
     <script>
       // PWA Service Worker 등록 (오프라인 지원)
       if ('serviceWorker' in navigator) {
