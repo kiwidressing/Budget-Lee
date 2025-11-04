@@ -2387,7 +2387,9 @@ async function renderBudgetsView() {
       
       <div class="space-y-4">
         ${categories.expense.map(category => {
-          const budget = state.budgets.find(b => b.category === category);
+          // 카테고리를 한글로 정규화하여 DB 데이터와 비교
+          const normalizedCat = normalizeCategory(category);
+          const budget = state.budgets.find(b => b.category === normalizedCat);
           const budgetAmount = budget ? budget.monthly_budget : 0;
           const currencySymbol = CURRENCIES[state.settings.currency]?.symbol || '₩';
           
