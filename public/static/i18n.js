@@ -149,6 +149,9 @@ const translations = {
     'savings.add_transaction': '입출금',
     'savings.deposit': '입금',
     'savings.withdraw': '출금',
+    'savings.no_goal_set': '💡 저축 목표가 설정되지 않았습니다',
+    'savings.set_goal_button': '🎯 목표 설정하기',
+    'savings.remaining_amount': '잔액 금액',
     
     // 채무
     'debt.title': '채무 관리',
@@ -188,6 +191,10 @@ const translations = {
     'fixed.frequency.yearly': '매년',
     'fixed.auto_create': '자동 생성',
     'fixed.next_due': '다음 납부일',
+    'fixed.guide_title': '📌 고정지출 항목 안내',
+    'fixed.guide_desc_1': '고정지출 항목은 <strong>확인용</strong>으로 만들어졌습니다.',
+    'fixed.guide_desc_2': '번거롭겠지만 <strong>거래내역</strong> 탭에서 고정지출 지불내역을 <strong>별도로 입력</strong>해야 합니다.',
+    'fixed.guide_desc_3': '이곳은 매월/매주 발생하는 고정지출을 잊지 않도록 관리하는 용도입니다.',
     
     // 예산
     'budget.title': '예산 관리',
@@ -603,6 +610,11 @@ const translations = {
     'savings.add_transaction': 'Add Transaction',
     'savings.deposit': 'Deposit',
     'savings.withdraw': 'Withdraw',
+    'savings.total_savings': 'Total Savings',
+    'savings.accounts': 'Savings Accounts List',
+    'savings.no_goal_set': '💡 No savings goal set',
+    'savings.set_goal_button': '🎯 Set Goal',
+    'savings.remaining_amount': 'Remaining Amount',
     
     // Debts
     'debt.title': 'Debts',
@@ -642,6 +654,10 @@ const translations = {
     'fixed.frequency.yearly': 'Yearly',
     'fixed.auto_create': 'Auto Create',
     'fixed.next_due': 'Next Due',
+    'fixed.guide_title': '📌 Fixed Expense Items Guide',
+    'fixed.guide_desc_1': 'Fixed expense items are created for <strong>reference purposes</strong>.',
+    'fixed.guide_desc_2': 'Although inconvenient, you must <strong>separately enter</strong> fixed expense payment details in the <strong>Transactions</strong> tab.',
+    'fixed.guide_desc_3': 'This section is for managing monthly/weekly recurring fixed expenses to avoid forgetting them.',
     
     // Budget
     'budget.title': 'Budget',

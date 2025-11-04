@@ -2171,12 +2171,12 @@ async function renderSavingsView() {
   contentArea.innerHTML = `
     <div class="space-y-6">
       <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-lg shadow-lg">
-        <h2 class="text-lg font-medium">총 저축액</h2>
+        <h2 class="text-lg font-medium">${t('savings.total_savings')}</h2>
         <p class="text-4xl font-bold mt-2">${formatCurrency(totalSavings)}</p>
       </div>
       
       <div class="flex justify-between items-center">
-        <h3 class="text-xl font-bold">저축 통장 목록</h3>
+        <h3 class="text-xl font-bold">${t('savings.accounts')}</h3>
         <button onclick="openSavingsAccountModal()" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
           <i class="fas fa-plus"></i>
         </button>
@@ -2240,11 +2240,11 @@ async function renderSavingsView() {
             ` : `
               <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p class="text-sm text-blue-700 mb-3 text-center">
-                  <i class="fas fa-bullseye mr-1"></i>저축 목표가 설정되지 않았습니다
+                  ${t('savings.no_goal_set')}
                 </p>
                 <button onclick="openSavingsGoalModal(${acc.id}, 0)" 
                         class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium">
-                  <i class="fas fa-plus-circle mr-2"></i>목표 설정하기
+                  ${t('savings.set_goal_button')}
                 </button>
               </div>
             `}
@@ -2269,7 +2269,7 @@ async function renderFixedExpensesView() {
   contentArea.innerHTML = `
     <div class="space-y-6">
       <div class="flex justify-between items-center mb-4">
-        <h3 class="text-xl font-bold">고정지출 관리</h3>
+        <h3 class="text-xl font-bold">${t('fixed.title')}</h3>
         <button onclick="openFixedExpenseModal()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
           <i class="fas fa-plus"></i>
         </button>
@@ -2280,11 +2280,11 @@ async function renderFixedExpensesView() {
         <div class="flex items-start">
           <i class="fas fa-info-circle text-blue-500 text-xl mr-3 mt-1"></i>
           <div>
-            <h4 class="font-bold text-blue-800 mb-1">📌 고정지출 항목 안내</h4>
+            <h4 class="font-bold text-blue-800 mb-1">${t('fixed.guide_title')}</h4>
             <p class="text-sm text-blue-700 leading-relaxed">
-              고정지출 항목은 <strong>확인용</strong>으로 만들어졌습니다.<br>
-              번거롭겠지만 <strong>거래내역</strong> 탭에서 고정지출 지불내역을 <strong>별도로 입력</strong>해야 합니다.<br>
-              이곳은 매월/매주 발생하는 고정지출을 잊지 않도록 관리하는 용도입니다.
+              ${t('fixed.guide_desc_1')}<br>
+              ${t('fixed.guide_desc_2')}<br>
+              ${t('fixed.guide_desc_3')}
             </p>
           </div>
         </div>
@@ -7019,7 +7019,7 @@ window.showHelpModal = function() {
         <!-- 고정지출 -->
         <section>
           <h3 class="text-xl font-bold text-red-600 mb-3 flex items-center">
-            <i class="fas fa-redo mr-2"></i>5. 고정지출 관리
+            <i class="fas fa-redo mr-2"></i>5. ${t('fixed.title')}
           </h3>
           <div class="bg-red-50 p-4 rounded-lg space-y-3">
             <div>
