@@ -3221,25 +3221,25 @@ function renderDebtCard(debt) {
           <p class="font-semibold">${formatCurrency(debt.amount)}</p>
         </div>
         <div>
-          <p class="text-xs text-gray-500">남은 원금</p>
+          <p class="text-xs text-gray-500">${t('debt.remaining_principal')}</p>
           <p class="font-semibold text-${statusColor}-600">${formatCurrency(debt.remaining_amount)}</p>
         </div>
         <div>
-          <p class="text-xs text-gray-500">이자율 (연)</p>
+          <p class="text-xs text-gray-500">${t('debt.interest_rate_annual')}</p>
           <p class="font-semibold">${debt.interest_rate}%</p>
         </div>
         <div>
-          <p class="text-xs text-gray-500">발생 이자 (연/월)</p>
+          <p class="text-xs text-gray-500">${t('debt.accrued_interest')}</p>
           <p class="font-semibold text-orange-600">
             ${formatCurrency(yearlyInterest.toFixed(2))}/${formatCurrency(monthlyInterest.toFixed(2))}
           </p>
         </div>
         <div>
-          <p class="text-xs text-gray-500">만기일</p>
+          <p class="text-xs text-gray-500">${t('debt.due_date_label')}</p>
           <p class="font-semibold">${debt.due_date || '-'}</p>
         </div>
         <div>
-          <p class="text-xs text-gray-500">총 상환 예상액</p>
+          <p class="text-xs text-gray-500">${t('debt.total_expected_repayment')}</p>
           <p class="font-semibold text-red-600">${formatCurrency((debt.remaining_amount + accruedInterest).toFixed(2))}</p>
         </div>
       </div>
@@ -3247,7 +3247,7 @@ function renderDebtCard(debt) {
       <!-- 상환 진행률 -->
       <div class="mb-3">
         <div class="flex justify-between text-xs text-gray-600 mb-1">
-          <span>상환 진행률</span>
+          <span>${t('debt.repayment_progress')}</span>
           <span>${progress}%</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-2">
@@ -3260,7 +3260,7 @@ function renderDebtCard(debt) {
       ${!isPaid ? `
         <button onclick="showPaymentHistory(${debt.id})" 
                 class="text-sm text-blue-500 hover:text-blue-700">
-          <i class="fas fa-history mr-1"></i>상환 내역 보기
+          <i class="fas fa-history mr-1"></i>${t('debt.view_repayment_history')}
         </button>
       ` : ''}
     </div>
@@ -6298,10 +6298,10 @@ async function renderReceiptsView() {
       <div class="bg-white rounded-lg shadow-lg p-6">
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-2xl font-bold text-gray-800">
-            <i class="fas fa-receipt mr-2 text-blue-600"></i>영수증 관리
+            <i class="fas fa-receipt mr-2 text-blue-600"></i>${t('receipt.title')}
           </h2>
           <button onclick="showReceiptUploadModal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            <i class="fas fa-plus mr-2"></i>영수증 추가
+            <i class="fas fa-plus mr-2"></i>${t('receipt.add')}
           </button>
         </div>
 
@@ -6344,10 +6344,10 @@ async function renderReceiptsView() {
               
               <div class="flex gap-2">
                 <button onclick="viewReceipt(${receipt.id})" class="flex-1 px-3 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm">
-                  <i class="fas fa-eye mr-1"></i>보기
+                  <i class="fas fa-eye mr-1"></i>${t('common.view')}
                 </button>
                 <button onclick="downloadReceipt(${receipt.id})" class="flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm">
-                  <i class="fas fa-download mr-1"></i>저장
+                  <i class="fas fa-download mr-1"></i>${t('common.save')}
                 </button>
                 <button onclick="deleteReceipt(${receipt.id})" class="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm">
                   <i class="fas fa-trash"></i>
@@ -6364,7 +6364,7 @@ async function renderReceiptsView() {
     document.getElementById('content-area').innerHTML = `
       <div class="bg-white rounded-lg shadow-lg p-6">
         <h2 class="text-2xl font-bold text-gray-800 mb-4">
-          <i class="fas fa-receipt mr-2 text-blue-600"></i>영수증 관리
+          <i class="fas fa-receipt mr-2 text-blue-600"></i>${t('receipt.title')}
         </h2>
         <div class="bg-red-50 border border-red-200 rounded-lg p-4">
           <p class="text-red-600 font-medium mb-2">영수증 목록을 불러오는데 실패했습니다.</p>
@@ -6386,7 +6386,7 @@ function showReceiptUploadModal() {
   modal.innerHTML = `
     <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center mb-4">
-        <h3 class="text-xl font-bold">영수증 추가</h3>
+        <h3 class="text-xl font-bold">${t('receipt.add')}</h3>
         <button onclick="closeReceiptModal()" class="text-gray-500 hover:text-gray-700">
           <i class="fas fa-times text-xl"></i>
         </button>
@@ -6480,7 +6480,7 @@ function showReceiptUploadModal() {
           </button>
           <button type="submit"
             class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            저장
+            ${t('common.save')}
           </button>
         </div>
       </form>
@@ -6996,7 +6996,7 @@ window.showHelpModal = function() {
         <!-- 영수증 관리 -->
         <section>
           <h3 class="text-xl font-bold text-orange-600 mb-3 flex items-center">
-            <i class="fas fa-receipt mr-2"></i>4. 영수증 관리
+            <i class="fas fa-receipt mr-2"></i>4. ${t('receipt.title')}
           </h3>
           <div class="bg-orange-50 p-4 rounded-lg space-y-3">
             <div>

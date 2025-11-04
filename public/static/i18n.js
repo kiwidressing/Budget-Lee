@@ -184,6 +184,13 @@ const translations = {
     'debt.repayment_rate': '상환율',
     'debt.ongoing_debts': '진행 중인 채무',
     'debt.completed_debts': '상환 완료',
+    'debt.remaining_principal': '남은 원금',
+    'debt.interest_rate_annual': '이자율 (연)',
+    'debt.accrued_interest': '발생 이자 (연/월)',
+    'debt.due_date_label': '만기일',
+    'debt.total_expected_repayment': '총 상환 예상액',
+    'debt.repayment_progress': '상환 진행률',
+    'debt.view_repayment_history': '상환 내역 보기',
     
     // 투자
     'investment.title': '투자 관리',
@@ -279,6 +286,8 @@ const translations = {
     // 영수증
     'receipt.title': '영수증 관리',
     'receipt.add': '영수증 추가',
+    'receipt.view': '보기',
+    'receipt.save': '저장',
     'receipt.merchant': '상점명',
     'receipt.purchase_date': '구매일',
     'receipt.photo': '영수증 사진',
@@ -698,6 +707,13 @@ const translations = {
     'debt.repayment_rate': 'Repayment Rate',
     'debt.ongoing_debts': 'Ongoing Debts',
     'debt.completed_debts': 'Completed',
+    'debt.remaining_principal': 'Remaining Principal',
+    'debt.interest_rate_annual': 'Interest Rate (Annual)',
+    'debt.accrued_interest': 'Accrued Interest (Year/Month)',
+    'debt.due_date_label': 'Due Date',
+    'debt.total_expected_repayment': 'Total Expected Repayment',
+    'debt.repayment_progress': 'Repayment Progress',
+    'debt.view_repayment_history': 'View Repayment History',
     
     // Investments
     'investment.title': 'Investments',
@@ -793,6 +809,8 @@ const translations = {
     // Receipts
     'receipt.title': 'Receipts',
     'receipt.add': 'Add Receipt',
+    'receipt.view': 'View',
+    'receipt.save': 'Save',
     'receipt.merchant': 'Merchant',
     'receipt.purchase_date': 'Purchase Date',
     'receipt.photo': 'Receipt Photo',
