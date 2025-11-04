@@ -2563,4 +2563,42 @@ app.post('/api/reset-all-data', authMiddleware, async (c) => {
   }
 })
 
+// 계정 완전 삭제 (사용자 + 모든 데이터)
+app.delete('/api/account/delete', authMiddleware, async (c) => {
+  const { DB } = c.env
+  const userId = c.get('userId')!
+  
+  try {
+    // 모든 관련 데이터 삭제
+    await DB.batch([
+      DB.prepare('DELETE FROM transactions WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM category_budgets WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM savings_accounts WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM settings WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM fixed_expenses WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM fixed_expense_payments WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM investments WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM investment_transactions WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM receipts WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM debts WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM debt_payments WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM monthly_summary WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM accounts WHERE user_id = ?').bind(userId),
+      DB.prepare('DELETE FROM transfers WHERE user_id = ?').bind(userId),
+      // 세션 삭제
+      DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(userId),
+      // 마지막으로 사용자 계정 삭제
+      DB.prepare('DELETE FROM users WHERE id = ?').bind(userId)
+    ])
+    
+    return c.json({ 
+      success: true, 
+      message: '계정이 완전히 삭제되었습니다.' 
+    })
+  } catch (error: any) {
+    console.error('[Account] Delete account error:', error)
+    return c.json({ success: false, error: '계정 삭제 실패' }, 500)
+  }
+})
+
 export default app

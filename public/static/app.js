@@ -4765,15 +4765,15 @@ async function renderSettingsView() {
         
         <hr class="my-6 border-red-200">
         
-        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
           <h3 class="text-lg font-bold mb-3 text-red-700">
             <i class="fas fa-exclamation-triangle mr-2"></i>⚠️ ${getLanguage() === 'ko' ? '데이터 초기화' : 'Reset All Data'}
           </h3>
           <p class="text-sm text-red-600 mb-4">
             <i class="fas fa-info-circle mr-1"></i>
             ${getLanguage() === 'ko' 
-              ? '모든 거래, 예산, 저축, 투자 데이터가 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다!' 
-              : 'All transactions, budgets, savings, and investment data will be permanently deleted. This action cannot be undone!'}
+              ? '모든 거래, 예산, 저축, 투자 데이터가 영구적으로 삭제됩니다. 계정은 유지됩니다.' 
+              : 'All transactions, budgets, savings, and investment data will be permanently deleted. Your account will remain.'}
           </p>
           <button onclick="confirmResetAllData()" 
                   class="w-full px-4 py-3 bg-red-600 text-white rounded hover:bg-red-700 font-bold">
@@ -4781,7 +4781,23 @@ async function renderSettingsView() {
           </button>
         </div>
         
-        <button onclick="saveSettings()" class="w-full px-4 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
+        <div class="bg-red-100 border-2 border-red-300 rounded-lg p-4">
+          <h3 class="text-lg font-bold mb-3 text-red-800">
+            <i class="fas fa-user-times mr-2"></i>🚫 ${getLanguage() === 'ko' ? '계정 완전 삭제' : 'Delete Account Permanently'}
+          </h3>
+          <p class="text-sm text-red-700 mb-4">
+            <i class="fas fa-exclamation-triangle mr-1"></i>
+            ${getLanguage() === 'ko' 
+              ? '계정과 모든 데이터가 영구적으로 삭제됩니다. 복구할 수 없습니다!' 
+              : 'Your account and all data will be permanently deleted. This cannot be undone!'}
+          </p>
+          <button onclick="confirmDeleteAccount()" 
+                  class="w-full px-4 py-3 bg-red-800 text-white rounded hover:bg-red-900 font-bold">
+            <i class="fas fa-user-times mr-2"></i>${getLanguage() === 'ko' ? '⚠️ 계정 영구 삭제' : '⚠️ Delete Account Forever'}
+          </button>
+        </div>
+        
+        <button onclick="saveSettings()" class="w-full px-4 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium mt-6">
           <i class="fas fa-save mr-2"></i>${t('settings.save')}
         </button>
       </div>
@@ -5410,6 +5426,68 @@ async function confirmResetAllData() {
     alert(lang === 'ko'
       ? '❌ 데이터 초기화 중 오류가 발생했습니다.'
       : '❌ An error occurred while resetting data.');
+  }
+}
+
+// 계정 완전 삭제 확인
+async function confirmDeleteAccount() {
+  const lang = getLanguage();
+  
+  // 첫 번째 확인
+  const firstConfirm = lang === 'ko' 
+    ? '⚠️ 경고: 계정이 영구적으로 삭제됩니다!\n\n삭제되는 내용:\n- 계정 정보 (로그인 불가)\n- 모든 거래 내역\n- 모든 예산 설정\n- 모든 저축 계좌\n- 모든 투자 기록\n- 모든 고정 지출\n- 모든 영수증\n- 모든 부채 기록\n\n정말로 계속하시겠습니까?' 
+    : '⚠️ WARNING: Your account will be permanently deleted!\n\nWhat will be deleted:\n- Account information (cannot login)\n- All transactions\n- All budget settings\n- All savings accounts\n- All investments\n- All fixed expenses\n- All receipts\n- All debt records\n\nAre you sure you want to continue?';
+  
+  if (!confirm(firstConfirm)) {
+    return;
+  }
+  
+  // 두 번째 확인
+  const secondConfirm = lang === 'ko'
+    ? '두 번째 확인: 이 작업은 되돌릴 수 없습니다.\n\n계정을 삭제하면:\n❌ 다시 로그인할 수 없습니다\n❌ 모든 데이터가 영구적으로 사라집니다\n❌ 복구가 불가능합니다\n\n정말로 계정을 삭제하시겠습니까?'
+    : 'Second confirmation: This action cannot be undone.\n\nIf you delete your account:\n❌ You cannot login again\n❌ All data will be permanently lost\n❌ Recovery is impossible\n\nDo you really want to delete your account?';
+  
+  if (!confirm(secondConfirm)) {
+    return;
+  }
+  
+  // 세 번째 최종 확인
+  const finalConfirm = lang === 'ko'
+    ? '마지막 확인: "삭제"라고 입력하세요'
+    : 'Final confirmation: Type "DELETE" to confirm';
+  
+  const userInput = prompt(finalConfirm);
+  const confirmText = lang === 'ko' ? '삭제' : 'DELETE';
+  
+  if (userInput !== confirmText) {
+    alert(lang === 'ko' 
+      ? '❌ 입력이 일치하지 않습니다. 계정 삭제가 취소되었습니다.' 
+      : '❌ Input does not match. Account deletion cancelled.');
+    return;
+  }
+  
+  try {
+    const response = await axios.delete('/api/account/delete');
+    
+    if (response.data.success) {
+      alert(lang === 'ko' 
+        ? '✅ 계정이 완전히 삭제되었습니다.\n\n그동안 이용해 주셔서 감사합니다.' 
+        : '✅ Account has been permanently deleted.\n\nThank you for using our service.');
+      
+      // 로컬 스토리지 완전 삭제
+      localStorage.clear();
+      
+      // 로그인 화면으로 이동
+      delete axios.defaults.headers.common['Authorization'];
+      state.isAuthenticated = false;
+      state.currentUser = null;
+      renderLoginScreen();
+    }
+  } catch (error) {
+    console.error('Account deletion error:', error);
+    alert(lang === 'ko'
+      ? '❌ 계정 삭제 중 오류가 발생했습니다.'
+      : '❌ An error occurred while deleting account.');
   }
 }
 
