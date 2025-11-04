@@ -604,16 +604,20 @@ async function handleRegister(event) {
 
 function handleLogout() {
   if (confirm('로그아웃 하시겠습니까?')) {
+    // 인증 토큰만 제거 (로그아웃)
     localStorage.removeItem('authToken');
     
     // "로그인 상태 유지" 옵션도 제거 (로그아웃하면 초기화)
     localStorage.removeItem('rememberMe');
     
-    // 참고: "아이디 저장"은 유지됨 (savedUsername은 삭제하지 않음)
+    // 중요: savedUsername, 거래내역, 설정 등은 유지 (절대 삭제 안 함)
+    // 중요: localStorage에 저장된 모든 재무 데이터 보호
     
     delete axios.defaults.headers.common['Authorization'];
     state.isAuthenticated = false;
     state.currentUser = null;
+    
+    // 캐시 삭제 없이 바로 로그인 화면으로 (데이터 보호)
     renderLoginScreen();
   }
 }
@@ -657,6 +661,7 @@ function renderLoginScreen() {
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter username"
                 autocomplete="username"
+                value="${savedUsername}"
               >
             </div>
             <div>
@@ -684,6 +689,7 @@ function renderLoginScreen() {
                   name="saveUsername" 
                   id="save-username-checkbox"
                   class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                  ${savedUsername ? 'checked' : ''}
                 >
                 <span class="ml-2 text-sm text-gray-700">
                   <i class="fas fa-user-check mr-1"></i>Remember Username
@@ -696,6 +702,7 @@ function renderLoginScreen() {
                   name="rememberMe" 
                   id="remember-me-checkbox"
                   class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                  ${rememberMe ? 'checked' : ''}
                 >
                 <span class="ml-2 text-sm text-gray-700">
                   <i class="fas fa-check-circle mr-1"></i>Stay Signed In
@@ -807,6 +814,16 @@ function renderLoginScreen() {
     if (rememberMeCheckbox && rememberMe) {
       rememberMeCheckbox.checked = true;
     }
+    
+    // 옵션 B: 로그인 입력 필드 강제 활성화 (PWA 입력 막힘 방지)
+    const loginInputs = document.querySelectorAll('#login-form input, #register-form input');
+    loginInputs.forEach(input => {
+      input.removeAttribute('disabled');
+      input.removeAttribute('readonly');
+      input.style.pointerEvents = 'auto';
+      input.style.userSelect = 'auto';
+    });
+    console.log('[Login] All login inputs explicitly enabled');
   }, 0);
 }
 
@@ -815,6 +832,19 @@ function showLoginForm() {
   document.getElementById('register-form').style.display = 'none';
   document.getElementById('login-tab').className = 'flex-1 py-3 font-medium text-blue-600 border-b-2 border-blue-600';
   document.getElementById('register-tab').className = 'flex-1 py-3 font-medium text-gray-600';
+  
+  // 입력 필드 강제 활성화
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#login-form input');
+    inputs.forEach(input => {
+      input.removeAttribute('disabled');
+      input.removeAttribute('readonly');
+      input.style.pointerEvents = 'auto';
+      input.style.userSelect = 'auto';
+      input.contentEditable = 'true';
+    });
+    console.log('[Login Form] Inputs enabled:', inputs.length);
+  }, 50);
 }
 
 function showRegisterForm() {
@@ -822,6 +852,19 @@ function showRegisterForm() {
   document.getElementById('register-form').style.display = 'block';
   document.getElementById('login-tab').className = 'flex-1 py-3 font-medium text-gray-600';
   document.getElementById('register-tab').className = 'flex-1 py-3 font-medium text-blue-600 border-b-2 border-blue-600';
+  
+  // 입력 필드 강제 활성화
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#register-form input');
+    inputs.forEach(input => {
+      input.removeAttribute('disabled');
+      input.removeAttribute('readonly');
+      input.style.pointerEvents = 'auto';
+      input.style.userSelect = 'auto';
+      input.contentEditable = 'true';
+    });
+    console.log('[Register Form] Inputs enabled:', inputs.length);
+  }, 50);
 }
 
 async function renderApp() {
@@ -3177,9 +3220,9 @@ async function renderDebtsView() {
         ${debts.length === 0 ? `
           <div class="bg-white rounded-lg shadow-md p-12 text-center">
             <i class="fas fa-hand-holding-usd text-6xl text-gray-300 mb-4"></i>
-            <p class="text-gray-500 mb-6">등록된 채무가 없습니다</p>
+            <p class="text-gray-500 mb-6">${t('debt.no_debts')}</p>
             <button onclick="showAddDebtModal()" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
-              <i class="fas fa-plus mr-2"></i>첫 채무 추가하기
+              <i class="fas fa-plus mr-2"></i>${t('debt.add_first_debt')}
             </button>
           </div>
         ` : ''}
@@ -3303,45 +3346,45 @@ window.showAddDebtModal = function() {
   modal.innerHTML = `
     <div class="bg-white rounded-lg p-6 w-full max-w-md">
       <h3 class="text-xl font-bold mb-4">
-        <i class="fas fa-plus mr-2"></i>채무 추가
+        <i class="fas fa-plus mr-2"></i>${t('debt.add_debt')}
       </h3>
       <form id="add-debt-form" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium mb-1">채권자 *</label>
+          <label class="block text-sm font-medium mb-1">${t('debt.creditor_name')} *</label>
           <input type="text" name="creditor" required
                  class="w-full border rounded px-3 py-2"
-                 placeholder="예: 김철수, OO은행">
+                 placeholder="${t('debt.creditor_placeholder')}">
         </div>
         
         <div>
-          <label class="block text-sm font-medium mb-1">채무 금액 (${CURRENCIES[state.settings.currency]?.symbol || '₩'}) *</label>
+          <label class="block text-sm font-medium mb-1">${t('debt.debt_amount')} *</label>
           <input type="number" name="amount" required min="0"
                  class="w-full border rounded px-3 py-2"
                  placeholder="0">
         </div>
         
         <div>
-          <label class="block text-sm font-medium mb-1">이자율 (%)</label>
+          <label class="block text-sm font-medium mb-1">${t('debt.interest_rate_percent')}</label>
           <input type="number" name="interest_rate" step="0.1" min="0"
                  class="w-full border rounded px-3 py-2"
                  placeholder="0">
         </div>
         
         <div>
-          <label class="block text-sm font-medium mb-1">시작일 *</label>
+          <label class="block text-sm font-medium mb-1">${t('debt.start_date')} *</label>
           <input type="date" name="start_date" required
                  class="w-full border rounded px-3 py-2"
                  value="${new Date().toISOString().split('T')[0]}">
         </div>
         
         <div>
-          <label class="block text-sm font-medium mb-1">만기일</label>
+          <label class="block text-sm font-medium mb-1">${t('debt.maturity_date')}</label>
           <input type="date" name="due_date"
                  class="w-full border rounded px-3 py-2">
         </div>
         
         <div>
-          <label class="block text-sm font-medium mb-1">카테고리</label>
+          <label class="block text-sm font-medium mb-1">${t('debt.category_label')}</label>
           <select name="category" class="w-full border rounded px-3 py-2">
             <option value="개인">${t('debt.category.personal')}</option>
             <option value="은행">${t('common.bank')}</option>
@@ -3351,15 +3394,15 @@ window.showAddDebtModal = function() {
         </div>
         
         <div>
-          <label class="block text-sm font-medium mb-1">메모</label>
+          <label class="block text-sm font-medium mb-1">${t('debt.memo_label')}</label>
           <textarea name="notes" rows="3"
                     class="w-full border rounded px-3 py-2"
-                    placeholder="추가 정보를 입력하세요"></textarea>
+                    placeholder="${t('debt.memo_placeholder')}"></textarea>
         </div>
         
         <div class="flex gap-3">
           <button type="submit" class="flex-1 bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-            추가
+            ${t('common.add')}
           </button>
           <button type="button" onclick="this.closest('.fixed').remove()"
                   class="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400">
@@ -3647,41 +3690,41 @@ window.showInterestCalculator = function() {
   modal.innerHTML = `
     <div class="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
       <h3 class="text-xl font-bold mb-4">
-        <i class="fas fa-calculator mr-2"></i>이자 계산기
+        <i class="fas fa-calculator mr-2"></i>${t('debt.interest_calculator_title')}
       </h3>
       
       <!-- 계산기 입력 -->
       <div class="bg-blue-50 rounded-lg p-6 mb-6">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label class="block text-sm font-medium mb-1">채무 금액 (${CURRENCIES[state.settings.currency]?.symbol || '₩'})</label>
+            <label class="block text-sm font-medium mb-1">${t('debt.principal_amount')}</label>
             <input type="number" id="calc-amount" min="0" value="10000000"
                    class="w-full border rounded px-3 py-2">
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1">연 이자율 (%)</label>
+            <label class="block text-sm font-medium mb-1">${t('debt.annual_rate')}</label>
             <input type="number" id="calc-rate" min="0" max="100" step="0.1" value="5"
                    class="w-full border rounded px-3 py-2">
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1">상환 기간 (개월)</label>
+            <label class="block text-sm font-medium mb-1">${t('debt.repayment_period')}</label>
             <input type="number" id="calc-months" min="1" max="360" value="12"
                    class="w-full border rounded px-3 py-2">
           </div>
         </div>
         
         <div class="mt-4">
-          <label class="block text-sm font-medium mb-1">상환 방식</label>
+          <label class="block text-sm font-medium mb-1">${t('debt.repayment_method')}</label>
           <select id="calc-method" class="w-full border rounded px-3 py-2">
-            <option value="equal-principal">원금균등상환 (매월 원금 동일)</option>
-            <option value="equal-payment">원리금균등상환 (매월 총액 동일)</option>
-            <option value="maturity">만기일시상환 (만기에 일괄 상환)</option>
+            <option value="equal-principal">${t('debt.equal_principal_interest')}</option>
+            <option value="equal-payment">Equal Installment (Same total monthly)</option>
+            <option value="maturity">Lump Sum at Maturity</option>
           </select>
         </div>
         
         <button onclick="calculateInterest()" 
                 class="mt-4 w-full bg-purple-500 text-white py-2 rounded hover:bg-purple-600">
-          <i class="fas fa-calculator mr-2"></i>계산하기
+          <i class="fas fa-calculator mr-2"></i>${t('debt.calculate')}
         </button>
       </div>
       
@@ -3734,7 +3777,7 @@ window.showInterestCalculator = function() {
       <div class="mt-6">
         <button onclick="this.closest('.fixed').remove()"
                 class="w-full bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400">
-          닫기
+          ${t('debt.close')}
         </button>
       </div>
     </div>
@@ -3943,7 +3986,7 @@ async function renderReportsView() {
       
       <!-- 상세 데이터 테이블 -->
       <div id="report-details" class="bg-white rounded-lg shadow p-6">
-        <p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>
+        <p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>${t('loading.fetching_data')}</p>
       </div>
     </div>
   `;
@@ -3976,7 +4019,7 @@ async function loadYearlyReport() {
     reportState.year = parseInt(document.getElementById('report-year').value);
   
   const detailsDiv = document.getElementById('report-details');
-  detailsDiv.innerHTML = '<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>';
+  detailsDiv.innerHTML = `<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>${t('loading.fetching_data')}</p>`;
   
   // 업데이트 제목과 서브타이틀
   document.getElementById('report-title').textContent = `${reportState.year}${getLanguage() === 'ko' ? '년' : ''} ${t('report.monthly_expense_status')}`;
@@ -4216,7 +4259,7 @@ async function loadMonthCategoryReport(month) {
   const monthLabel = ['', '1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'][month];
   
   const detailsDiv = document.getElementById('report-details');
-  detailsDiv.innerHTML = '<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>';
+  detailsDiv.innerHTML = `<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>${t('loading.fetching_data')}</p>`;
   
   // 제목 업데이트
   document.getElementById('report-title').textContent = `${reportState.year}년 ${monthLabel} 카테고리별 지출`;
@@ -4374,7 +4417,7 @@ async function loadCategoryTransactions(category) {
     const monthLabel = ['', '1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'][month];
     
     const detailsDiv = document.getElementById('report-details');
-    detailsDiv.innerHTML = '<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</p>';
+    detailsDiv.innerHTML = `<p class="text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>${t('loading.fetching_data')}</p>`;
     
     // 제목 업데이트
     document.getElementById('report-title').textContent = `${reportState.year}년 ${monthLabel} - ${category}`;
@@ -7204,7 +7247,7 @@ window.showHelpModal = function() {
     <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
       <div class="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
         <h2 class="text-2xl font-bold text-gray-800">
-          <i class="fas fa-book text-blue-600 mr-2"></i>가계부 앱 사용 방법
+          <i class="fas fa-book text-blue-600 mr-2"></i>${t('help.title')}
         </h2>
         <button onclick="closeHelpModal()" class="text-gray-500 hover:text-gray-700 text-2xl">
           <i class="fas fa-times"></i>
@@ -7212,150 +7255,150 @@ window.showHelpModal = function() {
       </div>
       
       <div class="p-6 space-y-6">
-        <!-- 시작하기 -->
+        <!-- Section 1: Getting Started -->
         <section>
           <h3 class="text-xl font-bold text-blue-600 mb-3 flex items-center">
-            <i class="fas fa-play-circle mr-2"></i>1. 시작하기
+            <i class="fas fa-play-circle mr-2"></i>${t('help.section1_title')}
           </h3>
           <div class="bg-blue-50 p-4 rounded-lg space-y-2">
-            <p class="text-sm"><strong>📱 앱 설치:</strong> 브라우저 메뉴에서 "홈 화면에 추가"를 선택하면 앱처럼 사용할 수 있습니다.</p>
-            <p class="text-sm"><strong>💰 초기 설정:</strong> 설정 탭에서 통화와 초기 잔액을 입력하세요.</p>
-            <p class="text-sm"><strong>🔐 자동 로그인:</strong> "로그인 상태 유지"를 체크하면 다음에 자동으로 로그인됩니다.</p>
+            <p class="text-sm"><strong>${t('help.section1_install')}</strong> ${t('help.section1_install_desc')}</p>
+            <p class="text-sm"><strong>${t('help.section1_setup')}</strong> ${t('help.section1_setup_desc')}</p>
+            <p class="text-sm"><strong>${t('help.section1_login')}</strong> ${t('help.section1_login_desc')}</p>
           </div>
         </section>
 
-        <!-- 거래 내역 관리 -->
+        <!-- Section 2: Transaction Management -->
         <section>
           <h3 class="text-xl font-bold text-green-600 mb-3 flex items-center">
-            <i class="fas fa-exchange-alt mr-2"></i>2. 거래 내역 관리
+            <i class="fas fa-exchange-alt mr-2"></i>${t('help.section2_title')}
           </h3>
           <div class="bg-green-50 p-4 rounded-lg space-y-3">
             <div>
-              <p class="font-semibold text-sm mb-1">💵 수입/지출/저축 입력</p>
-              <p class="text-sm ml-4">• 월별 탭의 달력에서 날짜를 클릭하면 거래를 추가할 수 있습니다.</p>
-              <p class="text-sm ml-4">• 카테고리, 금액, 메모를 입력하세요.</p>
+              <p class="font-semibold text-sm mb-1">${t('help.section2_input')}</p>
+              <p class="text-sm ml-4">${t('help.section2_input_desc1')}</p>
+              <p class="text-sm ml-4">${t('help.section2_input_desc2')}</p>
             </div>
             <div>
-              <p class="font-semibold text-sm mb-1">✏️ 수정 및 삭제</p>
-              <p class="text-sm ml-4">• 거래 내역 옆의 수정 버튼으로 정보를 변경할 수 있습니다.</p>
-              <p class="text-sm ml-4">• 삭제 버튼으로 거래를 제거할 수 있습니다.</p>
+              <p class="font-semibold text-sm mb-1">${t('help.section2_edit')}</p>
+              <p class="text-sm ml-4">${t('help.section2_edit_desc1')}</p>
+              <p class="text-sm ml-4">${t('help.section2_edit_desc2')}</p>
             </div>
             <div>
-              <p class="font-semibold text-sm mb-1">🔍 검색 및 필터</p>
-              <p class="text-sm ml-4">• 홈 탭에서 유형, 카테고리, 설명으로 거래를 필터링할 수 있습니다.</p>
+              <p class="font-semibold text-sm mb-1">${t('help.section2_search')}</p>
+              <p class="text-sm ml-4">${t('help.section2_search_desc')}</p>
             </div>
           </div>
         </section>
 
-        <!-- 저축 관리 -->
+        <!-- Section 3: Savings Management -->
         <section>
           <h3 class="text-xl font-bold text-purple-600 mb-3 flex items-center">
-            <i class="fas fa-piggy-bank mr-2"></i>3. 저축 관리
+            <i class="fas fa-piggy-bank mr-2"></i>${t('help.section3_title')}
           </h3>
           <div class="bg-purple-50 p-4 rounded-lg space-y-3">
             <div>
-              <p class="font-semibold text-sm mb-1">💳 저축 통장 추가</p>
-              <p class="text-sm ml-4">• 저축 탭에서 "통장 추가" 버튼으로 새 저축 계좌를 만들 수 있습니다.</p>
-              <p class="text-sm ml-4">• 비상금, 여행 자금 등 목적별로 통장을 분리 관리하세요.</p>
+              <p class="font-semibold text-sm mb-1">${t('help.section3_add')}</p>
+              <p class="text-sm ml-4">${t('help.section3_add_desc1')}</p>
+              <p class="text-sm ml-4">${t('help.section3_add_desc2')}</p>
             </div>
             <div>
-              <p class="font-semibold text-sm mb-1">🎯 저축 목표 설정</p>
-              <p class="text-sm ml-4">• 각 통장마다 목표 금액을 설정할 수 있습니다.</p>
-              <p class="text-sm ml-4">• 진행률 바로 달성 현황을 한눈에 확인하세요.</p>
+              <p class="font-semibold text-sm mb-1">${t('help.section3_goal')}</p>
+              <p class="text-sm ml-4">${t('help.section3_goal_desc1')}</p>
+              <p class="text-sm ml-4">${t('help.section3_goal_desc2')}</p>
             </div>
           </div>
         </section>
 
-        <!-- 영수증 관리 -->
+        <!-- Section 4: Receipt Management -->
         <section>
           <h3 class="text-xl font-bold text-orange-600 mb-3 flex items-center">
-            <i class="fas fa-receipt mr-2"></i>4. ${t('receipt.title')}
+            <i class="fas fa-receipt mr-2"></i>${t('help.section4_title')}
           </h3>
           <div class="bg-orange-50 p-4 rounded-lg space-y-3">
             <div>
-              <p class="font-semibold text-sm mb-1">📸 영수증 촬영 및 업로드</p>
-              <p class="text-sm ml-4">• 영수증 탭에서 카메라로 촬영하거나 갤러리에서 선택하세요.</p>
-              <p class="text-sm ml-4">• 구매처, 금액, 카테고리를 입력하세요.</p>
+              <p class="font-semibold text-sm mb-1">${t('help.section4_photo')}</p>
+              <p class="text-sm ml-4">${t('help.section4_photo_desc1')}</p>
+              <p class="text-sm ml-4">${t('help.section4_photo_desc2')}</p>
             </div>
             <div>
-              <p class="font-semibold text-sm mb-1">🔍 영수증 확인</p>
-              <p class="text-sm ml-4">• 영수증 클릭 시 앱 내에서 확대하여 볼 수 있습니다.</p>
-              <p class="text-sm ml-4">• 다운로드, 수정, 삭제 기능을 이용하세요.</p>
+              <p class="font-semibold text-sm mb-1">${t('help.section4_view')}</p>
+              <p class="text-sm ml-4">${t('help.section4_view_desc1')}</p>
+              <p class="text-sm ml-4">${t('help.section4_view_desc2')}</p>
             </div>
             <div>
-              <p class="font-semibold text-sm mb-1">💡 세금공제</p>
-              <p class="text-sm ml-4">• 세금공제 대상 영수증을 체크하면 나중에 필터링할 수 있습니다.</p>
+              <p class="font-semibold text-sm mb-1">${t('help.section4_tax')}</p>
+              <p class="text-sm ml-4">${t('help.section4_tax_desc')}</p>
             </div>
           </div>
         </section>
 
-        <!-- 고정지출 -->
+        <!-- Section 5: Fixed Expenses -->
         <section>
           <h3 class="text-xl font-bold text-red-600 mb-3 flex items-center">
-            <i class="fas fa-redo mr-2"></i>5. ${t('fixed.title')}
+            <i class="fas fa-redo mr-2"></i>${t('help.section5_title')}
           </h3>
           <div class="bg-red-50 p-4 rounded-lg space-y-3">
             <div>
-              <p class="font-semibold text-sm mb-1">📅 반복 지출 등록</p>
-              <p class="text-sm ml-4">• 월세, 통신비, 구독료 등 정기적인 지출을 등록하세요.</p>
-              <p class="text-sm ml-4">• 매월, 매주 등 반복 주기를 선택할 수 있습니다.</p>
+              <p class="font-semibold text-sm mb-1">${t('help.section5_recurring')}</p>
+              <p class="text-sm ml-4">${t('help.section5_recurring_desc1')}</p>
+              <p class="text-sm ml-4">${t('help.section5_recurring_desc2')}</p>
             </div>
             <div>
-              <p class="font-semibold text-sm mb-1">✅ 체크박스로 지불 처리</p>
-              <p class="text-sm ml-4">• 고정지출 항목을 체크하면 자동으로 거래 내역에 추가됩니다.</p>
+              <p class="font-semibold text-sm mb-1">${t('help.section5_checkbox')}</p>
+              <p class="text-sm ml-4">${t('help.section5_checkbox_desc')}</p>
             </div>
           </div>
         </section>
 
-        <!-- 예산 및 투자 -->
+        <!-- Section 6: Budget and Investment -->
         <section>
           <h3 class="text-xl font-bold text-indigo-600 mb-3 flex items-center">
-            <i class="fas fa-chart-line mr-2"></i>6. 예산 및 투자
+            <i class="fas fa-chart-line mr-2"></i>${t('help.section6_title')}
           </h3>
           <div class="bg-indigo-50 p-4 rounded-lg space-y-3">
             <div>
-              <p class="font-semibold text-sm mb-1">💰 예산 설정</p>
-              <p class="text-sm ml-4">• 예산 탭에서 카테고리별 월 예산을 설정하세요.</p>
-              <p class="text-sm ml-4">• 예산 대비 실제 지출을 색상으로 확인할 수 있습니다.</p>
+              <p class="font-semibold text-sm mb-1">${t('help.section6_budget')}</p>
+              <p class="text-sm ml-4">${t('help.section6_budget_desc1')}</p>
+              <p class="text-sm ml-4">${t('help.section6_budget_desc2')}</p>
             </div>
             <div>
-              <p class="font-semibold text-sm mb-1">📈 ${t('investment.title')}</p>
-              <p class="text-sm ml-4">${getLanguage() === 'ko' ? '• 투자 탭에서 주식, 암호화폐 포트폴리오를 관리하세요.' : '• Manage your stock and crypto portfolio in the Investments tab.'}</p>
-              <p class="text-sm ml-4">${getLanguage() === 'ko' ? '• 실시간 주가가 자동으로 업데이트됩니다.' : '• Real-time prices are automatically updated.'}</p>
+              <p class="font-semibold text-sm mb-1">${t('help.section6_investment')}</p>
+              <p class="text-sm ml-4">${t('help.section6_investment_desc1')}</p>
+              <p class="text-sm ml-4">${t('help.section6_investment_desc2')}</p>
             </div>
           </div>
         </section>
 
-        <!-- 데이터 관리 -->
+        <!-- Section 7: Data Management -->
         <section>
           <h3 class="text-xl font-bold text-gray-600 mb-3 flex items-center">
-            <i class="fas fa-database mr-2"></i>7. 데이터 관리
+            <i class="fas fa-database mr-2"></i>${t('help.section7_title')}
           </h3>
           <div class="bg-gray-50 p-4 rounded-lg space-y-3">
             <div>
-              <p class="font-semibold text-sm mb-1">📊 엑셀 내보내기</p>
-              <p class="text-sm ml-4">• 설정 탭에서 모든 거래 내역을 CSV 파일로 내보낼 수 있습니다.</p>
-              <p class="text-sm ml-4">• 엑셀, 구글 스프레드시트에서 열어 분석하세요.</p>
+              <p class="font-semibold text-sm mb-1">${t('help.section7_excel')}</p>
+              <p class="text-sm ml-4">${t('help.section7_excel_desc1')}</p>
+              <p class="text-sm ml-4">${t('help.section7_excel_desc2')}</p>
             </div>
             <div>
-              <p class="font-semibold text-sm mb-1">💾 백업 및 복원</p>
-              <p class="text-sm ml-4">• JSON 형식으로 전체 데이터를 백업할 수 있습니다.</p>
-              <p class="text-sm ml-4">• 기기를 바꿔도 백업 파일로 데이터를 복원할 수 있습니다.</p>
+              <p class="font-semibold text-sm mb-1">${t('help.section7_backup')}</p>
+              <p class="text-sm ml-4">${t('help.section7_backup_desc1')}</p>
+              <p class="text-sm ml-4">${t('help.section7_backup_desc2')}</p>
             </div>
           </div>
         </section>
 
-        <!-- 팁 -->
+        <!-- Section 8: Useful Tips -->
         <section>
           <h3 class="text-xl font-bold text-yellow-600 mb-3 flex items-center">
-            <i class="fas fa-lightbulb mr-2"></i>8. 유용한 팁
+            <i class="fas fa-lightbulb mr-2"></i>${t('help.section8_title')}
           </h3>
           <div class="bg-yellow-50 p-4 rounded-lg space-y-2">
-            <p class="text-sm">💡 매일 지출을 입력하면 정확한 재무 현황을 파악할 수 있습니다.</p>
-            <p class="text-sm">💡 영수증은 사진으로 남겨두면 나중에 확인할 때 편리합니다.</p>
-            <p class="text-sm">💡 월별 리포트를 보며 지출 패턴을 분석하고 개선하세요.</p>
-            <p class="text-sm">💡 저축 목표를 설정하면 동기부여가 됩니다.</p>
-            <p class="text-sm">💡 정기적으로 데이터를 백업하는 습관을 들이세요.</p>
+            <p class="text-sm">${t('help.tip1')}</p>
+            <p class="text-sm">${t('help.tip2')}</p>
+            <p class="text-sm">${t('help.tip3')}</p>
+            <p class="text-sm">${t('help.tip4')}</p>
+            <p class="text-sm">${t('help.tip5')}</p>
           </div>
         </section>
       </div>
@@ -7363,7 +7406,7 @@ window.showHelpModal = function() {
       <div class="sticky bottom-0 bg-white border-t p-4">
         <button onclick="closeHelpModal()" 
                 class="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
-          <i class="fas fa-check mr-2"></i>확인
+          <i class="fas fa-check mr-2"></i>${t('help.confirm_button')}
         </button>
       </div>
     </div>
@@ -7691,6 +7734,142 @@ function changeLanguage(lang) {
   setLanguage(lang);
   // Page will automatically reload in setLanguage() function
 }
+
+// ============================================================
+// 옵션 A: Service Worker 자동 업데이트
+// ============================================================
+if ('serviceWorker' in navigator) {
+  // 앱 시작 시 Service Worker 강제 업데이트 체크
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    registrations.forEach(registration => {
+      console.log('[PWA] Checking for Service Worker updates...');
+      registration.update(); // 강제 업데이트 체크
+    });
+  });
+  
+  // Service Worker 업데이트 감지
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    console.log('[PWA] New Service Worker activated, reloading...');
+    // 새 버전이 활성화되면 자동 새로고침
+    window.location.reload();
+  });
+}
+
+// ============================================================
+// 옵션 B: 입력 필드 자동 활성화 (입력 막힘 방지)
+// ============================================================
+function enableAllInputs() {
+  // 모든 input, textarea, select 요소를 찾아서 활성화
+  const inputs = document.querySelectorAll('input, textarea, select, button');
+  inputs.forEach(element => {
+    // disabled 속성 제거
+    element.removeAttribute('disabled');
+    element.disabled = false;
+    
+    // readonly 속성 제거
+    element.removeAttribute('readonly');
+    element.readOnly = false;
+    
+    // 포커스 가능하도록 설정
+    if (element.hasAttribute('tabindex') && element.getAttribute('tabindex') === '-1') {
+      element.removeAttribute('tabindex');
+    }
+    element.tabIndex = 0;
+    
+    // 스타일 강제 설정
+    element.style.pointerEvents = 'auto';
+    element.style.userSelect = 'auto';
+    element.style.opacity = '1';
+    element.style.cursor = 'text';
+    
+    // contentEditable 설정 (input/textarea에만)
+    if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+      element.contentEditable = 'true';
+    }
+  });
+  console.log('[PWA] All inputs forcefully enabled:', inputs.length, 'elements');
+}
+
+// DOM이 변경될 때마다 입력 필드 활성화 체크 (MutationObserver 사용)
+const inputObserver = new MutationObserver((mutations) => {
+  // 모든 변경사항에 대해 입력 필드 활성화 (안전하게)
+  let needsCheck = false;
+  
+  mutations.forEach(mutation => {
+    // 새 노드 추가 감지
+    if (mutation.addedNodes.length > 0) {
+      mutation.addedNodes.forEach(node => {
+        if (node.nodeType === 1) {
+          const inputs = node.querySelectorAll ? node.querySelectorAll('input, textarea, select') : [];
+          if (inputs.length > 0 || node.matches?.('input, textarea, select')) {
+            needsCheck = true;
+          }
+        }
+      });
+    }
+    
+    // 속성 변경 감지 (disabled, readonly 등)
+    if (mutation.type === 'attributes') {
+      const target = mutation.target;
+      if (target.matches && target.matches('input, textarea, select')) {
+        needsCheck = true;
+      }
+    }
+  });
+  
+  // 변경 감지되면 즉시 모든 입력 활성화
+  if (needsCheck) {
+    enableAllInputs();
+  }
+});
+
+// body 전체를 관찰하여 DOM/속성 변경 감지
+if (document.body) {
+  inputObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['disabled', 'readonly', 'contenteditable', 'tabindex']
+  });
+  console.log('[PWA] Input observer activated (childList + attributes)');
+} else {
+  // body가 아직 없으면 DOMContentLoaded 이벤트에서 시작
+  document.addEventListener('DOMContentLoaded', () => {
+    inputObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['disabled', 'readonly', 'contenteditable', 'tabindex']
+    });
+    console.log('[PWA] Input observer activated (deferred)');
+  });
+}
+
+// 페이지 로드 시 즉시 입력 필드 활성화
+enableAllInputs();
+
+// 주기적으로 입력 필드 체크 (강력한 보험 - 1초마다)
+setInterval(() => {
+  const disabledInputs = document.querySelectorAll('input[disabled], textarea[disabled], input[readonly], textarea[readonly]');
+  if (disabledInputs.length > 0) {
+    console.log('[PWA] Found', disabledInputs.length, 'disabled inputs, re-enabling...');
+    enableAllInputs();
+  }
+}, 1000);
+
+// 사용자가 클릭/포커스할 때마다 해당 입력 활성화
+document.addEventListener('click', (e) => {
+  const target = e.target;
+  if (target && (target.matches('input, textarea, select'))) {
+    target.removeAttribute('disabled');
+    target.removeAttribute('readonly');
+    target.disabled = false;
+    target.readOnly = false;
+    target.style.pointerEvents = 'auto';
+    target.style.userSelect = 'auto';
+    console.log('[PWA] Click-activated input:', target.name || target.id);
+  }
+}, true);
 
 // 앱 초기화 - 페이지 로드 시 인증 확인 후 적절한 화면 렌더링
 renderApp();

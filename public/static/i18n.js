@@ -615,6 +615,9 @@ const translations = {
     'error.load_data': '데이터 로딩 중 오류가 발생했습니다',
     'error.save_settings': '설정 저장 중 오류가 발생했습니다',
     
+    // Loading states
+    'loading.fetching_data': '데이터를 불러오는 중...',
+    
     // Validation messages
     'validation.select_savings_account': '저축 통장을 선택해주세요.',
     'validation.enter_account_name': '통장 이름을 입력해주세요.',
@@ -628,6 +631,75 @@ const translations = {
     'form.edit_savings_account_name': '저축 통장 이름 수정',
     'form.add_savings_account': '저축 통장 추가',
     'form.placeholder_account_name': '예: 비상금',
+    
+    // 도움말 / 사용 방법
+    'help.title': '가계부 앱 사용 방법',
+    'help.section1_title': '1. 시작하기',
+    'help.section1_install': '📱 앱 설치:',
+    'help.section1_install_desc': '브라우저 메뉴에서 "홈 화면에 추가"를 선택하면 앱처럼 사용할 수 있습니다.',
+    'help.section1_setup': '💰 초기 설정:',
+    'help.section1_setup_desc': '설정 탭에서 통화와 초기 잔액을 입력하세요.',
+    'help.section1_login': '🔐 자동 로그인:',
+    'help.section1_login_desc': '"로그인 상태 유지"를 체크하면 다음에 자동으로 로그인됩니다.',
+    
+    'help.section2_title': '2. 거래 내역 관리',
+    'help.section2_input': '💵 수입/지출/저축 입력',
+    'help.section2_input_desc1': '• 월별 탭의 달력에서 날짜를 클릭하면 거래를 추가할 수 있습니다.',
+    'help.section2_input_desc2': '• 카테고리, 금액, 메모를 입력하세요.',
+    'help.section2_edit': '✏️ 수정 및 삭제',
+    'help.section2_edit_desc1': '• 거래 내역 옆의 수정 버튼으로 정보를 변경할 수 있습니다.',
+    'help.section2_edit_desc2': '• 삭제 버튼으로 거래를 제거할 수 있습니다.',
+    'help.section2_search': '🔍 검색 및 필터',
+    'help.section2_search_desc': '• 홈 탭에서 유형, 카테고리, 설명으로 거래를 필터링할 수 있습니다.',
+    
+    'help.section3_title': '3. 저축 관리',
+    'help.section3_add': '💳 저축 통장 추가',
+    'help.section3_add_desc1': '• 저축 탭에서 "통장 추가" 버튼으로 새 저축 계좌를 만들 수 있습니다.',
+    'help.section3_add_desc2': '• 비상금, 여행 자금 등 목적별로 통장을 분리 관리하세요.',
+    'help.section3_goal': '🎯 저축 목표 설정',
+    'help.section3_goal_desc1': '• 각 통장마다 목표 금액을 설정할 수 있습니다.',
+    'help.section3_goal_desc2': '• 진행률 바로 달성 현황을 한눈에 확인하세요.',
+    
+    'help.section4_title': '4. 영수증 관리',
+    'help.section4_photo': '📸 영수증 촬영 및 업로드',
+    'help.section4_photo_desc1': '• 영수증 탭에서 카메라로 촬영하거나 갤러리에서 선택하세요.',
+    'help.section4_photo_desc2': '• 구매처, 금액, 카테고리를 입력하세요.',
+    'help.section4_view': '🔍 영수증 확인',
+    'help.section4_view_desc1': '• 영수증 클릭 시 앱 내에서 확대하여 볼 수 있습니다.',
+    'help.section4_view_desc2': '• 다운로드, 수정, 삭제 기능을 이용하세요.',
+    'help.section4_tax': '💡 세금공제',
+    'help.section4_tax_desc': '• 세금공제 대상 영수증을 체크하면 나중에 필터링할 수 있습니다.',
+    
+    'help.section5_title': '5. 고정지출',
+    'help.section5_recurring': '📅 반복 지출 등록',
+    'help.section5_recurring_desc1': '• 월세, 통신비, 구독료 등 정기적인 지출을 등록하세요.',
+    'help.section5_recurring_desc2': '• 매월, 매주 등 반복 주기를 선택할 수 있습니다.',
+    'help.section5_checkbox': '✅ 체크박스로 지불 처리',
+    'help.section5_checkbox_desc': '• 고정지출 항목을 체크하면 자동으로 거래 내역에 추가됩니다.',
+    
+    'help.section6_title': '6. 예산 및 투자',
+    'help.section6_budget': '💰 예산 설정',
+    'help.section6_budget_desc1': '• 예산 탭에서 카테고리별 월 예산을 설정하세요.',
+    'help.section6_budget_desc2': '• 예산 대비 실제 지출을 색상으로 확인할 수 있습니다.',
+    'help.section6_investment': '📈 투자 관리',
+    'help.section6_investment_desc1': '• 투자 탭에서 주식, 암호화폐 포트폴리오를 관리하세요.',
+    'help.section6_investment_desc2': '• 실시간 주가가 자동으로 업데이트됩니다.',
+    
+    'help.section7_title': '7. 데이터 관리',
+    'help.section7_excel': '📊 엑셀 내보내기',
+    'help.section7_excel_desc1': '• 설정 탭에서 모든 거래 내역을 CSV 파일로 내보낼 수 있습니다.',
+    'help.section7_excel_desc2': '• 엑셀, 구글 스프레드시트에서 열어 분석하세요.',
+    'help.section7_backup': '💾 백업 및 복원',
+    'help.section7_backup_desc1': '• JSON 형식으로 전체 데이터를 백업할 수 있습니다.',
+    'help.section7_backup_desc2': '• 기기를 바꿔도 백업 파일로 데이터를 복원할 수 있습니다.',
+    
+    'help.section8_title': '8. 유용한 팁',
+    'help.tip1': '💡 매일 지출을 입력하면 정확한 재무 현황을 파악할 수 있습니다.',
+    'help.tip2': '💡 영수증은 사진으로 남겨두면 나중에 확인할 때 편리합니다.',
+    'help.tip3': '💡 월별 리포트를 보며 지출 패턴을 분석하고 개선하세요.',
+    'help.tip4': '💡 저축 목표를 설정하면 동기부여가 됩니다.',
+    'help.tip5': '💡 정기적으로 데이터를 백업하는 습관을 들이세요.',
+    'help.confirm_button': '확인',
   },
   
   en: {
@@ -1245,6 +1317,9 @@ const translations = {
     'error.load_data': 'Error occurred while loading data',
     'error.save_settings': 'Error occurred while saving settings',
     
+    // Loading states
+    'loading.fetching_data': 'Loading data...',
+    
     // Validation messages
     'validation.select_savings_account': 'Please select a savings account.',
     'validation.enter_account_name': 'Please enter an account name.',
@@ -1258,6 +1333,75 @@ const translations = {
     'form.edit_savings_account_name': 'Edit Savings Account Name',
     'form.add_savings_account': 'Add Savings Account',
     'form.placeholder_account_name': 'e.g., Emergency Fund',
+    
+    // Help Guide / Usage Instructions
+    'help.title': 'How to Use Budget App',
+    'help.section1_title': '1. Getting Started',
+    'help.section1_install': '📱 App Installation:',
+    'help.section1_install_desc': 'Select "Add to Home Screen" from your browser menu to use it like an app.',
+    'help.section1_setup': '💰 Initial Setup:',
+    'help.section1_setup_desc': 'Enter your currency and initial balance in the Settings tab.',
+    'help.section1_login': '🔐 Auto Login:',
+    'help.section1_login_desc': 'Check "Stay Logged In" to automatically log in next time.',
+    
+    'help.section2_title': '2. Transaction Management',
+    'help.section2_input': '💵 Income/Expense/Savings Input',
+    'help.section2_input_desc1': '• Click on a date in the Monthly tab calendar to add a transaction.',
+    'help.section2_input_desc2': '• Enter category, amount, and memo.',
+    'help.section2_edit': '✏️ Edit and Delete',
+    'help.section2_edit_desc1': '• Use the edit button next to a transaction to change its information.',
+    'help.section2_edit_desc2': '• Use the delete button to remove a transaction.',
+    'help.section2_search': '🔍 Search and Filter',
+    'help.section2_search_desc': '• Filter transactions by type, category, and description in the Home tab.',
+    
+    'help.section3_title': '3. Savings Management',
+    'help.section3_add': '💳 Add Savings Account',
+    'help.section3_add_desc1': '• Create a new savings account with the "Add Account" button in the Savings tab.',
+    'help.section3_add_desc2': '• Manage separate accounts for different purposes like emergency fund, travel fund, etc.',
+    'help.section3_goal': '🎯 Set Savings Goals',
+    'help.section3_goal_desc1': '• Set a target amount for each account.',
+    'help.section3_goal_desc2': '• Check your achievement status at a glance with the progress bar.',
+    
+    'help.section4_title': '4. Receipt Management',
+    'help.section4_photo': '📸 Photo and Upload',
+    'help.section4_photo_desc1': '• Take a photo with the camera or select from gallery in the Receipts tab.',
+    'help.section4_photo_desc2': '• Enter merchant, amount, and category.',
+    'help.section4_view': '🔍 View Receipt',
+    'help.section4_view_desc1': '• Click on a receipt to zoom in and view within the app.',
+    'help.section4_view_desc2': '• Use download, edit, and delete functions.',
+    'help.section4_tax': '💡 Tax Deduction',
+    'help.section4_tax_desc': '• Check tax-deductible receipts to filter them later.',
+    
+    'help.section5_title': '5. Fixed Expenses',
+    'help.section5_recurring': '📅 Register Recurring Expenses',
+    'help.section5_recurring_desc1': '• Register regular expenses like rent, phone bills, subscriptions.',
+    'help.section5_recurring_desc2': '• Choose recurring cycles like monthly, weekly, etc.',
+    'help.section5_checkbox': '✅ Payment Processing with Checkbox',
+    'help.section5_checkbox_desc': '• Checking a fixed expense item automatically adds it to transaction history.',
+    
+    'help.section6_title': '6. Budget and Investment',
+    'help.section6_budget': '💰 Budget Setting',
+    'help.section6_budget_desc1': '• Set monthly budget by category in the Budgets tab.',
+    'help.section6_budget_desc2': '• Check actual spending vs budget with color coding.',
+    'help.section6_investment': '📈 Investment Management',
+    'help.section6_investment_desc1': '• Manage your stock and crypto portfolio in the Investments tab.',
+    'help.section6_investment_desc2': '• Real-time prices are automatically updated.',
+    
+    'help.section7_title': '7. Data Management',
+    'help.section7_excel': '📊 Export to Excel',
+    'help.section7_excel_desc1': '• Export all transactions to CSV file in the Settings tab.',
+    'help.section7_excel_desc2': '• Open and analyze in Excel or Google Sheets.',
+    'help.section7_backup': '💾 Backup and Restore',
+    'help.section7_backup_desc1': '• Backup all data in JSON format.',
+    'help.section7_backup_desc2': '• Restore data from backup file even when changing devices.',
+    
+    'help.section8_title': '8. Useful Tips',
+    'help.tip1': '💡 Enter expenses daily to track your financial status accurately.',
+    'help.tip2': '💡 Keep receipts as photos for convenient future reference.',
+    'help.tip3': '💡 Analyze and improve your spending patterns with monthly reports.',
+    'help.tip4': '💡 Setting savings goals provides motivation.',
+    'help.tip5': '💡 Make it a habit to backup your data regularly.',
+    'help.confirm_button': 'OK',
   }
 };
 
