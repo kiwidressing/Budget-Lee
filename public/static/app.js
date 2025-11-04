@@ -195,7 +195,15 @@ function getDaysInMonth(date) {
 }
 
 function getDayName(dayOfWeek) {
-  const days = ['일', '월', '화', '수', '목', '금', '토'];
+  const days = [
+    t('calendar.days.sun'),
+    t('calendar.days.mon'),
+    t('calendar.days.tue'),
+    t('calendar.days.wed'),
+    t('calendar.days.thu'),
+    t('calendar.days.fri'),
+    t('calendar.days.sat')
+  ];
   return days[dayOfWeek] || '';
 }
 
@@ -1472,7 +1480,7 @@ async function renderMonthView() {
       
       <!-- 수입/지출/저축 비율 파이차트 -->
       <div class="bg-white p-6 rounded-lg shadow">
-        <h3 class="text-xl font-bold mb-4">월별 수입/지출/저축 비율</h3>
+        <h3 class="text-xl font-bold mb-4">${t('month.monthly_ratio')}</h3>
         <div class="flex justify-center">
           <canvas id="month-pie-chart" style="max-width: 300px; max-height: 300px;"></canvas>
         </div>
@@ -1484,7 +1492,7 @@ async function renderMonthView() {
       <!-- 저축 목표 진행 상황 -->
       <div class="bg-white p-6 rounded-lg shadow">
         <h3 class="text-xl font-bold mb-4">
-          <i class="fas fa-piggy-bank mr-2 text-green-600"></i>저축 목표 달성률
+          <i class="fas fa-piggy-bank mr-2 text-green-600"></i>${t('month.savings_goal_achievement')}
         </h3>
         <div id="savings-goals-section" class="space-y-4">
           <div class="text-center text-gray-500 py-4">
@@ -1496,7 +1504,7 @@ async function renderMonthView() {
       
       <!-- 달력 -->
       <div class="bg-white p-6 rounded-lg shadow">
-        <h3 class="text-xl font-bold mb-4">월간 달력</h3>
+        <h3 class="text-xl font-bold mb-4">${t('month.monthly_calendar')}</h3>
         ${renderCalendar(calendarData)}
       </div>
       
@@ -1506,7 +1514,7 @@ async function renderMonthView() {
       <!-- 거래 내역 -->
       <div class="bg-white p-6 rounded-lg shadow">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-bold">거래 내역</h3>
+          <h3 class="text-xl font-bold">${t('transaction.history')}</h3>
           <button onclick="openTransactionModal(null)" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
             <i class="fas fa-plus"></i>
           </button>
@@ -1515,19 +1523,19 @@ async function renderMonthView() {
         <!-- 검색 및 필터 -->
         <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
           <input type="text" id="search-transaction" 
-                 placeholder="설명으로 검색..." 
+                 placeholder="${t('transaction.search_by_name')}" 
                  class="px-4 py-2 border rounded"
                  oninput="filterTransactions()">
           
           <select id="filter-type" class="px-4 py-2 border rounded" onchange="filterTransactions()">
-            <option value="">전체 유형</option>
+            <option value="">${t('transaction.all_types')}</option>
             <option value="income">수입</option>
             <option value="expense">지출</option>
             <option value="savings">저축</option>
           </select>
           
           <select id="filter-category" class="px-4 py-2 border rounded" onchange="filterTransactions()">
-            <option value="">전체 카테고리</option>
+            <option value="">${t('transaction.all_categories')}</option>
             ${Object.values(categories).flat().map(cat => `<option value="${cat}">${cat}</option>`).join('')}
           </select>
         </div>
@@ -1558,7 +1566,7 @@ function drawPieChart(canvasId, income, expense, savings) {
     ctx.font = '14px sans-serif';
     ctx.fillStyle = '#999';
     ctx.textAlign = 'center';
-    ctx.fillText('데이터 없음', canvas.width / 2, canvas.height / 2);
+    ctx.fillText(t('calendar.no_data'), canvas.width / 2, canvas.height / 2);
     return;
   }
   
@@ -1674,13 +1682,13 @@ async function renderSavingsGoalsProgress() {
                   <i class="fas fa-edit"></i>
                 </button>
               </div>
-              <p class="text-sm text-gray-500">현재: ${formatCurrency(current)} / 목표: ${formatCurrency(goal)}</p>
+              <p class="text-sm text-gray-500">${t('month.current')}: ${formatCurrency(current)} / ${t('month.target')}: ${formatCurrency(goal)}</p>
             </div>
             <div class="text-right">
               <p class="text-2xl font-bold ${percentage >= 100 ? 'text-green-600' : 'text-blue-600'}">
                 ${percentage.toFixed(1)}%
               </p>
-              ${percentage < 100 ? `<p class="text-xs text-gray-500">잔여: ${formatCurrency(remaining)}</p>` : ''}
+              ${percentage < 100 ? `<p class="text-xs text-gray-500">${t('month.remaining')}: ${formatCurrency(remaining)}</p>` : ''}
             </div>
           </div>
           
@@ -1716,7 +1724,7 @@ async function renderSavingsGoalsProgress() {
         <div class="mt-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
           <div class="flex justify-between items-center">
             <div>
-              <p class="text-sm text-gray-600 font-medium">전체 저축 목표 달성률</p>
+              <p class="text-sm text-gray-600 font-medium">${t('month.overall_savings_goal')}</p>
               <p class="text-xl font-bold text-green-700 mt-1">${formatCurrency(totalCurrent)} / ${formatCurrency(totalGoal)}</p>
             </div>
             <div class="text-right">
@@ -1757,7 +1765,15 @@ function renderCalendar(calendarData) {
   let html = '<div class="grid grid-cols-7 gap-2">';
   
   // 요일 헤더 (일요일 빨강, 토요일 파랑)
-  const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+  const dayNames = [
+    t('calendar.days.sun'),
+    t('calendar.days.mon'),
+    t('calendar.days.tue'),
+    t('calendar.days.wed'),
+    t('calendar.days.thu'),
+    t('calendar.days.fri'),
+    t('calendar.days.sat')
+  ];
   const dayColors = ['text-red-600', 'text-gray-600', 'text-gray-600', 'text-gray-600', 'text-gray-600', 'text-gray-600', 'text-blue-600'];
   
   dayNames.forEach((day, index) => {
@@ -1956,7 +1972,7 @@ function renderExpenseBarChart(expenseByCategory, period) {
 // 거래 내역 리스트 렌더링
 function renderTransactionList(transactions) {
   if (!transactions || transactions.length === 0) {
-    return '<p class="text-center text-gray-500 py-4">거래 내역이 없습니다.</p>';
+    return `<p class="text-center text-gray-500 py-4">${t('transaction.no_transactions')}</p>`;
   }
   
   let html = '<div class="space-y-2 max-h-96 overflow-y-auto">';
@@ -2109,7 +2125,7 @@ async function renderWeekView() {
       <!-- 저축 목표 진행 상황 -->
       <div class="bg-white p-6 rounded-lg shadow">
         <h3 class="text-xl font-bold mb-4">
-          <i class="fas fa-piggy-bank mr-2 text-green-600"></i>저축 목표 달성률
+          <i class="fas fa-piggy-bank mr-2 text-green-600"></i>${t('month.savings_goal_achievement')}
         </h3>
         <div id="savings-goals-section" class="space-y-4">
           <div class="text-center text-gray-500 py-4">
@@ -2124,7 +2140,7 @@ async function renderWeekView() {
       
       <div class="bg-white p-6 rounded-lg shadow">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-bold">거래 내역</h3>
+          <h3 class="text-xl font-bold">${t('transaction.history')}</h3>
           <button onclick="openTransactionModal(null)" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
             <i class="fas fa-plus"></i>
           </button>
@@ -2205,7 +2221,7 @@ async function renderSavingsView() {
             ${savingsGoal > 0 ? `
               <div class="mt-3">
                 <div class="flex justify-between text-xs text-gray-600 mb-1">
-                  <span>목표: ${formatCurrency(savingsGoal)}</span>
+                  <span>${t('month.target')}: ${formatCurrency(savingsGoal)}</span>
                   <span>${progress.toFixed(1)}%</span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
