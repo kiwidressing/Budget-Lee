@@ -5120,47 +5120,47 @@ function openFixedExpenseModal() {
   modalContainer.innerHTML = `
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeModal(event)">
       <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
-        <h3 class="text-xl font-bold mb-4">고정지출 추가</h3>
+        <h3 class="text-xl font-bold mb-4">${t('fixed.add')}</h3>
         <form onsubmit="handleFixedExpenseSubmit(event)" class="space-y-4">
           <div>
-            <label class="block text-sm font-medium mb-2">이름</label>
-            <input type="text" name="name" class="w-full px-4 py-2 border rounded" required placeholder="예: 월세">
+            <label class="block text-sm font-medium mb-2">${t('fixed.name')}</label>
+            <input type="text" name="name" class="w-full px-4 py-2 border rounded" required placeholder="${t('fixed.placeholder_name')}">
           </div>
           <div>
-            <label class="block text-sm font-medium mb-2">카테고리</label>
+            <label class="block text-sm font-medium mb-2">${t('transaction.category')}</label>
             <select name="category" class="w-full px-4 py-2 border rounded" required>
               ${categories.expense.map(cat => `<option value="${cat}">${cat}</option>`).join('')}
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium mb-2">금액</label>
+            <label class="block text-sm font-medium mb-2">${t('fixed.amount')}</label>
             <input type="number" name="amount" class="w-full px-4 py-2 border rounded" required min="0">
           </div>
           <div>
-            <label class="block text-sm font-medium mb-2">주기</label>
+            <label class="block text-sm font-medium mb-2">${t('fixed.frequency')}</label>
             <select name="frequency" class="w-full px-4 py-2 border rounded" required onchange="toggleFixedExpenseFields(this.value)">
-              <option value="monthly_day">매월</option>
-              <option value="weekly">매주</option>
+              <option value="monthly_day">${t('fixed.frequency.monthly')}</option>
+              <option value="weekly">${t('fixed.weekly')}</option>
             </select>
           </div>
           <div id="day-of-week-container" style="display: none;">
-            <label class="block text-sm font-medium mb-2">요일</label>
+            <label class="block text-sm font-medium mb-2">${t('fixed.day_of_week')}</label>
             <select name="day_of_week" class="w-full px-4 py-2 border rounded">
-              <option value="0">일요일</option>
-              <option value="1">월요일</option>
-              <option value="2">화요일</option>
-              <option value="3">수요일</option>
-              <option value="4">목요일</option>
-              <option value="5">금요일</option>
-              <option value="6">토요일</option>
+              <option value="0">${t('fixed.sunday')}</option>
+              <option value="1">${t('fixed.monday')}</option>
+              <option value="2">${t('fixed.tuesday')}</option>
+              <option value="3">${t('fixed.wednesday')}</option>
+              <option value="4">${t('fixed.thursday')}</option>
+              <option value="5">${t('fixed.friday')}</option>
+              <option value="6">${t('fixed.saturday')}</option>
             </select>
           </div>
           <div id="payment-day-container" style="displa"payment-day-container" style="display: none;">
-            <label class="block text-sm font-medium mb-2">일자</label>
+            <label class="block text-sm font-medium mb-2">${t('fixed.payment_day')}</label>
             <input type="number" name="payment_day" class="w-full px-4 py-2 border rounded" min="1" max="31" placeholder="1-31">
           </div>
           <button type="submit" class="w-full py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-medium">
-            추가
+            ${t('common.add')}
           </button>
         </form>
       </div>
