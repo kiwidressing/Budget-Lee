@@ -2474,18 +2474,18 @@ async function renderInvestmentsView() {
           <table class="w-full">
             <thead class="bg-gray-50">
               <tr>
-                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">종목</th>
-                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">수량</th>
-                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">평균매수가</th>
-                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">현재가</th>
-                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">평가금액</th>
-                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">수익률</th>
-                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">손익</th>
-                <th class="px-4 py-3 text-center text-sm font-medium text-gray-700">관리</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">${t('investment.ticker')}</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">${t('investment.quantity')}</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">${t('investment.avg_buy_price')}</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">${t('investment.current_price')}</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">${t('investment.market_value')}</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">${t('investment.return_rate')}</th>
+                <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">${t('investment.profit_loss')}</th>
+                <th class="px-4 py-3 text-center text-sm font-medium text-gray-700">${t('investment.manage')}</th>
               </tr>
             </thead>
             <tbody id="investments-list">
-              <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">로딩중...</td></tr>
+              <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">${t('investment.loading')}</td></tr>
             </tbody>
           </table>
         </div>
@@ -2552,11 +2552,11 @@ async function updateInvestmentPrices() {
               <div class="font-medium">${inv.name}</div>
               <div class="text-sm text-gray-500">
                 ${inv.symbol}
-                ${priceData.simulated ? ' <span class="text-orange-500" title="실제 API 접근 제한으로 시뮬레이션 데이터가 표시됩니다">[시뮬레이션]</span>' : ''}
-                ${priceResponse.data.cached ? ' <span class="text-green-500" title="60초 캐시된 데이터">⚡</span>' : ''}
+                ${priceData.simulated ? ` <span class="text-orange-500" title="${getLanguage() === 'ko' ? '실제 API 접근 제한으로 시뮬레이션 데이터가 표시됩니다' : 'Simulated data due to API access restrictions'}">[${t('investment.simulation')}]</span>` : ''}
+                ${priceResponse.data.cached ? ` <span class="text-green-500" title="${getLanguage() === 'ko' ? '60초 캐시된 데이터' : 'Cached data (60s)'}">⚡</span>` : ''}
               </div>
             </td>
-            <td class="px-4 py-3 text-right">${inv.quantity.toLocaleString()}주</td>
+            <td class="px-4 py-3 text-right">${inv.quantity.toLocaleString()}${t('investment.shares')}</td>
             <td class="px-4 py-3 text-right">${formatCurrency(inv.purchase_price)}</td>
             <td class="px-4 py-3 text-right">
               <div>${formatCurrency(currentPrice)}</div>
