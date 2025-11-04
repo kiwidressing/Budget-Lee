@@ -1105,6 +1105,7 @@ app.get('/api/budgets/vs-spending/:yearMonth', authMiddleware, async (c) => {
       AND t.user_id = ?
       AND strftime('%Y-%m', t.date) = ?
     WHERE cb.user_id = ?
+      AND cb.monthly_budget > 0
     GROUP BY cb.category, cb.monthly_budget
     ORDER BY cb.category ASC
   `).bind(userId?.toString(), yearMonth, userId?.toString()).all()
