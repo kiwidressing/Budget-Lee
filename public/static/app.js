@@ -5211,19 +5211,23 @@ async function handleBudgetChange(category, value) {
   
   const amount = Math.round(budgetValidation.value);
   
+  // 카테고리를 한글로 정규화 (DB에는 항상 한글로 저장)
+  const normalizedCategory = normalizeCategory(category);
+  
   try {
     if (amount === 0) {
-      await axios.delete(`/api/budgets/${encodeURIComponent(category)}`);
-      alert(`${category} 예산이 삭제되었습니다.`);
+      await axios.delete(`/api/budgets/${encodeURIComponent(normalizedCategory)}`);
+      alert(`${category} ${t('budget.deleted')}`);
     } else {
-      await axios.put(`/api/budgets/${encodeURIComponent(category)}`, {
+      await axios.put(`/api/budgets/${encodeURIComponent(normalizedCategory)}`, {
         monthly_budget: amount
       });
-      alert(`${category} 예산이 ${formatCurrency(amount)}으로 설정되었습니다.`);
+      alert(`${category} ${t('budget.saved_as')} ${formatCurrency(amount)}`);
     }
     await fetchBudgets();
   } catch (error) {
-    alert('예산 처리 중 오류가 발생했습니다.');
+    console.error('Budget save error:', error);
+    alert(t('budget.save_error'));
   }
 }
 
@@ -6590,7 +6594,7 @@ if (typeof window.getCategoryIcon !== 'function') {
   };
 }
 
-// 카테고리 이름 번역 헬퍼 함수
+// 카테고리 이름 번역 헬퍼 함수 (한글 → 현재 언어)
 if (typeof window.translateCategoryName !== 'function') {
   window.translateCategoryName = function translateCategoryName(cat) {
     const map = {
@@ -6617,6 +6621,47 @@ if (typeof window.translateCategoryName !== 'function') {
       '기타': t('category.expense.other')
     };
     return map[cat] || cat;
+  };
+}
+
+// 카테고리 이름 역변환 헬퍼 함수 (현재 언어 → 한글)
+// DB에 저장할 때는 항상 한글로 통일
+if (typeof window.normalizeCategory !== 'function') {
+  window.normalizeCategory = function normalizeCategory(cat) {
+    // 이미 한글이면 그대로 반환
+    const koreanCategories = ['의복비', '식비', '주거비', '교통비', '문화생활', '쇼핑', '의료비', '교육비', '통신비', '보험', '기타지출'];
+    if (koreanCategories.includes(cat)) {
+      return cat;
+    }
+    
+    // 영어 → 한글 매핑
+    const reverseMap = {
+      'Clothing': '의복비',
+      'Food': '식비',
+      'Housing': '주거비',
+      'Transport': '교통비',
+      'Culture': '문화생활',
+      'Shopping': '쇼핑',
+      'Medical': '의료비',
+      'Education': '교육비',
+      'Communication': '통신비',
+      'Insurance': '보험',
+      'Other': '기타지출',
+      // i18n에서 가져온 실제 번역된 값들과 매핑
+      [t('category.expense.clothing')]: '의복비',
+      [t('category.expense.food')]: '식비',
+      [t('category.expense.housing')]: '주거비',
+      [t('category.expense.transport')]: '교통비',
+      [t('category.expense.culture')]: '문화생활',
+      [t('category.expense.shopping')]: '쇼핑',
+      [t('category.expense.medical')]: '의료비',
+      [t('category.expense.education')]: '교육비',
+      [t('category.expense.communication')]: '통신비',
+      [t('category.expense.insurance')]: '보험',
+      [t('category.expense.other')]: '기타지출'
+    };
+    
+    return reverseMap[cat] || cat;
   };
 }
 

@@ -264,6 +264,9 @@ const translations = {
     'budget.category_budget_setting': '카테고리별 예산 설정',
     'budget.management_tip': '예산 관리 팁:',
     'budget.tip_desc': '각 카테고리에 월별 예산을 설정하세요. 0원 입력 시 예산이 삭제됩니다.',
+    'budget.deleted': '예산이 삭제되었습니다.',
+    'budget.saved_as': '예산이 설정되었습니다:',
+    'budget.save_error': '예산 처리 중 오류가 발생했습니다.',
     
     // 리포트
     'report.title': '리포트',
@@ -820,6 +823,9 @@ const translations = {
     'budget.category_budget_setting': 'Category Budget Settings',
     'budget.management_tip': 'Budget Management Tip:',
     'budget.tip_desc': 'Set monthly budget for each category. Enter 0 to delete budget.',
+    'budget.deleted': 'budget has been deleted.',
+    'budget.saved_as': 'budget has been set to',
+    'budget.save_error': 'An error occurred while processing budget.',
     
     // Reports
     'report.title': 'Reports',
