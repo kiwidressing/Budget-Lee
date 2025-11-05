@@ -294,7 +294,7 @@ app.get('/api/auth/google/callback', async (c) => {
     `).bind(googleUser.email).first() as any
     
     if (!user) {
-      // Create new user
+      // Create new user with Google OAuth
       const result = await DB.prepare(`
         INSERT INTO users (username, email, name, password_hash)
         VALUES (?, ?, ?, ?)
@@ -311,6 +311,15 @@ app.get('/api/auth/google/callback', async (c) => {
         username: googleUser.email.split('@')[0],
         email: googleUser.email,
         name: googleUser.name || 'Google User'
+      }
+    } else {
+      // User exists - update email if not set (for legacy accounts)
+      if (!user.email || user.email === '') {
+        await DB.prepare(`
+          UPDATE users SET email = ? WHERE id = ?
+        `).bind(googleUser.email, user.id).run()
+        
+        console.log(`[OAuth] Linked Google account to existing user: ${user.username}`)
       }
     }
     
@@ -386,9 +395,188 @@ app.get('/api/auth/me', authMiddleware, async (c) => {
       username: user.username,
       name: user.name,
       email: user.email,
-      isGuest: false
+      isGuest: false,
+      hasGoogleLinked: user.email && user.email.includes('@')
     }
   })
+})
+
+// 기존 계정에 구글 연동 (데이터 마이그레이션 포함)
+app.post('/api/auth/link-google', authMiddleware, async (c) => {
+  const { DB } = c.env
+  const currentUserId = c.get('userId')
+  const { googleEmail } = await c.req.json()
+  
+  if (!currentUserId || currentUserId === 1) {
+    return c.json({ success: false, error: '로그인이 필요합니다.' }, 401)
+  }
+  
+  if (!googleEmail || !googleEmail.includes('@')) {
+    return c.json({ success: false, error: '유효한 이메일이 필요합니다.' }, 400)
+  }
+  
+  try {
+    // 1. 현재 사용자 정보 조회
+    const currentUser = await DB.prepare(`
+      SELECT id, username, name, email FROM users WHERE id = ?
+    `).bind(currentUserId).first() as any
+    
+    if (!currentUser) {
+      return c.json({ success: false, error: '사용자를 찾을 수 없습니다.' }, 404)
+    }
+    
+    // 2. 이미 구글 계정이 연동되어 있는지 확인
+    if (currentUser.email && currentUser.email.includes('@')) {
+      return c.json({ 
+        success: false, 
+        error: '이미 구글 계정이 연동되어 있습니다.',
+        linkedEmail: currentUser.email
+      }, 400)
+    }
+    
+    // 3. 해당 이메일로 이미 가입된 구글 계정이 있는지 확인
+    const existingGoogleUser = await DB.prepare(`
+      SELECT id FROM users WHERE email = ? AND id != ?
+    `).bind(googleEmail, currentUserId).first() as any
+    
+    if (existingGoogleUser) {
+      // 구글 계정이 이미 존재하는 경우 - 데이터 마이그레이션 제안
+      return c.json({
+        success: false,
+        needsMigration: true,
+        existingUserId: existingGoogleUser.id,
+        message: '이 구글 계정으로 이미 가입되어 있습니다. 데이터를 마이그레이션하시겠습니까?'
+      }, 409)
+    }
+    
+    // 4. 현재 계정에 구글 이메일 연동
+    await DB.prepare(`
+      UPDATE users SET email = ? WHERE id = ?
+    `).bind(googleEmail, currentUserId).run()
+    
+    console.log(`[Link] Google account linked: ${currentUser.username} -> ${googleEmail}`)
+    
+    return c.json({
+      success: true,
+      message: '구글 계정이 성공적으로 연동되었습니다.',
+      user: {
+        id: currentUser.id,
+        username: currentUser.username,
+        name: currentUser.name,
+        email: googleEmail
+      }
+    })
+    
+  } catch (error: any) {
+    console.error('[Link] Error linking Google account:', error)
+    return c.json({ 
+      success: false, 
+      error: '계정 연동 중 오류가 발생했습니다.',
+      details: error.message
+    }, 500)
+  }
+})
+
+// 데이터 마이그레이션 (기존 계정 → 구글 계정)
+app.post('/api/auth/migrate-data', authMiddleware, async (c) => {
+  const { DB } = c.env
+  const { fromUserId, toUserId, password } = await c.req.json()
+  
+  if (!fromUserId || !toUserId || !password) {
+    return c.json({ success: false, error: '필수 정보가 누락되었습니다.' }, 400)
+  }
+  
+  try {
+    // 1. 기존 계정 비밀번호 확인
+    const fromUser = await DB.prepare(`
+      SELECT id, username, password_hash FROM users WHERE id = ?
+    `).bind(fromUserId).first() as any
+    
+    if (!fromUser) {
+      return c.json({ success: false, error: '기존 계정을 찾을 수 없습니다.' }, 404)
+    }
+    
+    // 비밀번호 검증
+    const passwordHash = await hashPassword(password)
+    if (fromUser.password_hash !== passwordHash) {
+      return c.json({ success: false, error: '비밀번호가 일치하지 않습니다.' }, 401)
+    }
+    
+    // 2. 대상 계정 확인
+    const toUser = await DB.prepare(`
+      SELECT id, email FROM users WHERE id = ?
+    `).bind(toUserId).first() as any
+    
+    if (!toUser) {
+      return c.json({ success: false, error: '대상 계정을 찾을 수 없습니다.' }, 404)
+    }
+    
+    // 3. 모든 거래 내역 마이그레이션
+    await DB.prepare(`
+      UPDATE transactions SET user_id = ? WHERE user_id = ?
+    `).bind(toUserId, fromUserId).run()
+    
+    // 4. 저축 계좌 마이그레이션
+    await DB.prepare(`
+      UPDATE savings_accounts SET user_id = ? WHERE user_id = ?
+    `).bind(toUserId, fromUserId).run()
+    
+    // 5. 고정 지출 마이그레이션
+    await DB.prepare(`
+      UPDATE fixed_expenses SET user_id = ? WHERE user_id = ?
+    `).bind(toUserId, fromUserId).run()
+    
+    // 6. 카테고리 예산 마이그레이션
+    await DB.prepare(`
+      UPDATE category_budgets SET user_id = ? WHERE user_id = ?
+    `).bind(toUserId, fromUserId).run()
+    
+    // 7. 투자 내역 마이그레이션
+    await DB.prepare(`
+      UPDATE investments SET user_id = ? WHERE user_id = ?
+    `).bind(toUserId, fromUserId).run()
+    
+    // 8. 설정 마이그레이션
+    await DB.prepare(`
+      UPDATE settings SET user_id = ? WHERE user_id = ?
+    `).bind(toUserId, fromUserId).run()
+    
+    // 9. 월별 요약 마이그레이션
+    await DB.prepare(`
+      UPDATE monthly_summary SET user_id = ? WHERE user_id = ?
+    `).bind(toUserId, fromUserId).run()
+    
+    // 10. 기존 계정 삭제 (선택사항 - 주석 처리하면 보존)
+    // await DB.prepare(`DELETE FROM users WHERE id = ?`).bind(fromUserId).run()
+    
+    // 11. 기존 계정 비활성화 (삭제 대신)
+    await DB.prepare(`
+      UPDATE users SET password_hash = 'MIGRATED_TO_GOOGLE', name = ? WHERE id = ?
+    `).bind(`[MIGRATED] ${fromUser.username}`, fromUserId).run()
+    
+    console.log(`[Migration] Data migrated: User ${fromUserId} -> ${toUserId}`)
+    
+    return c.json({
+      success: true,
+      message: '모든 데이터가 성공적으로 마이그레이션되었습니다.',
+      migratedItems: {
+        transactions: true,
+        savingsAccounts: true,
+        fixedExpenses: true,
+        budgets: true,
+        investments: true,
+        settings: true
+      }
+    })
+    
+  } catch (error: any) {
+    console.error('[Migration] Error:', error)
+    return c.json({ 
+      success: false, 
+      error: '데이터 마이그레이션 중 오류가 발생했습니다.',
+      details: error.message
+    }, 500)
+  }
 })
 
 // ========== 기존 인증 API ==========
