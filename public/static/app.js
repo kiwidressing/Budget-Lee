@@ -1,6 +1,14 @@
 // ===== 앱 초기 부팅 시 세션 ID 생성 및 axios에 장착 =====
 (function initializeSession() {
-  // 1. 세션 ID가 없으면 생성 (브라우저별 고유 ID)
+  // 1. Google OAuth 토큰 우선 확인
+  const authToken = localStorage.getItem('auth_token');
+  if (authToken) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+    console.log('[Session] Google OAuth token loaded');
+    return;
+  }
+  
+  // 2. 세션 ID가 없으면 생성 (브라우저별 고유 ID)
   let sessionId = localStorage.getItem('sessionId');
   if (!sessionId) {
     // UUID 형식의 고유 ID 생성
@@ -11,14 +19,8 @@
     console.log('[Session] Existing session loaded:', sessionId);
   }
   
-  // 2. axios 기본 헤더에 세션 ID 설정
+  // 3. axios 기본 헤더에 세션 ID 설정
   axios.defaults.headers.common['Authorization'] = `Bearer ${sessionId}`;
-  
-  // 3. 기존 authToken도 유지 (향후 로그인 기능용)
-  const authToken = localStorage.getItem('authToken');
-  if (authToken) {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
-  }
 })();
 
 // 전역 상태 객체
@@ -7862,6 +7864,85 @@ document.addEventListener('click', (e) => {
     target.style.userSelect = 'auto';
   }
 }, true);
+
+// ===== Google OAuth 로그인 상태 관리 =====
+async function checkLoginStatus() {
+  const authToken = localStorage.getItem('auth_token');
+  const userEmail = localStorage.getItem('user_email');
+  const userName = localStorage.getItem('user_name');
+  
+  const loginSection = document.getElementById('login-section');
+  const userInfoSection = document.getElementById('user-info-section');
+  const userNameEl = document.getElementById('user-name');
+  const userEmailEl = document.getElementById('user-email');
+  
+  if (authToken && userEmail) {
+    // 로그인된 상태
+    if (loginSection) loginSection.classList.add('hidden');
+    if (userInfoSection) {
+      userInfoSection.classList.remove('hidden');
+      userInfoSection.classList.add('flex');
+    }
+    if (userNameEl) userNameEl.textContent = userName || userEmail.split('@')[0];
+    if (userEmailEl) userEmailEl.textContent = userEmail;
+    
+    console.log('[Auth] User logged in:', userEmail);
+    
+    // 선택사항: 서버에서 사용자 정보 재확인
+    try {
+      const response = await axios.get('/api/auth/me');
+      if (response.data.success && response.data.user) {
+        console.log('[Auth] User verified:', response.data.user);
+      }
+    } catch (error) {
+      console.warn('[Auth] Failed to verify user:', error);
+    }
+  } else {
+    // 로그인 안 된 상태
+    if (loginSection) loginSection.classList.remove('hidden');
+    if (userInfoSection) userInfoSection.classList.add('hidden');
+    console.log('[Auth] User not logged in (Guest mode)');
+  }
+}
+
+// 로그아웃 핸들러
+function setupLogoutHandler() {
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      // 로컬 스토리지에서 토큰 삭제
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_email');
+      localStorage.removeItem('user_name');
+      
+      // axios 헤더에서 토큰 제거
+      const sessionId = localStorage.getItem('sessionId');
+      if (sessionId) {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${sessionId}`;
+      } else {
+        delete axios.defaults.headers.common['Authorization'];
+      }
+      
+      console.log('[Auth] User logged out');
+      
+      // 서버에 로그아웃 알림 (선택사항)
+      try {
+        await axios.post('/api/auth/logout');
+      } catch (error) {
+        console.warn('[Auth] Logout API failed:', error);
+      }
+      
+      // UI 업데이트 및 페이지 새로고침
+      window.location.reload();
+    });
+  }
+}
+
+// 페이지 로드 시 로그인 상태 확인
+setTimeout(() => {
+  checkLoginStatus();
+  setupLogoutHandler();
+}, 100);
 
 // 앱 초기화 - 페이지 로드 시 인증 확인 후 적절한 화면 렌더링
 renderApp();
