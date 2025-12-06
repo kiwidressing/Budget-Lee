@@ -1,7 +1,7 @@
 // ===== 앱 초기 부팅 시 세션 ID 생성 및 axios에 장착 =====
 (function initializeSession() {
   // 1. Google OAuth 토큰 우선 확인
-  const authToken = localStorage.getItem('auth_token');
+  const authToken = localStorage.getItem('authToken');
   if (authToken) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
     console.log('[Session] Google OAuth token loaded');
@@ -387,10 +387,22 @@ function validateInvestmentPrice(price) {
 // 인증 관련 함수
 
 function setAuthToken(accessToken, refreshToken) {
-  console.log('[Auth] Setting tokens - Access:', accessToken?.substring(0, 20) + '...', 'Refresh:', refreshToken?.substring(0, 20) + '...');
+  if (!accessToken) {
+    console.warn('[Auth] Tried to set empty access token');
+    return;
+  }
+
+  const refreshPreview = refreshToken ? refreshToken.substring(0, 20) + '...' : 'n/a';
+  console.log('[Auth] Setting tokens - Access:', accessToken?.substring(0, 20) + '...', 'Refresh:', refreshPreview);
   state.authToken = accessToken;
   localStorage.setItem('authToken', accessToken);
-  localStorage.setItem('refreshToken', refreshToken);
+
+  if (refreshToken) {
+    localStorage.setItem('refreshToken', refreshToken);
+  } else {
+    localStorage.removeItem('refreshToken');
+  }
+
   axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
   console.log('[Auth] Tokens set successfully');
 }
@@ -400,7 +412,10 @@ function clearAuthToken() {
   state.isAuthenticated = false;
   state.currentUser = null;
   localStorage.removeItem('authToken');
+  localStorage.removeItem('auth_token');
   localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user_email');
+  localStorage.removeItem('user_name');
   delete axios.defaults.headers.common['Authorization'];
 }
 
@@ -514,20 +529,22 @@ async function handleLogin(event) {
     const res = await axios.post('/api/auth/login', { username, password });
     console.log('[Login] Response:', res.data);
     
-    const token = res.data.token;
+    const accessToken = res.data?.accessToken || res.data?.token;
+    const refreshToken = res.data?.refreshToken || res.data?.refresh_token || null;
     
-    if (!token) {
-      console.error('No token in response', res.data);
+    if (!accessToken) {
+      console.error('[Login] No access token in response', res.data);
       alert('로그인 응답에 토큰이 없습니다.');
       return;
     }
     
-    // 로컬 저장 + Authorization 헤더 세팅
-    console.log('[Login] Setting token...');
-    localStorage.setItem('authToken', token);
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    setAuthToken(accessToken, refreshToken);
     
-    // 자동 로그인 설정
+    if (res.data?.user) {
+      state.currentUser = res.data.user;
+    }
+    state.isAuthenticated = true;
+    
     if (rememberMe) {
       localStorage.setItem('rememberMe', 'true');
       console.log('[Login] Auto-login enabled');
@@ -535,7 +552,6 @@ async function handleLogin(event) {
       localStorage.removeItem('rememberMe');
     }
     
-    // 아이디 저장 설정
     if (saveUsername) {
       localStorage.setItem('savedUsername', username);
       console.log('[Login] Username saved:', username);
@@ -543,11 +559,6 @@ async function handleLogin(event) {
       localStorage.removeItem('savedUsername');
     }
     
-    // 상태/화면 갱신
-    state.isAuthenticated = true;
-    state.currentUser = res.data.user || null;
-    console.log('[Login] State updated:', state);
-    console.log('[Login] Rendering app...');
     renderApp();
   } catch (err) {
     console.error('[Login] Error:', err);
@@ -588,11 +599,13 @@ async function handleRegister(event) {
     const res = await axios.post('/api/auth/register', { username, password, name });
     console.log('[Register] Response:', res.data);
     
-    const token = res.data.token;
+    const accessToken = res.data?.accessToken || res.data?.token;
+    const refreshToken = res.data?.refreshToken || res.data?.refresh_token || null;
     
-    if (token) {
-      localStorage.setItem('authToken', token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    if (accessToken) {
+      setAuthToken(accessToken, refreshToken);
+    } else {
+      console.warn('[Register] Registration response did not include access token');
     }
     
     state.isAuthenticated = true;
@@ -606,20 +619,18 @@ async function handleRegister(event) {
 
 function handleLogout() {
   if (confirm('로그아웃 하시겠습니까?')) {
-    // 인증 토큰만 제거 (로그아웃)
-    localStorage.removeItem('authToken');
-    
-    // "로그인 상태 유지" 옵션도 제거 (로그아웃하면 초기화)
+    const refreshToken = localStorage.getItem('refreshToken');
+    clearAuthToken();
     localStorage.removeItem('rememberMe');
     
-    // 중요: savedUsername, 거래내역, 설정 등은 유지 (절대 삭제 안 함)
-    // 중요: localStorage에 저장된 모든 재무 데이터 보호
+    try {
+      axios.post('/api/auth/logout', {
+        refreshToken
+      }).catch(() => {});
+    } catch (error) {
+      console.warn('[Auth] Logout API failed:', error);
+    }
     
-    delete axios.defaults.headers.common['Authorization'];
-    state.isAuthenticated = false;
-    state.currentUser = null;
-    
-    // 캐시 삭제 없이 바로 로그인 화면으로 (데이터 보호)
     renderLoginScreen();
   }
 }
@@ -7908,9 +7919,20 @@ document.addEventListener('click', (e) => {
 
 // ===== Google OAuth 로그인 상태 관리 =====
 async function checkLoginStatus() {
-  const authToken = localStorage.getItem('auth_token');
+  let authToken = localStorage.getItem('authToken');
+  const legacyToken = localStorage.getItem('auth_token');
   const userEmail = localStorage.getItem('user_email');
   const userName = localStorage.getItem('user_name');
+  
+  if (!authToken && legacyToken) {
+    localStorage.setItem('authToken', legacyToken);
+    localStorage.removeItem('auth_token');
+    authToken = legacyToken;
+  }
+  
+  if (authToken) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+  }
   
   const loginSection = document.getElementById('login-section');
   const userInfoSection = document.getElementById('user-info-section');
@@ -7918,7 +7940,6 @@ async function checkLoginStatus() {
   const userEmailEl = document.getElementById('user-email');
   
   if (authToken && userEmail) {
-    // 로그인된 상태
     if (loginSection) loginSection.classList.add('hidden');
     if (userInfoSection) {
       userInfoSection.classList.remove('hidden');
@@ -7929,7 +7950,6 @@ async function checkLoginStatus() {
     
     console.log('[Auth] User logged in:', userEmail);
     
-    // 선택사항: 서버에서 사용자 정보 재확인
     try {
       const response = await axios.get('/api/auth/me');
       if (response.data.success && response.data.user) {
@@ -7939,7 +7959,6 @@ async function checkLoginStatus() {
       console.warn('[Auth] Failed to verify user:', error);
     }
   } else {
-    // 로그인 안 된 상태
     if (loginSection) loginSection.classList.remove('hidden');
     if (userInfoSection) userInfoSection.classList.add('hidden');
     console.log('[Auth] User not logged in (Guest mode)');
@@ -7951,29 +7970,18 @@ function setupLogoutHandler() {
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
-      // 로컬 스토리지에서 토큰 삭제
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user_email');
-      localStorage.removeItem('user_name');
-      
-      // axios 헤더에서 토큰 제거
-      const sessionId = localStorage.getItem('sessionId');
-      if (sessionId) {
-        axios.defaults.headers.common['Authorization'] = `Bearer ${sessionId}`;
-      } else {
-        delete axios.defaults.headers.common['Authorization'];
-      }
+      const refreshToken = localStorage.getItem('refreshToken');
+      clearAuthToken();
+      localStorage.removeItem('rememberMe');
       
       console.log('[Auth] User logged out');
       
-      // 서버에 로그아웃 알림 (선택사항)
       try {
-        await axios.post('/api/auth/logout');
+        await axios.post('/api/auth/logout', { refreshToken });
       } catch (error) {
         console.warn('[Auth] Logout API failed:', error);
       }
       
-      // UI 업데이트 및 페이지 새로고침
       window.location.reload();
     });
   }
