@@ -333,13 +333,22 @@ app.get('/api/auth/google/callback', async (c) => {
         <head>
           <title>Login Successful</title>
           <script>
-            // Store token in localStorage
-            localStorage.setItem('auth_token', '${token}');
-            localStorage.setItem('user_email', '${user.email}');
-            localStorage.setItem('user_name', '${user.name}');
-            
-            // Redirect to home
-            window.location.href = '/';
+            (function() {
+              const accessToken = ${JSON.stringify(token)};
+              const userEmail = ${JSON.stringify(user.email || '')};
+              const userName = ${JSON.stringify(user.name || '')};
+              if (accessToken) {
+                localStorage.setItem('authToken', accessToken);
+              }
+              localStorage.removeItem('refreshToken');
+              if (userEmail) {
+                localStorage.setItem('user_email', userEmail);
+              }
+              if (userName) {
+                localStorage.setItem('user_name', userName);
+              }
+              window.location.href = '/';
+            })();
           </script>
         </head>
         <body>

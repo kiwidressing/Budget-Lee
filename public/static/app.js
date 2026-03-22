@@ -1,7 +1,7 @@
 // ===== 앱 초기 부팅 시 세션 ID 생성 및 axios에 장착 =====
 (function initializeSession() {
   // 1. Google OAuth 토큰 우선 확인
-  const authToken = localStorage.getItem('auth_token');
+  const authToken = localStorage.getItem('authToken');
   if (authToken) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
     console.log('[Session] Google OAuth token loaded');
@@ -387,10 +387,22 @@ function validateInvestmentPrice(price) {
 // 인증 관련 함수
 
 function setAuthToken(accessToken, refreshToken) {
-  console.log('[Auth] Setting tokens - Access:', accessToken?.substring(0, 20) + '...', 'Refresh:', refreshToken?.substring(0, 20) + '...');
+  if (!accessToken) {
+    console.warn('[Auth] Tried to set empty access token');
+    return;
+  }
+
+  const refreshPreview = refreshToken ? refreshToken.substring(0, 20) + '...' : 'n/a';
+  console.log('[Auth] Setting tokens - Access:', accessToken?.substring(0, 20) + '...', 'Refresh:', refreshPreview);
   state.authToken = accessToken;
   localStorage.setItem('authToken', accessToken);
-  localStorage.setItem('refreshToken', refreshToken);
+
+  if (refreshToken) {
+    localStorage.setItem('refreshToken', refreshToken);
+  } else {
+    localStorage.removeItem('refreshToken');
+  }
+
   axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
   console.log('[Auth] Tokens set successfully');
 }
@@ -400,7 +412,10 @@ function clearAuthToken() {
   state.isAuthenticated = false;
   state.currentUser = null;
   localStorage.removeItem('authToken');
+  localStorage.removeItem('auth_token');
   localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user_email');
+  localStorage.removeItem('user_name');
   delete axios.defaults.headers.common['Authorization'];
 }
 
@@ -514,20 +529,22 @@ async function handleLogin(event) {
     const res = await axios.post('/api/auth/login', { username, password });
     console.log('[Login] Response:', res.data);
     
-    const token = res.data.token;
+    const accessToken = res.data?.accessToken || res.data?.token;
+    const refreshToken = res.data?.refreshToken || res.data?.refresh_token || null;
     
-    if (!token) {
-      console.error('No token in response', res.data);
+    if (!accessToken) {
+      console.error('[Login] No access token in response', res.data);
       alert('로그인 응답에 토큰이 없습니다.');
       return;
     }
     
-    // 로컬 저장 + Authorization 헤더 세팅
-    console.log('[Login] Setting token...');
-    localStorage.setItem('authToken', token);
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    setAuthToken(accessToken, refreshToken);
     
-    // 자동 로그인 설정
+    if (res.data?.user) {
+      state.currentUser = res.data.user;
+    }
+    state.isAuthenticated = true;
+    
     if (rememberMe) {
       localStorage.setItem('rememberMe', 'true');
       console.log('[Login] Auto-login enabled');
@@ -535,7 +552,6 @@ async function handleLogin(event) {
       localStorage.removeItem('rememberMe');
     }
     
-    // 아이디 저장 설정
     if (saveUsername) {
       localStorage.setItem('savedUsername', username);
       console.log('[Login] Username saved:', username);
@@ -543,11 +559,6 @@ async function handleLogin(event) {
       localStorage.removeItem('savedUsername');
     }
     
-    // 상태/화면 갱신
-    state.isAuthenticated = true;
-    state.currentUser = res.data.user || null;
-    console.log('[Login] State updated:', state);
-    console.log('[Login] Rendering app...');
     renderApp();
   } catch (err) {
     console.error('[Login] Error:', err);
@@ -588,11 +599,13 @@ async function handleRegister(event) {
     const res = await axios.post('/api/auth/register', { username, password, name });
     console.log('[Register] Response:', res.data);
     
-    const token = res.data.token;
+    const accessToken = res.data?.accessToken || res.data?.token;
+    const refreshToken = res.data?.refreshToken || res.data?.refresh_token || null;
     
-    if (token) {
-      localStorage.setItem('authToken', token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    if (accessToken) {
+      setAuthToken(accessToken, refreshToken);
+    } else {
+      console.warn('[Register] Registration response did not include access token');
     }
     
     state.isAuthenticated = true;
@@ -606,20 +619,18 @@ async function handleRegister(event) {
 
 function handleLogout() {
   if (confirm('로그아웃 하시겠습니까?')) {
-    // 인증 토큰만 제거 (로그아웃)
-    localStorage.removeItem('authToken');
-    
-    // "로그인 상태 유지" 옵션도 제거 (로그아웃하면 초기화)
+    const refreshToken = localStorage.getItem('refreshToken');
+    clearAuthToken();
     localStorage.removeItem('rememberMe');
     
-    // 중요: savedUsername, 거래내역, 설정 등은 유지 (절대 삭제 안 함)
-    // 중요: localStorage에 저장된 모든 재무 데이터 보호
+    try {
+      axios.post('/api/auth/logout', {
+        refreshToken
+      }).catch(() => {});
+    } catch (error) {
+      console.warn('[Auth] Logout API failed:', error);
+    }
     
-    delete axios.defaults.headers.common['Authorization'];
-    state.isAuthenticated = false;
-    state.currentUser = null;
-    
-    // 캐시 삭제 없이 바로 로그인 화면으로 (데이터 보호)
     renderLoginScreen();
   }
 }
@@ -627,6 +638,7 @@ function handleLogout() {
 function renderLoginScreen() {
   const savedUsername = localStorage.getItem('savedUsername') || '';
   const rememberMe = localStorage.getItem('rememberMe') === 'true';
+  const isKorean = getLanguage() === 'ko';
   
   document.getElementById('app').innerHTML = `
     <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
@@ -635,6 +647,36 @@ function renderLoginScreen() {
           <i class="fas fa-wallet text-6xl text-blue-600 mb-4"></i>
           <h1 class="text-3xl font-bold text-gray-800">Budget Lee</h1>
           <p class="text-gray-600 mt-2">Personal Finance Manager</p>
+        </div>
+        
+        <div class="space-y-3 mb-8">
+          <a href="/api/auth/google" class="flex items-center justify-center gap-3 w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all shadow-md">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            <span class="text-base font-medium text-gray-700">
+              ${isKorean ? 'Google 계정으로 로그인' : 'Sign in with Google'}
+            </span>
+          </a>
+          <p class="text-xs text-gray-500 text-center">
+            ${isKorean 
+              ? 'Google 로그인으로 여러 기기에서 데이터를 동기화하고 백업할 수 있습니다.' 
+              : 'Use Google to sync and back up your data across devices.'}
+          </p>
+        </div>
+        
+        <div class="relative mb-8">
+          <div class="absolute inset-0 flex items-center">
+            <div class="w-full border-t border-gray-300"></div>
+          </div>
+          <div class="relative flex justify-center text-sm">
+            <span class="px-4 bg-white text-gray-500">
+              ${isKorean ? '또는 이메일/PIN으로 계속하기' : 'Or continue with email & PIN'}
+            </span>
+          </div>
         </div>
         
         <div class="mb-6">
@@ -718,27 +760,6 @@ function renderLoginScreen() {
             >
               <i class="fas fa-sign-in-alt mr-2"></i>Sign In
             </button>
-            
-            <!-- 구분선 -->
-            <div class="relative my-6">
-              <div class="absolute inset-0 flex items-center">
-                <div class="w-full border-t border-gray-300"></div>
-              </div>
-              <div class="relative flex justify-center text-sm">
-                <span class="px-4 bg-white text-gray-500">Or continue with</span>
-              </div>
-            </div>
-            
-            <!-- 구글 로그인 버튼 -->
-            <a href="/api/auth/google" class="flex items-center justify-center gap-3 w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm">
-              <svg class="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-              </svg>
-              <span class="text-sm font-medium text-gray-700">Sign in with Google</span>
-            </a>
           </form>
         </div>
         
@@ -809,11 +830,21 @@ function renderLoginScreen() {
             >
               <i class="fas fa-user-plus mr-2"></i>Sign Up
             </button>
+            <div class="text-center text-sm text-gray-500 pt-2">
+              <span>
+                ${isKorean 
+                  ? 'Google 계정으로 빠르게 시작하려면 ' 
+                  : 'Want to sign in with Google instead? '}
+                <a href="/api/auth/google" class="text-blue-600 font-medium hover:underline">
+                  ${isKorean ? 'Google 로그인' : 'Use Google Login'}
+                </a>
+              </span>
+            </div>
           </form>
         </div>
         
         <div class="mt-6 text-center text-sm text-gray-600">
-          <p>First time here? Sign up to get started!</p>
+          <p>${isKorean ? '처음 방문하셨나요? 아래에서 계정을 만들어 시작하세요!' : 'First time here? Create an account to get started!'}</p>
         </div>
       </div>
     </div>
@@ -7908,9 +7939,20 @@ document.addEventListener('click', (e) => {
 
 // ===== Google OAuth 로그인 상태 관리 =====
 async function checkLoginStatus() {
-  const authToken = localStorage.getItem('auth_token');
+  let authToken = localStorage.getItem('authToken');
+  const legacyToken = localStorage.getItem('auth_token');
   const userEmail = localStorage.getItem('user_email');
   const userName = localStorage.getItem('user_name');
+  
+  if (!authToken && legacyToken) {
+    localStorage.setItem('authToken', legacyToken);
+    localStorage.removeItem('auth_token');
+    authToken = legacyToken;
+  }
+  
+  if (authToken) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+  }
   
   const loginSection = document.getElementById('login-section');
   const userInfoSection = document.getElementById('user-info-section');
@@ -7918,7 +7960,6 @@ async function checkLoginStatus() {
   const userEmailEl = document.getElementById('user-email');
   
   if (authToken && userEmail) {
-    // 로그인된 상태
     if (loginSection) loginSection.classList.add('hidden');
     if (userInfoSection) {
       userInfoSection.classList.remove('hidden');
@@ -7929,7 +7970,6 @@ async function checkLoginStatus() {
     
     console.log('[Auth] User logged in:', userEmail);
     
-    // 선택사항: 서버에서 사용자 정보 재확인
     try {
       const response = await axios.get('/api/auth/me');
       if (response.data.success && response.data.user) {
@@ -7939,7 +7979,6 @@ async function checkLoginStatus() {
       console.warn('[Auth] Failed to verify user:', error);
     }
   } else {
-    // 로그인 안 된 상태
     if (loginSection) loginSection.classList.remove('hidden');
     if (userInfoSection) userInfoSection.classList.add('hidden');
     console.log('[Auth] User not logged in (Guest mode)');
@@ -7951,29 +7990,18 @@ function setupLogoutHandler() {
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
-      // 로컬 스토리지에서 토큰 삭제
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user_email');
-      localStorage.removeItem('user_name');
-      
-      // axios 헤더에서 토큰 제거
-      const sessionId = localStorage.getItem('sessionId');
-      if (sessionId) {
-        axios.defaults.headers.common['Authorization'] = `Bearer ${sessionId}`;
-      } else {
-        delete axios.defaults.headers.common['Authorization'];
-      }
+      const refreshToken = localStorage.getItem('refreshToken');
+      clearAuthToken();
+      localStorage.removeItem('rememberMe');
       
       console.log('[Auth] User logged out');
       
-      // 서버에 로그아웃 알림 (선택사항)
       try {
-        await axios.post('/api/auth/logout');
+        await axios.post('/api/auth/logout', { refreshToken });
       } catch (error) {
         console.warn('[Auth] Logout API failed:', error);
       }
       
-      // UI 업데이트 및 페이지 새로고침
       window.location.reload();
     });
   }
