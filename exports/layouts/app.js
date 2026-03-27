@@ -1,30 +1,6 @@
-// ===== Google OAuth 기능 상태 체크 (전역 변수) =====
-let GOOGLE_OAUTH_ENABLED = false;
-
-// 서버에서 Google OAuth 활성화 상태 확인
-(async function checkGoogleOAuthStatus() {
-  try {
-    const response = await fetch('/api/auth/google', { method: 'HEAD' });
-    // 200 또는 302 = 활성화됨, 다른 상태 = 비활성화됨
-    GOOGLE_OAUTH_ENABLED = (response.status === 200 || response.status === 302);
-    console.log('[OAuth] Google OAuth enabled:', GOOGLE_OAUTH_ENABLED);
-  } catch (error) {
-    console.log('[OAuth] Google OAuth disabled (fetch failed)');
-    GOOGLE_OAUTH_ENABLED = false;
-  }
-})();
-
 // ===== 앱 초기 부팅 시 세션 ID 생성 및 axios에 장착 =====
 (function initializeSession() {
-  // 1. Google OAuth 토큰 우선 확인
-  const authToken = localStorage.getItem('auth_token');
-  if (authToken) {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
-    console.log('[Session] Google OAuth token loaded');
-    return;
-  }
-  
-  // 2. 세션 ID가 없으면 생성 (브라우저별 고유 ID)
+  // 1. 세션 ID가 없으면 생성 (브라우저별 고유 ID)
   let sessionId = localStorage.getItem('sessionId');
   if (!sessionId) {
     // UUID 형식의 고유 ID 생성
@@ -35,8 +11,14 @@ let GOOGLE_OAUTH_ENABLED = false;
     console.log('[Session] Existing session loaded:', sessionId);
   }
   
-  // 3. axios 기본 헤더에 세션 ID 설정
+  // 2. axios 기본 헤더에 세션 ID 설정
   axios.defaults.headers.common['Authorization'] = `Bearer ${sessionId}`;
+  
+  // 3. 기존 authToken도 유지 (향후 로그인 기능용)
+  const authToken = localStorage.getItem('authToken');
+  if (authToken) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+  }
 })();
 
 // 전역 상태 객체
@@ -734,55 +716,6 @@ function renderLoginScreen() {
             >
               <i class="fas fa-sign-in-alt mr-2"></i>Sign In
             </button>
-            
-            <!-- 구분선 -->
-            <div class="relative my-6">
-              <div class="absolute inset-0 flex items-center">
-                <div class="w-full border-t border-gray-300"></div>
-              </div>
-              <div class="relative flex justify-center text-sm">
-                <span class="px-4 bg-white text-gray-500">Or continue with</span>
-              </div>
-            </div>
-            
-            <!-- 구글 로그인 버튼 (기능 플래그에 따라 표시/숨김) -->
-            <div id="google-login-section" style="display: none;">
-              <div class="mt-6 mb-6">
-                <div class="relative">
-                  <div class="absolute inset-0 flex items-center">
-                    <div class="w-full border-t border-gray-300"></div>
-                  </div>
-                  <div class="relative flex justify-center text-sm">
-                    <span class="px-2 bg-white text-gray-500">Or continue with</span>
-                  </div>
-                </div>
-              </div>
-              
-              <a href="/api/auth/google" class="flex items-center justify-center gap-3 w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm">
-                <svg class="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                </svg>
-                <span class="text-sm font-medium text-gray-700">Sign in with Google</span>
-              </a>
-            </div>
-            
-            <script>
-              // Google OAuth 활성화 상태에 따라 버튼 표시/숨김
-              (function() {
-                setTimeout(function() {
-                  const googleSection = document.getElementById('google-login-section');
-                  if (googleSection && window.GOOGLE_OAUTH_ENABLED) {
-                    googleSection.style.display = 'block';
-                    console.log('[UI] Google login button shown');
-                  } else {
-                    console.log('[UI] Google login button hidden (disabled)');
-                  }
-                }, 100);
-              })();
-            </script>
           </form>
         </div>
         
@@ -4827,26 +4760,6 @@ async function renderSettingsView() {
         
         <hr class="my-6">
         
-        <!-- 구글 계정 연동 섹션 -->
-        <div id="google-link-section" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 class="text-lg font-bold mb-3 text-blue-800">
-            <i class="fab fa-google mr-2"></i>${getLanguage() === 'ko' ? '구글 계정 연동' : 'Link Google Account'}
-          </h3>
-          <p class="text-sm text-blue-700 mb-4">
-            <i class="fas fa-info-circle mr-1"></i>
-            ${getLanguage() === 'ko' 
-              ? '구글 계정을 연동하면 모든 기기에서 데이터를 동기화하고 안전하게 백업할 수 있습니다.' 
-              : 'Link your Google account to sync data across devices and backup securely.'}
-          </p>
-          <div id="google-link-status"></div>
-          <button onclick="checkGoogleLinkStatus()" 
-                  class="w-full px-4 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">
-            <i class="fab fa-google mr-2"></i>${getLanguage() === 'ko' ? '구글 계정 연동하기' : 'Link with Google'}
-          </button>
-        </div>
-        
-        <hr class="my-6">
-        
         <div>
           <h3 class="text-lg font-bold mb-3">${t('settings.help')}</h3>
           <p class="text-sm text-gray-600 mb-4">
@@ -7949,185 +7862,6 @@ document.addEventListener('click', (e) => {
     target.style.userSelect = 'auto';
   }
 }, true);
-
-// ===== Google OAuth 로그인 상태 관리 =====
-async function checkLoginStatus() {
-  const authToken = localStorage.getItem('auth_token');
-  const userEmail = localStorage.getItem('user_email');
-  const userName = localStorage.getItem('user_name');
-  
-  const loginSection = document.getElementById('login-section');
-  const userInfoSection = document.getElementById('user-info-section');
-  const userNameEl = document.getElementById('user-name');
-  const userEmailEl = document.getElementById('user-email');
-  
-  if (authToken && userEmail) {
-    // 로그인된 상태
-    if (loginSection) loginSection.classList.add('hidden');
-    if (userInfoSection) {
-      userInfoSection.classList.remove('hidden');
-      userInfoSection.classList.add('flex');
-    }
-    if (userNameEl) userNameEl.textContent = userName || userEmail.split('@')[0];
-    if (userEmailEl) userEmailEl.textContent = userEmail;
-    
-    console.log('[Auth] User logged in:', userEmail);
-    
-    // 선택사항: 서버에서 사용자 정보 재확인
-    try {
-      const response = await axios.get('/api/auth/me');
-      if (response.data.success && response.data.user) {
-        console.log('[Auth] User verified:', response.data.user);
-      }
-    } catch (error) {
-      console.warn('[Auth] Failed to verify user:', error);
-    }
-  } else {
-    // 로그인 안 된 상태
-    if (loginSection) loginSection.classList.remove('hidden');
-    if (userInfoSection) userInfoSection.classList.add('hidden');
-    console.log('[Auth] User not logged in (Guest mode)');
-  }
-}
-
-// 로그아웃 핸들러
-function setupLogoutHandler() {
-  const logoutBtn = document.getElementById('logout-btn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', async () => {
-      // 로컬 스토리지에서 토큰 삭제
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user_email');
-      localStorage.removeItem('user_name');
-      
-      // axios 헤더에서 토큰 제거
-      const sessionId = localStorage.getItem('sessionId');
-      if (sessionId) {
-        axios.defaults.headers.common['Authorization'] = `Bearer ${sessionId}`;
-      } else {
-        delete axios.defaults.headers.common['Authorization'];
-      }
-      
-      console.log('[Auth] User logged out');
-      
-      // 서버에 로그아웃 알림 (선택사항)
-      try {
-        await axios.post('/api/auth/logout');
-      } catch (error) {
-        console.warn('[Auth] Logout API failed:', error);
-      }
-      
-      // UI 업데이트 및 페이지 새로고침
-      window.location.reload();
-    });
-  }
-}
-
-// ===== 구글 계정 연동 기능 =====
-async function checkGoogleLinkStatus() {
-  try {
-    const response = await axios.get('/api/auth/me');
-    if (response.data.success && response.data.user) {
-      const user = response.data.user;
-      
-      if (user.isGuest) {
-        alert(getLanguage() === 'ko' 
-          ? '먼저 로그인해주세요.' 
-          : 'Please login first.');
-        showAuthModal();
-        return;
-      }
-      
-      if (user.hasGoogleLinked) {
-        // 이미 연동됨
-        showGoogleLinkedStatus(user.email);
-      } else {
-        // 연동 필요
-        showGoogleLinkConfirm();
-      }
-    }
-  } catch (error) {
-    console.error('[Google Link] Error:', error);
-    alert(getLanguage() === 'ko' 
-      ? '상태 확인 중 오류가 발생했습니다.' 
-      : 'Error checking status.');
-  }
-}
-
-function showGoogleLinkedStatus(email) {
-  const statusDiv = document.getElementById('google-link-status');
-  if (statusDiv) {
-    statusDiv.innerHTML = `
-      <div class="bg-green-100 border border-green-300 rounded p-3 mb-3">
-        <p class="text-sm text-green-800">
-          <i class="fas fa-check-circle mr-2"></i>
-          ${getLanguage() === 'ko' 
-            ? `이미 구글 계정(${email})과 연동되어 있습니다.` 
-            : `Already linked with Google account (${email}).`}
-        </p>
-      </div>
-    `;
-  }
-}
-
-function showGoogleLinkConfirm() {
-  if (confirm(getLanguage() === 'ko' 
-    ? '구글 계정을 연동하시겠습니까? 현재 데이터가 구글 계정으로 이동됩니다.' 
-    : 'Link your Google account? Your current data will be moved to Google account.')) {
-    
-    // 구글 OAuth 페이지로 이동
-    window.location.href = '/api/auth/google';
-  }
-}
-
-// 데이터 마이그레이션 모달
-async function showMigrationModal(existingUserId) {
-  const password = prompt(getLanguage() === 'ko' 
-    ? '기존 계정의 비밀번호를 입력하세요 (4자리):' 
-    : 'Enter your old account password (4 digits):');
-  
-  if (!password || password.length !== 4) {
-    alert(getLanguage() === 'ko' 
-      ? '올바른 비밀번호를 입력하세요.' 
-      : 'Please enter a valid password.');
-    return;
-  }
-  
-  if (confirm(getLanguage() === 'ko' 
-    ? '정말로 모든 데이터를 구글 계정으로 이동하시겠습니까? 기존 계정은 비활성화됩니다.' 
-    : 'Really migrate all data to Google account? Old account will be disabled.')) {
-    
-    try {
-      const currentUserId = state.currentUser?.id;
-      const response = await axios.post('/api/auth/migrate-data', {
-        fromUserId: currentUserId,
-        toUserId: existingUserId,
-        password: password
-      });
-      
-      if (response.data.success) {
-        alert(getLanguage() === 'ko' 
-          ? '✅ 데이터 마이그레이션이 완료되었습니다! 다시 로그인해주세요.' 
-          : '✅ Data migration completed! Please login again.');
-        
-        // 로그아웃 후 새로고침
-        localStorage.clear();
-        window.location.reload();
-      } else {
-        alert(response.data.error || 'Migration failed');
-      }
-    } catch (error) {
-      console.error('[Migration] Error:', error);
-      alert(error.response?.data?.error || 'Migration failed');
-    }
-  }
-}
-
-// 페이지 로드 시 로그인 상태 확인
-setTimeout(() => {
-  checkLoginStatus();
-  setupLogoutHandler();
-}, 100);
 
 // 앱 초기화 - 페이지 로드 시 인증 확인 후 적절한 화면 렌더링
 renderApp();

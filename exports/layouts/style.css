@@ -1,0 +1,1122 @@
+/* ============================================
+   🎨 Glassmorphism & Pastel/Pantone Design
+   Beautiful UI with glass effects and soft colors
+============================================ */
+
+/* 파스텔/팬톤 컬러 팔레트 - 무난하고 세련된 톤 */
+:root {
+  /* Pantone Soft Palette */
+  --primary: #C9ADA7;        /* Rose Quartz */
+  --primary-light: #E8D5D2;
+  --primary-dark: #A88F89;
+  
+  --secondary: #9CADCE;      /* Serenity Blue */
+  --secondary-light: #C5D5EA;
+  --secondary-dark: #7B8FB0;
+  
+  --accent: #B4A7D6;         /* Lavender Gray */
+  --accent-light: #D4CCE8;
+  --accent-dark: #9488BA;
+  
+  --success: #A8DADC;        /* Mint Cream */
+  --warning: #F1C6A0;        /* Apricot Cream */
+  --danger: #E8B4B8;         /* Dusty Rose */
+  
+  /* Glass effect colors */
+  --glass-white: rgba(255, 255, 255, 0.15);
+  --glass-white-hover: rgba(255, 255, 255, 0.25);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  
+  /* Background gradients - 부드럽고 무난한 색감 */
+  --bg-gradient: linear-gradient(135deg, #E8D5D2 0%, #C5D5EA 50%, #D4CCE8 100%);
+  --bg-gradient-2: linear-gradient(135deg, #F8E5E0 0%, #D4E4F7 50%, #E6DDF5 100%);
+  
+  /* Text colors */
+  --text-primary: #4A5568;
+  --text-secondary: #718096;
+  --text-white: #FFFFFF;
+  
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+}
+
+/* Dark mode colors */
+.dark {
+  --primary: #C9ADA7;
+  --secondary: #9CADCE;
+  --accent: #B4A7D6;
+  
+  --glass-white: rgba(40, 45, 60, 0.5);
+  --glass-white-hover: rgba(50, 55, 70, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  
+  --bg-gradient: linear-gradient(135deg, #1a1f2e 0%, #0f1419 50%, #1a1f2e 100%);
+  --bg-gradient-2: linear-gradient(135deg, #2a2f3e 0%, #1f242e 50%, #2a2f3e 100%);
+  
+  --text-primary: #E8EEF5;
+  --text-secondary: #B8C5D0;
+  
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.7);
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================
+   Global Styles
+============================================ */
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  transition: all 0.3s ease;
+}
+
+/* ============================================
+   Glassmorphism Components
+============================================ */
+
+/* Glass card base - 더 강한 효과 */
+.glass-card {
+  background: var(--glass-white);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 2px solid var(--glass-border);
+  border-radius: 24px;
+  box-shadow: var(--shadow-glass), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  background: var(--glass-white-hover);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg),
+              inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* Glass button */
+.glass-button {
+  background: var(--glass-white);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 0.75rem 1.5rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.glass-button:hover {
+  background: var(--glass-white-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Primary glass button with gradient */
+.glass-button-primary {
+  background: linear-gradient(135deg, var(--primary-light), var(--primary));
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: var(--text-white);
+  box-shadow: var(--shadow-md);
+}
+
+.glass-button-primary:hover {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ============================================
+   Tab Navigation
+============================================ */
+
+.tab-button {
+  position: relative;
+  padding: 1rem 1.5rem;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+}
+
+.tab-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.tab-button.border-blue-600 {
+  background: var(--glass-white);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 3px solid var(--primary);
+  color: var(--primary);
+  border-radius: 12px 12px 0 0;
+}
+
+/* ============================================
+   Cards & Containers
+============================================ */
+
+.bg-white,
+.rounded-lg.shadow-lg {
+  background: var(--glass-white) !important;
+  backdrop-filter: blur(40px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+  border: 2px solid var(--glass-border) !important;
+  border-radius: 24px !important;
+  box-shadow: var(--shadow-glass),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Gradient cards - 기본 (보라색 - 총 자산) */
+.bg-gradient-to-br.from-purple-500 {
+  background: linear-gradient(135deg, rgba(180, 167, 214, 0.75), rgba(148, 136, 186, 0.85)) !important;
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border: 2px solid rgba(180, 167, 214, 0.5) !important;
+  box-shadow: var(--shadow-lg),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  color: white !important;
+}
+
+/* 파란색 카드 (수입) */
+.bg-gradient-to-br.from-blue-500 {
+  background: linear-gradient(135deg, rgba(156, 173, 206, 0.75), rgba(123, 143, 176, 0.85)) !important;
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border: 2px solid rgba(156, 173, 206, 0.5) !important;
+  box-shadow: var(--shadow-lg),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  color: white !important;
+}
+
+/* 빨간색 카드 (지출) */
+.bg-gradient-to-br.from-red-500 {
+  background: linear-gradient(135deg, rgba(232, 180, 184, 0.75), rgba(208, 148, 152, 0.85)) !important;
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border: 2px solid rgba(232, 180, 184, 0.5) !important;
+  box-shadow: var(--shadow-lg),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  color: white !important;
+}
+
+/* 초록색 카드 (저축) */
+.bg-gradient-to-br.from-green-500 {
+  background: linear-gradient(135deg, rgba(168, 218, 220, 0.75), rgba(134, 198, 200, 0.85)) !important;
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border: 2px solid rgba(168, 218, 220, 0.5) !important;
+  box-shadow: var(--shadow-lg),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  color: white !important;
+}
+
+/* 그라디언트 카드 내부 텍스트 - 흰색 강제 + 그림자로 가독성 확보 */
+.bg-gradient-to-br * {
+  color: white !important;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* 특히 작은 텍스트들 */
+.bg-gradient-to-br .text-purple-100,
+.bg-gradient-to-br .text-purple-200,
+.bg-gradient-to-br .text-blue-100,
+.bg-gradient-to-br .text-blue-200,
+.bg-gradient-to-br .text-red-100,
+.bg-gradient-to-br .text-red-200,
+.bg-gradient-to-br .text-green-100,
+.bg-gradient-to-br .text-green-200 {
+  color: rgba(255, 255, 255, 0.95) !important;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  font-weight: 500;
+}
+
+/* 큰 숫자들 */
+.bg-gradient-to-br .text-3xl {
+  color: white !important;
+  text-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+  font-weight: 700;
+}
+
+/* 텍스트 색상 명확하게 */
+.text-gray-800,
+.text-gray-700,
+.text-gray-600 {
+  color: var(--text-primary) !important;
+}
+
+.text-gray-500,
+.text-gray-400 {
+  color: var(--text-secondary) !important;
+}
+
+/* 흰색 배경 카드 내부 텍스트 */
+.bg-white .text-white,
+.rounded-lg .text-white {
+  color: var(--text-primary) !important;
+}
+
+/* h1, h2, h3 텍스트 */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary) !important;
+}
+
+/* ============================================
+   Buttons
+============================================ */
+
+.bg-blue-600 {
+  background: linear-gradient(135deg, rgba(201, 173, 167, 0.85), rgba(168, 143, 137, 0.9)) !important; /* Rose Quartz */
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 2px solid rgba(201, 173, 167, 0.6) !important;
+  box-shadow: var(--shadow-md),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: all 0.3s ease;
+  color: white !important;
+}
+
+.bg-blue-600:hover {
+  background: linear-gradient(135deg, rgba(201, 173, 167, 0.95), rgba(168, 143, 137, 1)) !important;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.bg-green-600 {
+  background: linear-gradient(135deg, rgba(168, 218, 220, 0.85), rgba(134, 198, 200, 0.9)) !important;
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 2px solid rgba(168, 218, 220, 0.6) !important;
+  box-shadow: var(--shadow-md),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  color: var(--text-primary) !important;
+}
+
+.bg-red-600 {
+  background: linear-gradient(135deg, rgba(232, 180, 184, 0.85), rgba(208, 148, 152, 0.9)) !important; /* Dusty Rose */
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 2px solid rgba(232, 180, 184, 0.6) !important;
+  box-shadow: var(--shadow-md),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  color: var(--text-primary) !important;
+}
+
+/* Soft color buttons with better contrast */
+.bg-blue-100 {
+  background: rgba(156, 173, 206, 0.3) !important;
+  color: #5A6B8C !important;
+  border: 1px solid var(--secondary-light);
+}
+
+.bg-blue-700 {
+  background: var(--secondary) !important;
+  color: var(--text-white) !important;
+}
+
+.bg-green-100 {
+  background: rgba(168, 218, 220, 0.3) !important;
+  color: #5B8F90 !important;
+  border: 1px solid var(--success);
+}
+
+.bg-green-700 {
+  background: var(--success) !important;
+  color: var(--text-primary) !important;
+}
+
+.bg-red-100 {
+  background: rgba(232, 180, 184, 0.3) !important;
+  color: #A86A6E !important;
+  border: 1px solid var(--danger);
+}
+
+.bg-red-700 {
+  background: var(--danger) !important;
+  color: var(--text-primary) !important;
+}
+
+.bg-yellow-100 {
+  background: rgba(241, 198, 160, 0.3) !important;
+  color: #B08860 !important;
+  border: 1px solid var(--warning);
+}
+
+.bg-purple-100 {
+  background: rgba(180, 167, 214, 0.3) !important;
+  color: #7B6FA0 !important;
+  border: 1px solid var(--accent);
+}
+
+/* ============================================
+   Forms
+============================================ */
+
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="time"],
+textarea,
+select {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 2px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  color: var(--text-primary) !important;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: rgba(255, 255, 255, 1) !important;
+  box-shadow: 0 0 0 4px rgba(255, 138, 91, 0.2);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-secondary) !important;
+  opacity: 0.7;
+}
+
+/* 폼 레이블 텍스트 색상 강제 */
+label,
+label * {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+}
+
+/* 일반 텍스트 색상 보장 */
+p, span, div {
+  color: inherit;
+}
+
+/* 특정 텍스트 클래스 색상 강제 */
+.text-gray-700,
+.text-gray-600,
+.text-gray-800 {
+  color: var(--text-primary) !important;
+}
+
+/* ============================================
+   Modals
+============================================ */
+
+.fixed.inset-0.bg-black {
+  background: rgba(0, 0, 0, 0.4) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Modal content glass effect */
+.fixed .bg-white {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(40px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+  border: 2px solid rgba(255, 255, 255, 0.5) !important;
+}
+
+/* ============================================
+   Calendar & Stats
+============================================ */
+
+/* 달력 외곽선 글래스모피즘 - 강화된 유리 질감 */
+.border-gray-300,
+table.w-full.border-collapse {
+  border: 3px solid rgba(255, 255, 255, 0.6) !important; /* 흰색 테두리 */
+  background: var(--glass-white);
+  backdrop-filter: blur(50px) saturate(200%); /* 더 강한 블러 */
+  -webkit-backdrop-filter: blur(50px) saturate(200%);
+  border-radius: 20px !important;
+  overflow: hidden;
+  box-shadow: 
+    0 12px 48px rgba(0, 0, 0, 0.15),  /* 외부 그림자 강화 */
+    0 8px 24px rgba(0, 0, 0, 0.1),
+    inset 0 2px 4px rgba(255, 255, 255, 0.5),  /* 내부 하이라이트 */
+    inset 0 -2px 4px rgba(0, 0, 0, 0.05);  /* 내부 깊이감 */
+}
+
+/* 달력 셀 외곽선 - 흰색 + 강한 그림자 */
+.calendar-cell-compact,
+td.border {
+  border: 2px solid rgba(255, 255, 255, 0.5) !important; /* 흰색 구분선 */
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  box-shadow: 
+    inset 0 1px 2px rgba(255, 255, 255, 0.3),  /* 내부 하이라이트 */
+    inset 0 -1px 2px rgba(0, 0, 0, 0.05);  /* 내부 그림자 */
+  transition: all 0.3s ease;
+}
+
+.calendar-cell-compact:hover,
+td.border:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.7) !important;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.1),  /* 호버 시 떠오르는 효과 */
+    inset 0 2px 4px rgba(255, 255, 255, 0.4),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+/* 달력 헤더 (요일) - 유리 질감 강화 */
+thead th {
+  background: rgba(255, 255, 255, 0.25) !important;
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border-bottom: 3px solid rgba(255, 255, 255, 0.6) !important;
+  color: var(--text-primary) !important;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* 상단 통계 카드들 (지출/수입/잔액) - 연한 색감 + 글래스모피즘 */
+.bg-blue-50,
+.bg-green-50,
+.bg-purple-50,
+.bg-gray-50 {
+  background: rgba(156, 173, 206, 0.15) !important; /* Serenity Blue 15% */
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  border: 2px solid rgba(156, 173, 206, 0.4) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--shadow-glass),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.bg-blue-50:hover,
+.bg-green-50:hover,
+.bg-purple-50:hover,
+.bg-gray-50:hover {
+  background: rgba(156, 173, 206, 0.25) !important;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 통계 카드 텍스트 색상 */
+.bg-blue-50 *,
+.bg-green-50 *,
+.bg-purple-50 *,
+.bg-gray-50 * {
+  color: var(--text-primary) !important;
+}
+
+/* 거래 내역 리스트 글래스모피즘 */
+.bg-gray-50.rounded.hover\:bg-gray-100,
+div.p-3.bg-gray-50.rounded {
+  background: rgba(255, 255, 255, 0.15) !important;
+  backdrop-filter: blur(25px) saturate(150%);
+  -webkit-backdrop-filter: blur(25px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.bg-gray-50.rounded.hover\:bg-gray-100:hover,
+div.p-3.bg-gray-50.rounded:hover {
+  background: rgba(255, 255, 255, 0.25) !important;
+  transform: translateX(4px);
+  box-shadow: var(--shadow-md);
+}
+
+/* 화살표 버튼 - 밝은 파란색 글래스모피즘 */
+button[onclick*="changeMonth"],
+button[onclick*="prevMonth"],
+button[onclick*="nextMonth"],
+button[onclick*="changeWeek"],
+.bg-gray-200 {
+  background: linear-gradient(135deg, rgba(156, 173, 206, 0.7), rgba(123, 143, 176, 0.8)) !important; /* Serenity Blue */
+  backdrop-filter: blur(25px) saturate(160%);
+  -webkit-backdrop-filter: blur(25px) saturate(160%);
+  border: 2px solid rgba(156, 173, 206, 0.6) !important;
+  border-radius: 12px !important;
+  color: white !important;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 
+    0 4px 12px rgba(156, 173, 206, 0.3),
+    inset 0 1px 2px rgba(255, 255, 255, 0.4);
+  transition: all 0.3s ease;
+}
+
+button[onclick*="changeMonth"]:hover,
+button[onclick*="prevMonth"]:hover,
+button[onclick*="nextMonth"]:hover,
+button[onclick*="changeWeek"]:hover,
+.bg-gray-200:hover {
+  background: linear-gradient(135deg, rgba(156, 173, 206, 0.85), rgba(123, 143, 176, 0.95)) !important;
+  transform: translateY(-2px) scale(1.08);
+  box-shadow: 
+    0 6px 18px rgba(156, 173, 206, 0.4),
+    inset 0 2px 4px rgba(255, 255, 255, 0.5);
+  border-color: rgba(156, 173, 206, 0.8) !important;
+}
+
+/* 거래 추가 버튼 및 아이콘 버튼들 글래스모피즘 + 색상 유지 */
+button[onclick*="openTransactionModal"],
+button[onclick*="Modal"],
+.fa-plus,
+.fa-edit,
+.fa-trash {
+  transition: all 0.3s ease;
+}
+
+/* 초록색 추가 버튼 (글래스모피즘 + 색상) */
+.bg-green-500,
+.bg-green-600 {
+  background: linear-gradient(135deg, rgba(168, 218, 220, 0.85), rgba(134, 198, 200, 0.9)) !important; /* Mint Cream */
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 2px solid rgba(168, 218, 220, 0.6) !important;
+  box-shadow: var(--shadow-md),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  color: var(--text-primary) !important;
+  font-weight: 600;
+}
+
+.bg-green-500:hover,
+.bg-green-600:hover {
+  background: linear-gradient(135deg, rgba(168, 218, 220, 0.95), rgba(134, 198, 200, 1)) !important;
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 파란색 버튼 (글래스모피즘 + 색상) */
+.bg-blue-500 {
+  background: linear-gradient(135deg, rgba(156, 173, 206, 0.85), rgba(123, 143, 176, 0.9)) !important; /* Serenity Blue */
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 2px solid rgba(156, 173, 206, 0.6) !important;
+  box-shadow: var(--shadow-md),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  color: white !important;
+  font-weight: 600;
+}
+
+.bg-blue-500:hover {
+  background: linear-gradient(135deg, rgba(156, 173, 206, 0.95), rgba(123, 143, 176, 1)) !important;
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 보라색 버튼 (글래스모피즘 + 색상) */
+.bg-purple-500,
+.bg-purple-600 {
+  background: linear-gradient(135deg, rgba(180, 167, 214, 0.85), rgba(148, 136, 186, 0.9)) !important; /* Lavender Gray */
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 2px solid rgba(180, 167, 214, 0.6) !important;
+  box-shadow: var(--shadow-md),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  color: white !important;
+  font-weight: 600;
+}
+
+.bg-purple-500:hover,
+.bg-purple-600:hover {
+  background: linear-gradient(135deg, rgba(180, 167, 214, 0.95), rgba(148, 136, 186, 1)) !important;
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 주황색 버튼 (글래스모피즘 + 색상) */
+.bg-orange-500,
+.bg-orange-600 {
+  background: linear-gradient(135deg, rgba(241, 198, 160, 0.85), rgba(225, 178, 138, 0.9)) !important; /* Apricot Cream */
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 2px solid rgba(241, 198, 160, 0.6) !important;
+  box-shadow: var(--shadow-md),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  color: var(--text-primary) !important;
+  font-weight: 600;
+}
+
+.bg-orange-500:hover,
+.bg-orange-600:hover {
+  background: linear-gradient(135deg, rgba(241, 198, 160, 0.95), rgba(225, 178, 138, 1)) !important;
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 달력 크기 복구 */
+.calendar-cell-compact {
+  height: 80px !important;
+  min-height: 80px !important;
+  position: relative;
+  padding: 8px !important;
+}
+
+.calendar-day-number {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  line-height: 1;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.calendar-dots-container {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+}
+
+.calendar-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: block;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.calendar-dot.income {
+  background: var(--secondary);
+}
+
+.calendar-dot.expense {
+  background: var(--danger);
+}
+
+.calendar-dot.savings {
+  background: var(--success);
+}
+
+/* ============================================
+   Budget Progress Indicators
+============================================ */
+
+/* 예산 진행률 표시 점 위치 조정 */
+.text-xs.ml-2.px-2.py-1.rounded {
+  position: relative;
+  top: -2px;  /* 약간 위로 */
+  left: 4px;  /* 약간 오른쪽으로 (대각선) */
+  display: inline-block;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+/* ============================================
+   Animations
+============================================ */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes glassShine {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.slide-in {
+  animation: slideIn 0.5s ease-out;
+}
+
+/* Glass shine effect */
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s ease;
+}
+
+.glass-card:hover::before {
+  left: 100%;
+}
+
+/* ============================================
+   Scrollbar
+============================================ */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-dark);
+}
+
+/* ============================================
+   Hover Effects
+============================================ */
+
+.hover\:shadow-lg:hover {
+  box-shadow: var(--shadow-lg) !important;
+  transform: translateY(-4px);
+  transition: all 0.3s ease;
+}
+
+.hover\:shadow-md:hover {
+  box-shadow: var(--shadow-md) !important;
+  transform: translateY(-2px);
+  transition: all 0.3s ease;
+}
+
+/* ============================================
+   Responsive Design
+============================================ */
+
+@media (max-width: 640px) {
+  body {
+    font-size: 13px;
+  }
+  
+  h1 {
+    font-size: 1.25rem !important;
+  }
+  
+  h2 {
+    font-size: 1.125rem !important;
+  }
+  
+  h3 {
+    font-size: 1rem !important;
+  }
+  
+  .container {
+    padding: 0.5rem !important;
+  }
+  
+  .bg-white,
+  .bg-gray-50,
+  .rounded-lg {
+    padding: 1rem !important;
+    border-radius: 16px !important;
+  }
+  
+  .tab-button {
+    font-size: 0.75rem;
+    padding: 0.75rem 1rem;
+  }
+  
+  .text-3xl {
+    font-size: 1.5rem !important;
+  }
+  
+  .text-2xl {
+    font-size: 1.25rem !important;
+  }
+  
+  .text-xl {
+    font-size: 1.125rem !important;
+  }
+  
+  input,
+  select,
+  textarea {
+    font-size: 16px !important; /* iOS zoom 방지 */
+  }
+  
+  nav.flex {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  
+  nav.flex::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  body {
+    font-size: 14px;
+  }
+  
+  .container {
+    padding: 1rem !important;
+  }
+  
+  .text-3xl {
+    font-size: 1.75rem !important;
+  }
+  
+  .text-2xl {
+    font-size: 1.5rem !important;
+  }
+}
+
+@media (min-width: 1025px) {
+  body {
+    font-size: 15px;
+  }
+  
+  .container {
+    max-width: 1280px !important;
+    margin: 0 auto !important;
+  }
+}
+
+/* ============================================
+   Safe Area (iPhone Notch)
+============================================ */
+
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+}
+
+/* ============================================
+   Touch Device Optimization
+============================================ */
+
+@media (hover: none) and (pointer: coarse) {
+  button,
+  a,
+  input[type="button"],
+  input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .hover\:shadow-lg:hover,
+  .hover\:shadow-md:hover {
+    box-shadow: var(--shadow-md) !important;
+    transform: none;
+  }
+  
+  .tab-button:hover {
+    background: transparent;
+  }
+}
+
+/* ============================================
+   Dark Mode Adjustments
+============================================ */
+
+.dark body {
+  background: var(--bg-gradient);
+}
+
+/* 다크모드 글래스 카드 */
+.dark .bg-white,
+.dark .rounded-lg.shadow-lg {
+  background: var(--glass-white) !important;
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 2px solid var(--glass-border) !important;
+  box-shadow: var(--shadow-glass),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  color: var(--text-primary);
+}
+
+/* 다크모드 그라디언트 카드 - 더 어두운 투명도 */
+.dark .bg-gradient-to-br.from-purple-500 {
+  background: linear-gradient(135deg, rgba(180, 167, 214, 0.4), rgba(148, 136, 186, 0.5)) !important;
+  border-color: rgba(180, 167, 214, 0.3) !important;
+}
+
+.dark .bg-gradient-to-br.from-blue-500 {
+  background: linear-gradient(135deg, rgba(156, 173, 206, 0.4), rgba(123, 143, 176, 0.5)) !important;
+  border-color: rgba(156, 173, 206, 0.3) !important;
+}
+
+.dark .bg-gradient-to-br.from-red-500 {
+  background: linear-gradient(135deg, rgba(232, 180, 184, 0.4), rgba(208, 148, 152, 0.5)) !important;
+  border-color: rgba(232, 180, 184, 0.3) !important;
+}
+
+.dark .bg-gradient-to-br.from-green-500 {
+  background: linear-gradient(135deg, rgba(168, 218, 220, 0.4), rgba(134, 198, 200, 0.5)) !important;
+  border-color: rgba(168, 218, 220, 0.3) !important;
+}
+
+/* 다크모드 텍스트 색상 */
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6 {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-gray-800,
+.dark .text-gray-700,
+.dark .text-gray-600 {
+  color: var(--text-primary) !important;
+}
+
+.dark .text-gray-500,
+.dark .text-gray-400 {
+  color: var(--text-secondary) !important;
+}
+
+/* 다크모드 인풋 */
+.dark input,
+.dark textarea,
+.dark select {
+  background: rgba(50, 55, 70, 0.7) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--glass-border) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--text-secondary) !important;
+}
+
+/* 다크모드 버튼 - 밝은 파란색 */
+.dark button[onclick*="changeMonth"],
+.dark button[onclick*="changeWeek"],
+.dark .bg-gray-200 {
+  background: linear-gradient(135deg, rgba(156, 173, 206, 0.5), rgba(123, 143, 176, 0.6)) !important;
+  backdrop-filter: blur(25px) saturate(160%);
+  -webkit-backdrop-filter: blur(25px) saturate(160%);
+  border-color: rgba(156, 173, 206, 0.4) !important;
+  color: white !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+.dark button[onclick*="changeMonth"]:hover,
+.dark button[onclick*="changeWeek"]:hover,
+.dark .bg-gray-200:hover {
+  background: linear-gradient(135deg, rgba(156, 173, 206, 0.65), rgba(123, 143, 176, 0.75)) !important;
+  border-color: rgba(156, 173, 206, 0.5) !important;
+  box-shadow: 
+    0 6px 18px rgba(0, 0, 0, 0.5),
+    inset 0 2px 4px rgba(255, 255, 255, 0.3);
+}
+
+/* 다크모드 달력 */
+.dark .border-gray-300,
+.dark table.w-full.border-collapse {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  background: rgba(40, 45, 60, 0.5) !important;
+}
+
+.dark .calendar-cell-compact,
+.dark td.border {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  background: rgba(50, 55, 70, 0.3) !important;
+}
+
+.dark .calendar-cell-compact:hover,
+.dark td.border:hover {
+  background: rgba(60, 65, 80, 0.5) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* ============================================
+   Special Effects
+============================================ */
+
+/* Floating animation for cards */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.float-animation {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Pulse animation for important elements */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.pulse-animation {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
