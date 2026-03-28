@@ -1,3 +1,8 @@
+// ===== 디버그 로깅 헬퍼 (프로덕션에서는 비활성화) =====
+const DEBUG = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+const log = DEBUG ? console.log.bind(console) : () => {};
+const warn = DEBUG ? console.warn.bind(console) : () => {};
+
 // ===== Google OAuth 기능 상태 체크 (전역 변수) =====
 let GOOGLE_OAUTH_ENABLED = false;
 
@@ -7,12 +12,32 @@ let GOOGLE_OAUTH_ENABLED = false;
     const response = await fetch('/api/auth/google', { method: 'HEAD' });
     // 200 또는 302 = 활성화됨, 다른 상태 = 비활성화됨
     GOOGLE_OAUTH_ENABLED = (response.status === 200 || response.status === 302);
-    console.log('[OAuth] Google OAuth enabled:', GOOGLE_OAUTH_ENABLED);
+    log('[OAuth] Google OAuth enabled:', GOOGLE_OAUTH_ENABLED);
   } catch (error) {
-    console.log('[OAuth] Google OAuth disabled (fetch failed)');
+    log('[OAuth] Google OAuth disabled (fetch failed)');
     GOOGLE_OAUTH_ENABLED = false;
   }
 })();
+
+// ===== DOM 쿼리 캐싱 헬퍼 (성능 최적화) =====
+const DOMCache = {
+  cache: {},
+  get(id) {
+    if (!this.cache[id]) {
+      this.cache[id] = document.getElementById(id);
+    }
+    return this.cache[id];
+  },
+  query(selector) {
+    if (!this.cache[selector]) {
+      this.cache[selector] = document.querySelector(selector);
+    }
+    return this.cache[selector];
+  },
+  clear() {
+    this.cache = {};
+  }
+};
 
 // ===== 앱 초기 부팅 시 세션 ID 생성 및 axios에 장착 =====
 (function initializeSession() {
@@ -20,7 +45,7 @@ let GOOGLE_OAUTH_ENABLED = false;
   const authToken = localStorage.getItem('auth_token');
   if (authToken) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
-    console.log('[Session] Google OAuth token loaded');
+    log('[Session] Google OAuth token loaded');
     return;
   }
   
@@ -30,9 +55,9 @@ let GOOGLE_OAUTH_ENABLED = false;
     // UUID 형식의 고유 ID 생성
     sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
     localStorage.setItem('sessionId', sessionId);
-    console.log('[Session] New session created:', sessionId);
+    log('[Session] New session created:', sessionId);
   } else {
-    console.log('[Session] Existing session loaded:', sessionId);
+    log('[Session] Existing session loaded:', sessionId);
   }
   
   // 3. axios 기본 헤더에 세션 ID 설정
@@ -403,12 +428,12 @@ function validateInvestmentPrice(price) {
 // 인증 관련 함수
 
 function setAuthToken(accessToken, refreshToken) {
-  console.log('[Auth] Setting tokens - Access:', accessToken?.substring(0, 20) + '...', 'Refresh:', refreshToken?.substring(0, 20) + '...');
+  log('[Auth] Setting tokens - Access:', accessToken?.substring(0, 20) + '...', 'Refresh:', refreshToken?.substring(0, 20) + '...');
   state.authToken = accessToken;
   localStorage.setItem('authToken', accessToken);
   localStorage.setItem('refreshToken', refreshToken);
   axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-  console.log('[Auth] Tokens set successfully');
+  log('[Auth] Tokens set successfully');
 }
 
 function clearAuthToken() {
@@ -455,7 +480,7 @@ axios.interceptors.response.use(
     
     // 401 인증 오류 - 로그아웃
     if (status === 401) {
-      console.warn('[Auth] 401 Unauthorized - 토큰 만료, 로그아웃 처리');
+      warn('[Auth] 401 Unauthorized - 토큰 만료, 로그아웃 처리');
       localStorage.removeItem('authToken');
       delete axios.defaults.headers.common['Authorization'];
       
@@ -471,7 +496,7 @@ axios.interceptors.response.use(
     
     // 403 권한 오류
     if (status === 403) {
-      console.warn('[Auth] 403 Forbidden - 권한 없음');
+      warn('[Auth] 403 Forbidden - 권한 없음');
       alert('이 작업을 수행할 권한이 없습니다.');
       return Promise.reject(error);
     }
@@ -7971,22 +7996,22 @@ async function checkLoginStatus() {
     if (userNameEl) userNameEl.textContent = userName || userEmail.split('@')[0];
     if (userEmailEl) userEmailEl.textContent = userEmail;
     
-    console.log('[Auth] User logged in:', userEmail);
+    log('[Auth] User logged in:', userEmail);
     
     // 선택사항: 서버에서 사용자 정보 재확인
     try {
       const response = await axios.get('/api/auth/me');
       if (response.data.success && response.data.user) {
-        console.log('[Auth] User verified:', response.data.user);
+        log('[Auth] User verified:', response.data.user);
       }
     } catch (error) {
-      console.warn('[Auth] Failed to verify user:', error);
+      warn('[Auth] Failed to verify user:', error);
     }
   } else {
     // 로그인 안 된 상태
     if (loginSection) loginSection.classList.remove('hidden');
     if (userInfoSection) userInfoSection.classList.add('hidden');
-    console.log('[Auth] User not logged in (Guest mode)');
+    log('[Auth] User not logged in (Guest mode)');
   }
 }
 
@@ -8008,13 +8033,13 @@ function setupLogoutHandler() {
         delete axios.defaults.headers.common['Authorization'];
       }
       
-      console.log('[Auth] User logged out');
+      log('[Auth] User logged out');
       
       // 서버에 로그아웃 알림 (선택사항)
       try {
         await axios.post('/api/auth/logout');
       } catch (error) {
-        console.warn('[Auth] Logout API failed:', error);
+        warn('[Auth] Logout API failed:', error);
       }
       
       // UI 업데이트 및 페이지 새로고침

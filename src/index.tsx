@@ -20,7 +20,7 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
-// 메모리 캐시 (Yahoo Finance 주가용 - 60초)
+// 메모리 캐시 (Yahoo Finance 주가용 - 60초, 사용자 설정용 - 300초)
 interface CacheEntry {
   data: any;
   expiry: number;
@@ -45,6 +45,25 @@ function setCache(key: string, data: any, ttlSeconds: number = 60): void {
     data,
     expiry: Date.now() + (ttlSeconds * 1000)
   })
+}
+
+function invalidateCache(pattern: string): void {
+  for (const key of memoryCache.keys()) {
+    if (key.includes(pattern)) {
+      memoryCache.delete(key)
+    }
+  }
+}
+
+// 배치 쿼리 최적화 헬퍼
+async function batchQuery<T>(
+  DB: D1Database, 
+  queries: Array<{ sql: string; params: any[] }>
+): Promise<T[]> {
+  const results = await Promise.all(
+    queries.map(q => DB.prepare(q.sql).bind(...q.params).all())
+  )
+  return results.map(r => r.results).flat() as T[]
 }
 
 // 월별 통계 요약 재계산 (성능 최적화)
@@ -1247,6 +1266,13 @@ app.get('/api/settings', authMiddleware, async (c) => {
   const { DB } = c.env
   const userId = c.get('userId')
   
+  // 캐시 확인 (5분)
+  const cacheKey = `settings:${userId}`
+  const cached = getCached(cacheKey)
+  if (cached) {
+    return c.json({ success: true, data: cached })
+  }
+  
   let result = await DB.prepare(`
     SELECT * FROM settings WHERE user_id = ?
   `).bind(userId?.toString()).first()
@@ -1263,6 +1289,9 @@ app.get('/api/settings', authMiddleware, async (c) => {
     `).bind(userId?.toString()).first()
   }
   
+  // 캐시 저장 (5분)
+  setCache(cacheKey, result, 300)
+  
   return c.json({ success: true, data: result })
 })
 
@@ -1271,6 +1300,9 @@ app.put('/api/settings', authMiddleware, async (c) => {
   const { DB } = c.env
   const userId = c.get('userId')
   const { currency, initial_balance, cash_on_hand, category_colors } = await c.req.json()
+  
+  // 캐시 무효화
+  invalidateCache(`settings:${userId}`)
   
   // 설정이 없으면 생성
   const existing = await DB.prepare(`SELECT id FROM settings WHERE user_id = ?`).bind(userId?.toString()).first()
